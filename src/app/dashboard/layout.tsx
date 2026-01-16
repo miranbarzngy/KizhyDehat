@@ -1,0 +1,160 @@
+'use client'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+
+const menuItems = [
+  { name: 'داشبۆرد', href: '/dashboard', icon: '📊' },
+  { name: 'فرۆشتن', href: '/dashboard/sales', icon: '💰', permission: 'sales' },
+  { name: 'کۆگا', href: '/dashboard/inventory', icon: '📦', permission: 'inventory' },
+  { name: 'کڕیاران', href: '/dashboard/customers', icon: '👥', permission: 'customers' },
+  { name: 'دابینکەران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
+  { name: 'مووچە', href: '/dashboard/payroll', icon: '💼', permission: 'payroll' },
+  { name: 'قازانج', href: '/dashboard/profits', icon: '📈', permission: 'profits' },
+  { name: 'یارمەتی', href: '/dashboard/help', icon: '❓', adminOnly: true },
+  { name: 'بەڕێوەبەران', href: '/dashboard/admin', icon: '⚙️', adminOnly: true },
+]
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { user, profile, loading, signOut } = useAuth()
+  const router = useRouter()
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallButton, setShowInstallButton] = useState(false)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [user, loading, router])
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallButton(true)
+    }
+
+    const handleAppInstalled = () => {
+      setShowInstallButton(false)
+      setDeferredPrompt(null)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallButton(false)
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return
+
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null)
+      setShowInstallButton(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  // Temporary fix: if role is undefined, assume admin permissions
+  const permissions = profile?.role?.permissions || {
+    sales: true,
+    inventory: true,
+    customers: true,
+    suppliers: true,
+    payroll: true,
+    profits: true
+  }
+  const isAdmin = (profile?.role?.name === 'Admin') || !profile?.role // If no role loaded, assume admin
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.adminOnly) return isAdmin
+    if (item.permission) return permissions[item.permission]
+    return true
+  })
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-64 bg-white shadow-lg">
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-gray-900">POS سیستەم</h1>
+            <p className="text-sm text-gray-600 mt-1">{profile?.role?.name}</p>
+          </div>
+          <nav className="mt-6">
+            <div className="px-3">
+              {filteredMenuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <span className="mr-3">{item.icon}</span>
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </nav>
+          <div className="absolute bottom-0 w-64 p-4 space-y-2">
+            {showInstallButton && (
+              <button
+                onClick={handleInstallClick}
+                className="w-full flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                <span className="mr-3">📱</span>
+                دامەزراندنی ئەپ
+              </button>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
+            >
+              <span className="mr-3">🚪</span>
+              دەرچوون
+            </button>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1">
+          <main className="p-8">
+            {children}
+          </main>
+        </div>
+      </div>
+    </div>
+  )
+}

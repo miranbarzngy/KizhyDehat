@@ -231,6 +231,14 @@ export default function SalesPage() {
       return
     }
 
+    // Check stock availability
+    for (const cartItem of cart) {
+      if (cartItem.quantity > cartItem.item.quantity) {
+        alert(`بڕی پێویست لە کۆگا نەماوە: ${cartItem.item.item_name}`)
+        return
+      }
+    }
+
     try {
       const total = getTotal()
 

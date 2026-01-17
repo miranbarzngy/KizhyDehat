@@ -11,7 +11,7 @@ const menuItems = [
   { name: 'کۆگا', href: '/dashboard/inventory', icon: '📦', permission: 'inventory' },
   { name: 'کڕیاران', href: '/dashboard/customers', icon: '👥', permission: 'customers' },
   { name: 'دابینکەران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
-  { name: 'مووچە', href: '/dashboard/payroll', icon: '💼', permission: 'payroll' },
+  { name: 'خەرجییەکان', href: '/dashboard/expenses', icon: '💸', permission: 'expenses' },
   { name: 'قازانج', href: '/dashboard/profits', icon: '📈', permission: 'profits' },
   { name: 'یارمەتی', href: '/dashboard/help', icon: '❓', adminOnly: true },
   { name: 'بەڕێوەبەران', href: '/dashboard/admin', icon: '⚙️', adminOnly: true },
@@ -84,11 +84,15 @@ export default function DashboardLayout({
   }
 
   // Temporary fix: if role is undefined, assume admin permissions
-  const permissions = profile?.role?.permissions || {
+  const permissions = profile?.role?.permissions ? {
+    ...profile.role.permissions,
+    expenses: true // Always allow expenses access
+  } : {
     sales: true,
     inventory: true,
     customers: true,
     suppliers: true,
+    expenses: true,
     payroll: true,
     profits: true
   }
@@ -96,7 +100,7 @@ export default function DashboardLayout({
 
   const filteredMenuItems = menuItems.filter(item => {
     if (item.adminOnly) return isAdmin
-    if (item.permission) return permissions[item.permission]
+    if (item.permission) return permissions[item.permission as keyof typeof permissions]
     return true
   })
 
@@ -111,7 +115,7 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <div className="w-64 bg-white shadow-lg">
           <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900">POS سیستەم</h1>
+            <h1 className="text-2xl font-bold text-gray-900">سیستمی فرۆشتن</h1>
             <p className="text-sm text-gray-600 mt-1">{profile?.role?.name}</p>
           </div>
           <nav className="mt-6">
@@ -120,10 +124,10 @@ export default function DashboardLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
+                  className="flex flex-col items-center justify-center px-3 py-4 text-base font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
                 >
-                  <span className="mr-3">{item.icon}</span>
-                  {item.name}
+                  <span className="text-2xl mb-2">{item.icon}</span>
+                  <span className="text-center text-xs">{item.name}</span>
                 </Link>
               ))}
             </div>

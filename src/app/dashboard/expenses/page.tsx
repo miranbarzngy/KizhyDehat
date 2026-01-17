@@ -1,52 +1,49 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface Expense {
   id: string
-  description: string
+  name: string
+  unit: string
   amount: number
+  image: string
+  note: string
   date: string
-  category: string
 }
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddExpense, setShowAddExpense] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [newExpense, setNewExpense] = useState({
-    description: '',
+    name: '',
+    unit: 'دانە',
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
-    category: ''
+    image: '',
+    note: ''
   })
-  const [filterCategory, setFilterCategory] = useState('')
-  const [filterDateFrom, setFilterDateFrom] = useState('')
-  const [filterDateTo, setFilterDateTo] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchExpenses()
-  }, [filterCategory, filterDateFrom, filterDateTo])
+  }, [])
 
   const fetchExpenses = async () => {
+    if (!supabase) {
+      setExpenses([])
+      setLoading(false)
+      return
+    }
+
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('expenses')
         .select('*')
         .order('date', { ascending: false })
-
-      if (filterCategory) {
-        query = query.eq('category', filterCategory)
-      }
-      if (filterDateFrom) {
-        query = query.gte('date', filterDateFrom)
-      }
-      if (filterDateTo) {
-        query = query.lte('date', filterDateTo)
-      }
-
-      const { data, error } = await query
 
       if (error) throw error
       setExpenses(data || [])
@@ -57,26 +54,65 @@ export default function ExpensesPage() {
     }
   }
 
+  const handleImageUpload = async (file: File) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}.${fileExt}`
+      const filePath = `expenses/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath)
+
+      setNewExpense(prev => ({ ...prev, image: data.publicUrl }))
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert('Error uploading image')
+    }
+  }
+
   const addExpense = async () => {
-    if (!newExpense.description || newExpense.amount <= 0 || !newExpense.category) {
-      alert('تکایە هەموو زانیارییەکان پڕبکەرەوە')
+    if (!newExpense.name || newExpense.amount <= 0) {
+      alert('تکایە ناو و بڕ پڕبکەرەوە')
+      return
+    }
+
+    if (!supabase) {
+      alert('Supabase not configured')
       return
     }
 
     try {
       const { error } = await supabase
         .from('expenses')
-        .insert(newExpense)
+        .insert({
+          ...newExpense,
+          date: new Date().toISOString().split('T')[0]
+        })
 
       if (error) throw error
 
-      setShowAddExpense(false)
       setNewExpense({
-        description: '',
+        name: '',
+        unit: 'دانە',
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
-        category: ''
+        image: '',
+        note: ''
       })
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       fetchExpenses()
     } catch (error) {
       console.error('Error adding expense:', error)
@@ -88,166 +124,459 @@ export default function ExpensesPage() {
     return expenses.reduce((sum, expense) => sum + expense.amount, 0)
   }
 
-  const getUniqueCategories = () => {
-    return [...new Set(expenses.map(e => e.category))]
+  const openImageModal = (imageUrl: string) => {
+    setSelectedImage(imageUrl)
+  }
+
+  const closeImageModal = () => {
+    setSelectedImage(null)
+  }
+
+  const startEdit = (expense: Expense) => {
+    setEditingExpense(expense)
+    setNewExpense({
+      name: expense.name,
+      unit: expense.unit,
+      amount: expense.amount,
+      image: expense.image,
+      note: expense.note
+    })
+  }
+
+  const cancelEdit = () => {
+    setEditingExpense(null)
+    setNewExpense({
+      name: '',
+      unit: 'دانە',
+      amount: 0,
+      image: '',
+      note: ''
+    })
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const updateExpense = async () => {
+    if (!editingExpense || !newExpense.name || newExpense.amount <= 0) {
+      alert('تکایە ناو و بڕ پڕبکەرەوە')
+      return
+    }
+
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          name: newExpense.name,
+          unit: newExpense.unit,
+          amount: newExpense.amount,
+          image: newExpense.image,
+          note: newExpense.note
+        })
+        .eq('id', editingExpense.id)
+
+      if (error) throw error
+
+      setEditingExpense(null)
+      setNewExpense({
+        name: '',
+        unit: 'دانە',
+        amount: 0,
+        image: '',
+        note: ''
+      })
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      fetchExpenses()
+    } catch (error) {
+      console.error('Error updating expense:', error)
+      alert('Error updating expense')
+    }
+  }
+
+  const deleteExpense = async (id: string) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setShowDeleteConfirm(null)
+      fetchExpenses()
+    } catch (error) {
+      console.error('Error deleting expense:', error)
+      alert('Error deleting expense')
+    }
   }
 
   if (loading) {
-    return <div className="text-center">بارکردن...</div>
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">بەڕێوەبردنی خەرجییەکان</h1>
+      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+        بەڕێوەبردنی خەرجییەکان
+      </h1>
 
-      <div className="mb-6 flex justify-between items-center">
-        <button
-          onClick={() => setShowAddExpense(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-        >
-          زیادکردنی خەرجی
-        </button>
-        <div className="text-xl font-bold text-red-600">
-          کۆی خەرجییەکان: {getTotalExpenses().toFixed(2)} د.ع
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-        <div className="flex space-x-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">پۆل</label>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="border rounded px-3 py-2"
-            >
-              <option value="">هەموو</option>
-              {getUniqueCategories().map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">لە بەروار</label>
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              className="border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">بۆ بەروار</label>
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              className="border rounded px-3 py-2"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setFilterCategory('')
-                setFilterDateFrom('')
-                setFilterDateTo('')
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              پاککردنەوە
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Expenses List */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">لیستی خەرجییەکان</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2 text-right">بەروار</th>
-                <th className="px-4 py-2 text-right">پۆل</th>
-                <th className="px-4 py-2 text-right">وەسف</th>
-                <th className="px-4 py-2 text-right">بڕ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((expense) => (
-                <tr key={expense.id} className="border-t">
-                  <td className="px-4 py-2">{expense.date}</td>
-                  <td className="px-4 py-2">{expense.category}</td>
-                  <td className="px-4 py-2">{expense.description}</td>
-                  <td className="px-4 py-2 font-semibold">{expense.amount.toFixed(2)} د.ع</td>
-                </tr>
-              ))}
-              {expenses.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                    هیچ خەرجییەک نیە
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Add Expense Modal */}
-      {showAddExpense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-4">زیادکردنی خەرجی</h3>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="وەسف"
-                value={newExpense.description}
-                onChange={(e) => setNewExpense(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full border rounded px-3 py-2"
-              />
-              <input
-                type="number"
-                step="0.01"
-                placeholder="بڕ"
-                value={newExpense.amount}
-                onChange={(e) => setNewExpense(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                className="w-full border rounded px-3 py-2"
-              />
-              <input
-                type="date"
-                value={newExpense.date}
-                onChange={(e) => setNewExpense(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full border rounded px-3 py-2"
-              />
-              <select
-                value={newExpense.category}
-                onChange={(e) => setNewExpense(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">هەڵبژاردنی پۆل</option>
-                <option value="کرێ">کرێ</option>
-                <option value="کارەبا">کارەبا</option>
-                <option value="ئینتەرنێت">ئینتەرنێت</option>
-                <option value="گەنەراتۆر">گەنەراتۆر</option>
-                <option value="ترانسپۆرت">ترانسپۆرت</option>
-                <option value="ئەوانی تر">ئەوانی تر</option>
-              </select>
+      {/* Total Expenses Summary Card */}
+      <div className="mb-8">
+        <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
+          background: 'var(--theme-card-bg)',
+          border: '1px solid var(--theme-border)'
+        }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                کۆی خەرجییەکان
+              </h2>
+              <p className="text-sm accessible-secondary">لەم مانگەدا</p>
             </div>
-            <div className="flex justify-end space-x-2 mt-4">
+            <div className="text-right">
+              <p className="numerical-value text-red-600" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(getTotalExpenses())}</p>
+              <p className="text-sm accessible-secondary">د.ع</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Expense Form */}
+        <div className="lg:col-span-1">
+          <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
+            background: 'var(--theme-card-bg)',
+            border: '1px solid var(--theme-border)'
+          }}>
+            <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              {editingExpense ? 'دەستکاری خەرجی' : 'زیادکردنی خەرجی'}
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ناو
+                </label>
+                <input
+                  type="text"
+                  value={newExpense.name}
+                  onChange={(e) => setNewExpense(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border transition-colors"
+                  style={{
+                    background: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-primary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                  placeholder="ناوی کاڵا"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  یەکە
+                </label>
+                <select
+                  value={newExpense.unit}
+                  onChange={(e) => setNewExpense(prev => ({ ...prev, unit: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border transition-colors"
+                  style={{
+                    background: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-primary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  <option value="دانە">دانە</option>
+                  <option value="کیلۆ">کیلۆ</option>
+                  <option value="گرام">گرام</option>
+                  <option value="لیتر">لیتر</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  بڕ
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newExpense.amount}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0
+                    if (value >= 0) {
+                      setNewExpense(prev => ({ ...prev, amount: value }))
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border transition-colors"
+                  style={{
+                    background: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-primary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وێنە
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      handleImageUpload(file)
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium"
+                  style={{
+                    background: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-primary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                />
+                {newExpense.image && (
+                  <img
+                    src={newExpense.image}
+                    alt="Preview"
+                    className="mt-2 w-20 h-20 object-cover rounded-lg border"
+                    style={{ borderColor: 'var(--theme-border)' }}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  تێبینی
+                </label>
+                <textarea
+                  value={newExpense.note}
+                  onChange={(e) => setNewExpense(prev => ({ ...prev, note: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border transition-colors resize-none"
+                  style={{
+                    background: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-border)',
+                    color: 'var(--theme-primary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                  placeholder="تێبینی زیادە"
+                />
+              </div>
+
+              {editingExpense ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={updateExpense}
+                    className="flex-1 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                    style={{
+                      backgroundColor: 'var(--theme-accent)',
+                      color: '#ffffff',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    نوێکردنەوە
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="flex-1 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                    style={{
+                      backgroundColor: '#6b7280',
+                      color: '#ffffff',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    پاشگەزبوونەوە
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={addExpense}
+                  className="w-full py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{
+                    backgroundColor: 'var(--theme-accent)',
+                    color: '#ffffff',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  زیادکردنی خەرجی
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Expenses Table */}
+        <div className="lg:col-span-2">
+          <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
+            background: 'var(--theme-card-bg)',
+            border: '1px solid var(--theme-border)'
+          }}>
+            <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              لیستی خەرجییەکان
+            </h2>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--theme-border)' }}>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</th>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</th>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((expense) => (
+                    <tr key={expense.id} style={{ borderBottom: '1px solid var(--theme-border)' }}>
+                      <td className="px-4 py-3">
+                        {expense.image ? (
+                          <img
+                            src={expense.image}
+                            alt={expense.name}
+                            className="w-12 h-12 object-cover rounded-lg cursor-pointer border hover:scale-110 transition-transform"
+                            style={{ borderColor: 'var(--theme-border)' }}
+                            onClick={() => openImageModal(expense.image)}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-400">📷</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                        {expense.name}
+                      </td>
+                      <td className="px-4 py-3 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {expense.unit}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="numerical-value" style={{ color: 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>
+                          {Math.round(expense.amount)} د.ع
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {expense.date}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startEdit(expense)}
+                            className="px-3 py-1 text-xs rounded transition-colors hover:scale-105"
+                            style={{
+                              backgroundColor: 'var(--theme-accent)',
+                              color: '#ffffff',
+                              fontFamily: 'var(--font-uni-salar)'
+                            }}
+                          >
+                            دەستکاری
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(expense.id)}
+                            className="px-3 py-1 text-xs rounded transition-colors hover:scale-105"
+                            style={{
+                              backgroundColor: '#ef4444',
+                              color: '#ffffff',
+                              fontFamily: 'var(--font-uni-salar)'
+                            }}
+                          >
+                            سڕینەوە
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {expenses.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-12 text-center accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        هیچ خەرجییەک نیە
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={closeImageModal}
+        >
+          <div className="max-w-2xl max-h-screen p-4">
+            <img
+              src={selectedImage}
+              alt="Expense receipt"
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="p-6 rounded-2xl shadow-2xl max-w-md" style={{
+            background: 'var(--theme-card-bg)',
+            border: '1px solid var(--theme-border)'
+          }}>
+            <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              دڵنیای لە سڕینەوە؟
+            </h3>
+            <p className="text-sm mb-6 text-center accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              ئەم کردارە پاشگەزبوونەوەی نیە. دەتەوێت بیسڕیتەوە؟
+            </p>
+            <div className="flex gap-3">
               <button
-                onClick={() => setShowAddExpense(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
+                style={{
+                  backgroundColor: '#6b7280',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
               >
                 پاشگەزبوونەوە
               </button>
               <button
-                onClick={addExpense}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                onClick={() => deleteExpense(showDeleteConfirm)}
+                className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
+                style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
               >
-                زیادکردن
+                سڕینەوە
               </button>
             </div>
           </div>

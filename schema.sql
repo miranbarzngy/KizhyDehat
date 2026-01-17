@@ -82,6 +82,27 @@ CREATE TABLE supplier_payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Products table (detailed product information)
+CREATE TABLE products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  image TEXT,
+  total_amount_bought NUMERIC(10,2) NOT NULL,
+  unit TEXT NOT NULL,
+  total_purchase_price NUMERIC(10,2) NOT NULL,
+  selling_price_per_unit NUMERIC(10,2) NOT NULL,
+  cost_per_unit NUMERIC(10,2),
+  barcode1 TEXT,
+  barcode2 TEXT,
+  barcode3 TEXT,
+  barcode4 TEXT,
+  added_date DATE NOT NULL,
+  expire_date DATE,
+  supplier_id UUID REFERENCES suppliers(id),
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Inventory table
 CREATE TABLE inventory (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -176,6 +197,7 @@ ALTER TABLE customer_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplier_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplier_debts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;

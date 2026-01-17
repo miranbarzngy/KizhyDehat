@@ -1,15 +1,16 @@
 {
-  "name": "POS Kurdish System",
-  "short_name": "POS Kurdish",
-  "description": "Professional Point of Sale system for Kurdish businesses",
+  "name": "سیستمی فرۆشتن - Online Sale Store",
+  "short_name": "سیستمی فرۆشتن",
+  "description": "Professional Online Sale Store system for Kurdish businesses with tablet optimization",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#1e40af",
-  "orientation": "portrait-primary",
-  "categories": ["business", "productivity"],
+  "orientation": "any",
+  "categories": ["business", "productivity", "shopping"],
   "lang": "ku",
   "dir": "rtl",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -22,6 +23,36 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "تۆمارکردنی فرۆشتن",
+      "short_name": "فرۆشتن",
+      "description": "Create new sales order",
+      "url": "/dashboard/sales",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "زیادکردنی کاڵا",
+      "short_name": "کاڵا",
+      "description": "Add new product",
+      "url": "/dashboard/inventory",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "خەرجی نوێ",
+      "short_name": "خەرجی",
+      "description": "Add new expense",
+      "url": "/dashboard/expenses",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

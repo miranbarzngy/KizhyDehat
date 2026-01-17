@@ -3,12 +3,27 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Theme variables */
+  --theme-background: #ffffff;
+  --theme-foreground: #000000;
+  --theme-card-bg: #ffffff;
+  --theme-card-border: #e5e7eb;
+  --theme-primary: #1f2937;
+  --theme-secondary: #6b7280;
+  --theme-accent: #3b82f6;
+  --theme-muted: #f9fafb;
+  --theme-border: #d1d5db;
+  --theme-sidebar-bg: #ffffff;
+  --theme-sidebar-text: #374151;
+  --theme-sidebar-hover: #f3f4f6;
+  --theme-chart-color: #10b981;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -20,7 +35,55 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--theme-background);
+  color: var(--theme-foreground);
+  font-family: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
+  font-weight: 500;
+}
+
+/* Theme-aware utility classes */
+.theme-bg {
+  background: var(--theme-background);
+}
+
+.theme-text {
+  color: var(--theme-foreground);
+}
+
+.theme-card {
+  background: var(--theme-card-bg);
+  border-color: var(--theme-card-border);
+}
+
+.theme-sidebar {
+  background: var(--theme-sidebar-bg);
+  color: var(--theme-sidebar-text);
+}
+
+.theme-sidebar-hover:hover {
+  background: var(--theme-sidebar-hover);
+}
+
+/* Gold text glow effect for Black & Gold theme */
+.gold-text-glow {
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.6), 0 0 16px rgba(212, 175, 55, 0.4);
+}
+
+/* Enhanced numerical values styling */
+.numerical-value {
+  font-family: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  font-size: 1.15em;
+}
+
+/* Improved accessibility for light grey text */
+.accessible-secondary {
+  color: var(--theme-secondary);
+  opacity: 0.9;
+}
+
+/* Enhanced card styling for Colourful theme */
+.colourful-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }

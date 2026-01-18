@@ -173,7 +173,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)' }}>داشبۆردی دارایی</h1>
+      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>داشبۆردی دارایی</h1>
 
       {/* Quick Action Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

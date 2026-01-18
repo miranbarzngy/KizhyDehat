@@ -110,21 +110,31 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--theme-background)', color: 'var(--theme-foreground)' }}>
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-white shadow-lg">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900">سیستمی فرۆشتن</h1>
-            <p className="text-sm text-gray-600 mt-1">{profile?.role?.name}</p>
+        <div className="w-64 min-h-screen flex flex-col" style={{ background: 'var(--theme-sidebar-bg)', color: 'var(--theme-sidebar-text)' }}>
+          <div className="p-6 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>سیستمی فرۆشتن</h1>
+            <p className="text-sm opacity-75 mt-1" style={{ color: 'var(--theme-secondary)' }}>{profile?.role?.name}</p>
           </div>
-          <nav className="mt-6">
+          <nav className="flex-1 mt-6">
             <div className="px-3">
               {filteredMenuItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex flex-col items-center justify-center px-3 py-4 text-base font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
+                  className="flex flex-col items-center justify-center px-3 py-4 text-base font-medium rounded-md transition-all duration-200 hover:scale-105"
+                  style={{
+                    color: 'var(--theme-sidebar-text)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--theme-sidebar-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
                   <span className="text-2xl mb-2">{item.icon}</span>
                   <span className="text-center text-xs">{item.name}</span>
@@ -132,11 +142,11 @@ export default function DashboardLayout({
               ))}
             </div>
           </nav>
-          <div className="absolute bottom-0 w-64 p-4 space-y-2">
+          <div className="p-4 space-y-2 border-t" style={{ borderColor: 'var(--theme-border)' }}>
             {showInstallButton && (
               <button
                 onClick={handleInstallClick}
-                className="w-full flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                className="w-full flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
               >
                 <span className="mr-3">📱</span>
                 دامەزراندنی ئەپ
@@ -144,7 +154,17 @@ export default function DashboardLayout({
             )}
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900"
+              className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 hover:scale-105"
+              style={{
+                color: 'var(--theme-sidebar-text)',
+                fontFamily: 'var(--font-uni-salar)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--theme-sidebar-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
             >
               <span className="mr-3">🚪</span>
               دەرچوون
@@ -153,7 +173,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Main content */}
-        <div className="flex-1">
+        <div className="flex-1 min-h-screen">
           <main className="p-8">
             {children}
           </main>

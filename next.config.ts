@@ -1,8 +1,6 @@
 import withPWA from 'next-pwa'
 
-const nextConfig = {
-  turbopack: {},
-}
+const nextConfig = {}
 
 export default withPWA({
   dest: 'public',

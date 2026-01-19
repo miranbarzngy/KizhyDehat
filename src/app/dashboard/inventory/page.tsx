@@ -286,7 +286,7 @@ export default function InventoryPage() {
       console.log('📤 Uploading to path:', filePath)
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('images')
+        .from('product-images')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -316,7 +316,7 @@ export default function InventoryPage() {
       console.log('✅ Upload successful:', uploadData)
 
       const { data: urlData } = supabase.storage
-        .from('images')
+        .from('product-images')
         .getPublicUrl(filePath)
 
       if (!urlData?.publicUrl) {

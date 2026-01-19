@@ -26,12 +26,19 @@ interface Supplier {
   balance: number
 }
 
+interface Category {
+  id: string
+  name: string
+  created_at: string
+}
+
 interface PurchaseItem {
   item_name: string
   cost_price: number
   selling_price: number
   quantity: number
   unit: string
+  category?: string
   total_purchase_price?: number
   amount_paid?: number
   debt_amount?: number
@@ -47,11 +54,12 @@ interface PurchaseItem {
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [showStockEntry, setShowStockEntry] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState('')
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([
-    { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }
+    { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }
   ])
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
@@ -60,6 +68,9 @@ export default function InventoryPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editForm, setEditForm] = useState({
     item_name: '',
     quantity: 0,
@@ -99,7 +110,24 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchInventory()
     fetchSuppliers()
+    fetchCategories()
   }, [])
+
+  const fetchCategories = async () => {
+    if (!supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setCategories(data || [])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
 
   const fetchInventory = async () => {
     console.log('🔄 Fetching inventory data...')
@@ -237,7 +265,7 @@ export default function InventoryPage() {
   }
 
   const addPurchaseItem = () => {
-    setPurchaseItems(prev => [...prev, { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }])
+    setPurchaseItems(prev => [...prev, { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }])
   }
 
   const updatePurchaseItem = (index: number, field: keyof PurchaseItem, value: string | number) => {
@@ -340,95 +368,115 @@ export default function InventoryPage() {
   }
 
   const submitStockEntry = async () => {
-    console.log('🚀 Starting multi-table stock entry submission...')
+    console.log('🚀 Starting stock entry submission...', editingItem ? 'EDIT MODE' : 'ADD MODE')
 
     // Validation: Ensure required fields are filled
     const item = purchaseItems[0]
-    if (!item?.item_name || !item?.quantity || !item?.total_purchase_price || !item?.selling_price || !selectedSupplier) {
+    if (!item?.item_name || !item?.quantity || !item?.selling_price) {
       const missing = []
       if (!item?.item_name) missing.push('ناو')
       if (!item?.quantity) missing.push('بڕ')
-      if (!item?.total_purchase_price) missing.push('نرخی کڕین')
       if (!item?.selling_price) missing.push('نرخی فرۆشتن')
-      if (!selectedSupplier) missing.push('دابینکەر')
       alert(`تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە: ${missing.join(', ')}`)
       return
     }
 
     if (!supabase) {
       console.log('Running in demo mode - no Supabase connection')
-      alert('دۆخی دیمۆ: کاڵاکە بە سەرکەوتوویی زیادکرا (دیمۆ)')
+      alert(`دۆخی دیمۆ: کاڵاکە بە سەرکەوتوویی ${editingItem ? 'نوێکرایەوە' : 'زیادکرا'} (دیمۆ)`)
       setShowStockEntry(false)
       setSelectedSupplier('')
-      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }])
-      return
-    }
-
-    // Validate supplier_id is a valid UUID
-    if (!selectedSupplier || selectedSupplier.length !== 36) {
-      console.error('❌ Invalid supplier_id:', selectedSupplier)
-      alert('خەتا: supplier_id نادروستە')
+      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }])
+      setEditingItem(null)
       return
     }
 
     // Convert all numeric values to ensure proper types
     const quantity = Number(item.quantity)
-    const totalPurchasePrice = Number(item.total_purchase_price)
+    const totalPurchasePrice = Number(item.total_purchase_price || 0)
     const sellingPrice = Number(item.selling_price)
-    const amountPaid = Number(item.amount_paid || 0)
-    const debtAmount = Number(item.debt_amount || 0)
-    const unitCost = Math.round(totalPurchasePrice / quantity)
+    const unitCost = totalPurchasePrice > 0 ? Math.round(totalPurchasePrice / quantity) : 0
 
     console.log('📊 Calculated values:', {
       quantity,
       totalPurchasePrice,
       sellingPrice,
-      amountPaid,
-      debtAmount,
       unitCost,
-      supplierId: selectedSupplier
+      isEditing: !!editingItem
     })
 
     try {
-      // ===== STEP 1: Insert/Update Inventory Table =====
-      console.log('📦 Step 1: Handling inventory table...')
-      const { data: existingItem, error: checkError } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('item_name', item.item_name)
-        .eq('unit', item.unit)
-        .single()
+      if (editingItem) {
+        // ===== EDIT MODE: Update existing item =====
+        console.log('✏️ Editing existing item:', editingItem.id)
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Inventory check error:', JSON.stringify(checkError, null, 2))
-        throw new Error(`Inventory check failed: ${checkError.message}`)
-      }
-
-      let inventoryId: string
-      if (existingItem) {
-        // Update existing inventory
-        console.log('🔄 Updating existing inventory item...')
-        const { data: updateData, error: updateError } = await supabase
+        // Update inventory table
+        const { error: inventoryError } = await supabase
           .from('inventory')
           .update({
-            quantity: existingItem.quantity + quantity,
+            item_name: item.item_name,
+            quantity: quantity,
+            unit: item.unit,
             cost_price: unitCost,
             selling_price: sellingPrice,
-            image: item.image || existingItem.image
+            category: item.category || null,
+            image: item.image || ''
           })
-          .eq('id', existingItem.id)
-          .select('id')
-          .single()
+          .eq('id', editingItem.id)
 
-        if (updateError) {
-          console.error('❌ Inventory update error:', JSON.stringify(updateError, null, 2))
-          throw new Error(`Inventory update failed: ${updateError.message}`)
+        if (inventoryError) {
+          console.error('❌ Inventory update error:', JSON.stringify(inventoryError, null, 2))
+          throw new Error(`Inventory update failed: ${inventoryError.message}`)
         }
-        inventoryId = updateData.id
-        console.log('✅ Inventory updated, ID:', inventoryId)
+
+        // Update products table if it exists
+        try {
+          const { error: productError } = await supabase
+            .from('products')
+            .update({
+              name: item.item_name,
+              image: item.image || '',
+              total_amount_bought: quantity,
+              unit: item.unit,
+              selling_price_per_unit: sellingPrice,
+              cost_per_unit: unitCost,
+              barcode1: item.barcode1 || '',
+              barcode2: item.barcode2 || '',
+              barcode3: item.barcode3 || '',
+              barcode4: item.barcode4 || '',
+              expire_date: item.expire_date || null,
+              note: item.note || ''
+            })
+            .eq('name', editingItem.item_name)
+
+          if (productError) {
+            console.log('⚠️ Products table update failed, continuing...')
+          } else {
+            console.log('✅ Products record updated')
+          }
+        } catch (productError) {
+          console.log('⚠️ Products table not available, skipping...')
+        }
+
+        console.log('✅ Item updated successfully!')
+        alert('کاڵاکە بە سەرکەوتوویی نوێکرایەوە')
+
       } else {
-        // Insert new inventory item
-        console.log('➕ Inserting new inventory item...')
+        // ===== ADD MODE: Insert new item =====
+        console.log('➕ Adding new item')
+
+        // Validate supplier for new items
+        if (!selectedSupplier || selectedSupplier.length !== 36) {
+          console.error('❌ Invalid supplier_id:', selectedSupplier)
+          alert('خەتا: supplier_id نادروستە')
+          return
+        }
+
+        const amountPaid = Number(item.amount_paid || 0)
+        const debtAmount = Number(item.debt_amount || 0)
+
+        // ===== STEP 1: Insert into Inventory Table =====
+        console.log('📦 Step 1: Inserting into inventory table...')
         const { data: insertData, error: insertError } = await supabase
           .from('inventory')
           .insert({
@@ -437,6 +485,7 @@ export default function InventoryPage() {
             unit: item.unit,
             cost_price: unitCost,
             selling_price: sellingPrice,
+            category: item.category || null,
             image: item.image || ''
           })
           .select('id')
@@ -446,121 +495,116 @@ export default function InventoryPage() {
           console.error('❌ Inventory insert error:', JSON.stringify(insertError, null, 2))
           throw new Error(`Inventory insert failed: ${insertError.message}`)
         }
-        inventoryId = insertData.id
-        console.log('✅ Inventory inserted, ID:', inventoryId)
-      }
+        console.log('✅ Inventory record inserted')
 
-      // ===== STEP 2: Insert into Products Table =====
-      console.log('📋 Step 2: Inserting into products table...')
-      try {
-        const { error: productError } = await supabase
-          .from('products')
+        // ===== STEP 2: Insert into Products Table =====
+        console.log('📋 Step 2: Inserting into products table...')
+        try {
+          const { error: productError } = await supabase
+            .from('products')
+            .insert({
+              name: item.item_name,
+              image: item.image || '',
+              total_amount_bought: quantity,
+              unit: item.unit,
+              total_purchase_price: totalPurchasePrice,
+              selling_price_per_unit: sellingPrice,
+              cost_per_unit: unitCost,
+              barcode1: item.barcode1 || '',
+              barcode2: item.barcode2 || '',
+              barcode3: item.barcode3 || '',
+              barcode4: item.barcode4 || '',
+              added_date: new Date().toISOString().split('T')[0],
+              expire_date: item.expire_date || null,
+              supplier_id: selectedSupplier,
+              note: item.note || ''
+            })
+
+          if (productError) {
+            console.error('❌ Products insert error:', JSON.stringify(productError, null, 2))
+            console.log('⚠️ Products table insert failed, continuing...')
+          } else {
+            console.log('✅ Products record inserted')
+          }
+        } catch (productError) {
+          console.log('⚠️ Products table not available, skipping...')
+        }
+
+        // ===== STEP 3: Insert Supplier Transaction =====
+        console.log('💰 Step 3: Inserting supplier transaction...')
+        const transactionData = {
+          supplier_id: selectedSupplier,
+          item_name: item.item_name,
+          total_price: totalPurchasePrice,
+          amount_paid: amountPaid,
+          debt_amount: debtAmount,
+          date: new Date().toISOString().split('T')[0]
+        }
+
+        const { error: transactionError } = await supabase
+          .from('supplier_transactions')
+          .insert(transactionData)
+
+        if (transactionError) {
+          console.error('❌ Supplier transaction insert error:', JSON.stringify(transactionError, null, 2))
+          throw new Error(`Supplier transaction failed: ${transactionError.message}`)
+        }
+        console.log('✅ Supplier transaction inserted')
+
+        // ===== STEP 4: Update Supplier Balance =====
+        console.log('⚖️ Step 4: Updating supplier balance...')
+        const supplier = suppliers.find(s => s.id === selectedSupplier)
+        if (supplier) {
+          const newBalance = supplier.balance + debtAmount
+          console.log(`Balance update: ${supplier.balance} + ${debtAmount} = ${newBalance}`)
+
+          const { error: balanceError } = await supabase
+            .from('suppliers')
+            .update({ balance: newBalance })
+            .eq('id', selectedSupplier)
+
+          if (balanceError) {
+            console.error('❌ Supplier balance update error:', JSON.stringify(balanceError, null, 2))
+            throw new Error(`Supplier balance update failed: ${balanceError.message}`)
+          }
+          console.log('✅ Supplier balance updated')
+        }
+
+        // ===== STEP 5: Insert Expense Record =====
+        console.log('💸 Step 5: Inserting expense record...')
+        const { error: expenseError } = await supabase
+          .from('expenses')
           .insert({
-            name: item.item_name,
-            image: item.image || '',
-            total_amount_bought: quantity,
-            unit: item.unit,
-            total_purchase_price: totalPurchasePrice,
-            selling_price_per_unit: sellingPrice,
-            cost_per_unit: unitCost,
-            barcode1: item.barcode1 || '',
-            barcode2: item.barcode2 || '',
-            barcode3: item.barcode3 || '',
-            barcode4: item.barcode4 || '',
-            added_date: new Date().toISOString().split('T')[0],
-            expire_date: item.expire_date || null,
-            supplier_id: selectedSupplier,
-            note: item.note || ''
+            description: `کڕینی کۆگا - ${item.item_name} (${quantity} ${item.unit})`,
+            amount: totalPurchasePrice,
+            category: 'inventory_purchase',
+            date: new Date().toISOString().split('T')[0]
           })
 
-        if (productError) {
-          console.error('❌ Products insert error:', JSON.stringify(productError, null, 2))
-          // Don't throw here - products table is optional
-          console.log('⚠️ Products table insert failed, continuing...')
-        } else {
-          console.log('✅ Products record inserted')
+        if (expenseError) {
+          console.error('❌ Expense insert error:', JSON.stringify(expenseError, null, 2))
+          throw new Error(`Expense record failed: ${expenseError.message}`)
         }
-      } catch (productError) {
-        console.log('⚠️ Products table not available, skipping...')
+        console.log('✅ Expense record inserted')
+
+        console.log('🎉 New item added successfully!')
+        alert('کاڵاکە بە سەرکەوتوویی زیادکرا و هەموو تۆمارەکان نوێکران')
       }
-
-      // ===== STEP 3: Insert Supplier Transaction =====
-      console.log('💰 Step 3: Inserting supplier transaction...')
-      const transactionData = {
-        supplier_id: selectedSupplier,
-        item_name: item.item_name,
-        total_price: totalPurchasePrice,
-        amount_paid: amountPaid,
-        debt_amount: debtAmount,
-        date: new Date().toISOString().split('T')[0]
-      }
-      console.log('Transaction data:', JSON.stringify(transactionData, null, 2))
-
-      const { error: transactionError } = await supabase
-        .from('supplier_transactions')
-        .insert(transactionData)
-
-      if (transactionError) {
-        console.error('❌ Supplier transaction insert error:', JSON.stringify(transactionError, null, 2))
-        throw new Error(`Supplier transaction failed: ${transactionError.message}`)
-      }
-      console.log('✅ Supplier transaction inserted')
-
-      // ===== STEP 4: Update Supplier Balance =====
-      console.log('⚖️ Step 4: Updating supplier balance...')
-      const supplier = suppliers.find(s => s.id === selectedSupplier)
-      if (supplier) {
-        const newBalance = supplier.balance + debtAmount
-        console.log(`Balance update: ${supplier.balance} + ${debtAmount} = ${newBalance}`)
-
-        const { error: balanceError } = await supabase
-          .from('suppliers')
-          .update({ balance: newBalance })
-          .eq('id', selectedSupplier)
-
-        if (balanceError) {
-          console.error('❌ Supplier balance update error:', JSON.stringify(balanceError, null, 2))
-          throw new Error(`Supplier balance update failed: ${balanceError.message}`)
-        }
-        console.log('✅ Supplier balance updated')
-      } else {
-        console.warn('⚠️ Supplier not found for balance update')
-      }
-
-      // ===== STEP 5: Insert Expense Record =====
-      console.log('💸 Step 5: Inserting expense record...')
-      const { error: expenseError } = await supabase
-        .from('expenses')
-        .insert({
-          description: `کڕینی کۆگا - ${item.item_name} (${quantity} ${item.unit})`,
-          amount: totalPurchasePrice,
-          category: 'inventory_purchase',
-          date: new Date().toISOString().split('T')[0]
-        })
-
-      if (expenseError) {
-        console.error('❌ Expense insert error:', JSON.stringify(expenseError, null, 2))
-        throw new Error(`Expense record failed: ${expenseError.message}`)
-      }
-      console.log('✅ Expense record inserted')
-
-      // ===== SUCCESS =====
-      console.log('🎉 All steps completed successfully!')
-      alert('کاڵاکە بە سەرکەوتوویی زیادکرا و هەموو تۆمارەکان نوێکران')
 
       // Reset form
       setShowStockEntry(false)
       setSelectedSupplier('')
-      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }])
+      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }])
+      setEditingItem(null)
 
       // Refresh data
       fetchInventory()
-      fetchSuppliers()
+      if (!editingItem) fetchSuppliers() // Only refresh suppliers for new items
 
     } catch (error) {
-      console.error('💥 Multi-table transaction failed:', error)
+      console.error('💥 Operation failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'هەڵەی نەناسراو'
-      alert(`هەڵە لە زیادکردنی کاڵا: ${errorMessage}`)
+      alert(`هەڵە لە ${editingItem ? 'نوێکردنی' : 'زیادکردنی'} کاڵا: ${errorMessage}`)
     }
   }
 
@@ -594,6 +638,92 @@ export default function InventoryPage() {
     return [...new Set(categories)]
   }
 
+  // Category management functions
+  const addCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('ناوی پۆل پێویستە')
+      return
+    }
+
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      console.log('Adding category:', newCategoryName.trim())
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ name: newCategoryName.trim() })
+        .select()
+
+      if (error) {
+        console.error('Category insert error:', error)
+        throw error
+      }
+
+      console.log('Category added successfully:', data)
+      alert('پۆلەکە بە سەرکەوتوویی زیادکرا')
+      setNewCategoryName('')
+      fetchCategories()
+    } catch (error) {
+      console.error('Error adding category:', error)
+      alert(`هەڵە لە زیادکردنی پۆل: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const editCategory = async () => {
+    if (!editingCategory || !supabase) return
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: editingCategory.name })
+        .eq('id', editingCategory.id)
+
+      if (error) throw error
+
+      alert('پۆلەکە بە سەرکەوتوویی نوێکرایەوە')
+      setEditingCategory(null)
+      setShowCategoryModal(false)
+      fetchCategories()
+    } catch (error) {
+      console.error('Error updating category:', error)
+      alert('هەڵە لە نوێکردنی پۆل')
+    }
+  }
+
+  const deleteCategory = async (categoryId: string) => {
+    if (!supabase) return
+
+    // Check if category is being used
+    const itemsUsingCategory = inventory.filter(item => item.category === categories.find(c => c.id === categoryId)?.name)
+    if (itemsUsingCategory.length > 0) {
+      alert(`ناتوانرێت پۆلەکە بسڕدرێتەوە چونکە ${itemsUsingCategory.length} کاڵا بەکاری دەهێنێت`)
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryId)
+
+      if (error) throw error
+
+      alert('پۆلەکە بە سەرکەوتوویی سڕدرایەوە')
+      fetchCategories()
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      alert('هەڵە لە سڕینەوەی پۆل')
+    }
+  }
+
+  const openCategoryEdit = (category: Category) => {
+    setEditingCategory(category)
+    setShowCategoryModal(true)
+  }
+
   // Enhanced search function
   const filteredInventory = inventory.filter((item) => {
     // Category filter
@@ -625,23 +755,71 @@ export default function InventoryPage() {
 
 
   // Edit item functions
-  const openEditModal = (item: InventoryItem) => {
+  const openEditModal = async (item: InventoryItem) => {
     setEditingItem(item)
-    setEditForm({
+
+    // Fetch complete item data from products table if available
+    let completeItemData = {
       item_name: item.item_name,
-      quantity: item.quantity,
-      unit: item.unit,
       cost_price: item.cost_price || 0,
       selling_price: item.selling_price || 0,
+      quantity: item.quantity,
+      unit: item.unit,
       category: item.category || '',
+      total_purchase_price: (item.cost_price || 0) * item.quantity,
+      amount_paid: (item.cost_price || 0) * item.quantity, // Assume fully paid for editing
+      debt_amount: 0,
       barcode1: '',
       barcode2: '',
       barcode3: '',
       barcode4: '',
       expire_date: item.expire_date || '',
+      image: item.image || '',
       note: item.note || ''
-    })
-    setShowEditModal(true)
+    }
+
+    let productData: any = null
+
+    // Try to fetch additional data from products table
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('name', item.item_name)
+          .single()
+
+        if (!error && data) {
+          productData = data
+          // Merge product data with inventory data
+          completeItemData = {
+            ...completeItemData,
+            barcode1: productData.barcode1 || '',
+            barcode2: productData.barcode2 || '',
+            barcode3: productData.barcode3 || '',
+            barcode4: productData.barcode4 || '',
+            expire_date: productData.expire_date || '',
+            image: productData.image || item.image || '',
+            note: productData.note || '',
+            // Calculate total purchase price from product data if available
+            total_purchase_price: productData.total_purchase_price || completeItemData.total_purchase_price,
+            cost_price: productData.cost_per_unit || completeItemData.cost_price,
+            selling_price: productData.selling_price_per_unit || completeItemData.selling_price
+          }
+        }
+      } catch (error) {
+        console.log('Products table data not available, using inventory data only')
+      }
+    }
+
+    setPurchaseItems([completeItemData])
+
+    // Set the selected supplier if available
+    if (productData?.supplier_id) {
+      setSelectedSupplier(productData.supplier_id)
+    }
+
+    setShowStockEntry(true) // Use the same modal as add item
   }
 
   const updateEditForm = (field: string, value: string | number) => {
@@ -784,6 +962,89 @@ export default function InventoryPage() {
     <div>
       <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)' }}>بەڕێوەبردنی کاڵاکان</h1>
 
+      {/* Category Management Section */}
+      <div className="mb-8 p-6 rounded-lg shadow-md" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-border)' }}>
+        <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+          بەڕێوەبردنی پۆلەکان
+        </h2>
+
+        {/* Add Category Form */}
+        <div className="flex gap-4 mb-6">
+          <input
+            type="text"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="ناوی پۆلە نوێیەکە"
+            className="flex-1 px-4 py-3 rounded-lg border backdrop-blur-sm"
+            style={{
+              background: 'rgba(255, 255, 255, 0.8)',
+              borderColor: 'rgba(0, 0, 0, 0.1)',
+              fontFamily: 'var(--font-uni-salar)',
+              color: 'var(--theme-primary)'
+            }}
+          />
+          <button
+            onClick={addCategory}
+            className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+            style={{
+              backgroundColor: 'var(--theme-accent)',
+              color: '#ffffff',
+              fontFamily: 'var(--font-uni-salar)'
+            }}
+          >
+            زیادکردن
+          </button>
+        </div>
+
+        {/* Categories List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {categories.map((category) => (
+            <div
+              key={category.id}
+              className="p-4 rounded-lg backdrop-blur-md border transition-all duration-300 hover:scale-105"
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold" style={{
+                  color: 'var(--theme-primary)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}>
+                  {category.name}
+                </h3>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => openCategoryEdit(category)}
+                    className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                    style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}
+                  >
+                    دەستکاری
+                  </button>
+                  <button
+                    onClick={() => deleteCategory(category.id)}
+                    className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
+                    style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}
+                  >
+                    سڕینەوە
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {categories.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              هیچ پۆلێک نییە. پۆلە نوێیەک زیادبکە.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="mb-6">
         <button
           onClick={() => {
@@ -855,8 +1116,8 @@ export default function InventoryPage() {
               }}
             >
               <option value="">هەموو پۆلەکان</option>
-              {getUniqueCategories().map((category) => (
-                <option key={category} value={category}>{category}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.name}>{category.name}</option>
               ))}
             </select>
           </div>
@@ -1020,6 +1281,17 @@ export default function InventoryPage() {
 
                       <div>
                         <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</label>
+                        {purchaseItems[0]?.image && (
+                          <div className="mb-3">
+                            <p className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنەی ئێستا:</p>
+                            <img
+                              src={purchaseItems[0].image}
+                              alt="Current item image"
+                              className="w-24 h-24 object-cover rounded-lg border"
+                              style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}
+                            />
+                          </div>
+                        )}
                         <input
                           type="file"
                           accept="image/*"
@@ -1032,6 +1304,9 @@ export default function InventoryPage() {
                           className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium"
                           style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)' }}
                         />
+                        <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          {purchaseItems[0]?.image ? 'وێنە نوێ هەڵبژێرە بۆ گۆڕینی وێنەی ئێستا' : 'وێنەیەک هەڵبژێرە'}
+                        </p>
                       </div>
 
                       <div>
@@ -1061,6 +1336,24 @@ export default function InventoryPage() {
                           <option value="کیلۆگرام">کیلۆگرام</option>
                           <option value="گرام">گرام</option>
                           <option value="لیتر">لیتر</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>پۆل *</label>
+                        <select
+                          value={purchaseItems[0]?.category || ''}
+                          onChange={(e) => updatePurchaseItem(0, 'category', e.target.value)}
+                          className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                          style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                          required
+                        >
+                          <option value="">هەڵبژاردنی پۆل</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.name}>
+                              {category.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1442,6 +1735,49 @@ export default function InventoryPage() {
                 </button>
                 <button
                   onClick={submitEditForm}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  نوێکردنەوە
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Edit Modal */}
+      {showCategoryModal && editingCategory && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="p-8">
+              <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                دەستکاریکردنی پۆل
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی پۆل</label>
+                  <input
+                    type="text"
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end space-x-4">
+                <button
+                  onClick={() => setShowCategoryModal(false)}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  onClick={editCategory}
                   className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
                   style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >

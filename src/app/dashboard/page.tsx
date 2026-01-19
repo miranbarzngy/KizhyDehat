@@ -19,6 +19,15 @@ interface RecentOrder {
   status: string
 }
 
+interface ShopSettings {
+  id: string
+  shopname: string
+  icon: string
+  phone: string
+  location: string
+  qrcodeimage: string
+}
+
 export default function DashboardPage() {
   const { profile } = useAuth()
   const { theme } = useTheme()
@@ -34,6 +43,7 @@ export default function DashboardPage() {
   })
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
 
   const fetchStats = async () => {
     // Demo mode: show sample data when Supabase is not configured
@@ -167,8 +177,37 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchShopSettings = async () => {
+    // Demo mode: show sample shop settings data when Supabase is not configured
+    if (!supabase) {
+      const demoSettings: ShopSettings = {
+        id: 'demo-shop',
+        shopname: 'فرۆشگای کوردستان',
+        icon: '',
+        phone: '+964 750 123 4567',
+        location: 'هەولێر، کوردستان',
+        qrcodeimage: ''
+      }
+      setShopSettings(demoSettings)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      setShopSettings(data || null)
+    } catch (error) {
+      console.error('Error fetching shop settings:', error)
+    }
+  }
+
   useEffect(() => {
     fetchStats()
+    fetchShopSettings()
   }, [])
 
   return (

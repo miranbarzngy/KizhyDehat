@@ -28,6 +28,15 @@ interface CartItem {
   total: number
 }
 
+interface ShopSettings {
+  id: string
+  shopname: string
+  icon: string
+  phone: string
+  location: string
+  qrcodeimage: string
+}
+
 export default function SalesPage() {
   const { user } = useAuth()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
@@ -41,6 +50,7 @@ export default function SalesPage() {
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [discount, setDiscount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
 
   // Convert Kurdish numerals to Western numerals
   const convertKurdishToWestern = (kurdishNum: string): string => {
@@ -66,6 +76,7 @@ export default function SalesPage() {
   useEffect(() => {
     fetchInventory()
     fetchCustomers()
+    fetchShopSettings()
   }, [])
 
   const fetchInventory = async () => {
@@ -163,6 +174,34 @@ export default function SalesPage() {
       setCustomers(data || [])
     } catch (error) {
       console.error('Error fetching customers:', error)
+    }
+  }
+
+  const fetchShopSettings = async () => {
+    // Demo mode: show sample shop settings data when Supabase is not configured
+    if (!supabase) {
+      const demoSettings: ShopSettings = {
+        id: 'demo-shop',
+        shopname: 'فرۆشگای کوردستان',
+        icon: '',
+        phone: '+964 750 123 4567',
+        location: 'هەولێر، کوردستان',
+        qrcodeimage: ''
+      }
+      setShopSettings(demoSettings)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      setShopSettings(data || null)
+    } catch (error) {
+      console.error('Error fetching shop settings:', error)
     }
   }
 
@@ -382,7 +421,7 @@ export default function SalesPage() {
 
   return (
     <div className="h-screen flex">
-      {/* Left Side - Products */}
+        {/* Left Side - Products */}
       <div className="w-2/3 p-4 bg-gray-50">
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-2">کاڵاکان</h2>

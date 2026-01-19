@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Demo mode: automatically sign in as demo user if Supabase is not configured OR no authenticated user
+    // Demo mode: automatically sign in as demo user ONLY if Supabase is not configured
     if (!supabase) {
       // Create a mock user for demo purposes
       const mockUser = {
@@ -68,39 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+      console.log('🔄 Initial session check:', !!session?.user)
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchProfile(session.user.id)
       } else {
-        // No authenticated user - use demo mode
-        const mockUser = {
-          id: 'demo-user-id',
-          email: 'demo@example.com',
-          user_metadata: { name: 'Demo User' },
-          app_metadata: {},
-          aud: 'authenticated',
-          created_at: new Date().toISOString()
-        } as unknown as User
-
-        const mockProfile = {
-          id: 'demo-user-id',
-          role_id: 'demo-role-id',
-          role: {
-            name: 'Admin',
-            permissions: {
-              sales: true,
-              inventory: true,
-              customers: true,
-              suppliers: true,
-              payroll: true,
-              profits: true
-            }
-          }
-        } as Profile
-
-        setUser(mockUser)
-        setProfile(mockProfile)
+        // No authenticated user - set loading to false, user remains null
         setLoading(false)
       }
     })
@@ -108,39 +82,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: Session | null) => {
+        console.log('🔄 Auth state changed:', event, !!session?.user)
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
+          setProfile(null) // Clear profile while fetching
           await fetchProfile(session.user.id)
         } else {
-          // No authenticated user - use demo mode
-          const mockUser = {
-            id: 'demo-user-id',
-            email: 'demo@example.com',
-            user_metadata: { name: 'Demo User' },
-            app_metadata: {},
-            aud: 'authenticated',
-            created_at: new Date().toISOString()
-          } as unknown as User
-
-          const mockProfile = {
-            id: 'demo-user-id',
-            role_id: 'demo-role-id',
-            role: {
-              name: 'Admin',
-              permissions: {
-                sales: true,
-                inventory: true,
-                customers: true,
-                suppliers: true,
-                payroll: true,
-                profits: true
-              }
-            }
-          } as Profile
-
-          setUser(mockUser)
-          setProfile(mockProfile)
+          // No authenticated user - clear profile and set loading to false
+          setProfile(null)
           setLoading(false)
         }
       }

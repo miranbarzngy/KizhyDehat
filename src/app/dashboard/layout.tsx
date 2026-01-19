@@ -4,6 +4,16 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+
+interface ShopSettings {
+  id: string
+  shopname: string
+  icon: string
+  phone: string
+  location: string
+  qrcodeimage: string
+}
 
 const menuItems = [
   { name: 'داشبۆرد', href: '/dashboard', icon: '📊' },
@@ -26,11 +36,41 @@ export default function DashboardLayout({
   const router = useRouter()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallButton, setShowInstallButton] = useState(false)
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
+
+  const fetchShopSettings = async () => {
+    // Demo mode: show sample shop settings data when Supabase is not configured
+    if (!supabase) {
+      const demoSettings: ShopSettings = {
+        id: 'demo-shop',
+        shopname: 'فرۆشگای کوردستان',
+        icon: '',
+        phone: '+964 750 123 4567',
+        location: 'هەولێر، کوردستان',
+        qrcodeimage: ''
+      }
+      setShopSettings(demoSettings)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('shop_settings')
+        .select('*')
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      setShopSettings(data || null)
+    } catch (error) {
+      console.error('Error fetching shop settings:', error)
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
     }
+    fetchShopSettings()
   }, [user, loading, router])
 
   useEffect(() => {
@@ -115,8 +155,27 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <div className="w-64 min-h-screen flex flex-col" style={{ background: 'var(--theme-sidebar-bg)', color: 'var(--theme-sidebar-text)' }}>
           <div className="p-6 border-b" style={{ borderColor: 'var(--theme-border)' }}>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>سیستمی فرۆشتن</h1>
-            <p className="text-sm opacity-75 mt-1" style={{ color: 'var(--theme-secondary)' }}>{profile?.role?.name}</p>
+            <div className="flex flex-col items-center space-y-3 mb-3">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-xl backdrop-blur-md bg-white/10 border border-yellow-400 shadow-lg flex items-center justify-center">
+                  {(shopSettings?.icon && shopSettings.icon.trim() !== '') ? (
+                    <img
+                      src={shopSettings.icon}
+                      alt="Shop Logo"
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <span className="text-4xl">🏪</span>
+                  )}
+                </div>
+              </div>
+              <div className="text-center">
+                <h1 className="text-xl font-bold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
+                  {shopSettings?.shopname || 'سیستمی فرۆشتن'}
+                </h1>
+              </div>
+            </div>
+            <p className="text-sm opacity-75" style={{ color: 'var(--theme-secondary)' }}>{profile?.role?.name}</p>
           </div>
           <nav className="flex-1 mt-6">
             <div className="px-3">

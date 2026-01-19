@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 
 interface MenuItem {
@@ -21,6 +23,8 @@ interface CartItem {
 }
 
 export default function MenuPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -32,10 +36,35 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchMenuItems()
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/login')
+      return
+    }
+
+    if (user && supabase) {
+      fetchMenuItems()
+    }
+  }, [user, authLoading, router])
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   const fetchMenuItems = async () => {
+    if (!supabase) {
+      console.error('Supabase not configured')
+      setLoading(false)
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from('inventory')

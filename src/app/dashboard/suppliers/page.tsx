@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaSearch } from 'react-icons/fa'
+import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaMoneyBillWave } from 'react-icons/fa'
 
 interface Supplier {
   id: string
@@ -22,8 +22,10 @@ export default function SuppliersPage() {
   const [showAddSupplier, setShowAddSupplier] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
+  const [supplierToPay, setSupplierToPay] = useState<Supplier | null>(null)
   const [newSupplier, setNewSupplier] = useState({
     name: '',
     company: '',
@@ -35,6 +37,11 @@ export default function SuppliersPage() {
     company: '',
     phone: '',
     address: ''
+  })
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    note: ''
   })
 
   useEffect(() => {
@@ -188,6 +195,110 @@ export default function SuppliersPage() {
     } catch (error) {
       console.error('❌ Error updating supplier:', error)
       alert('هەڵە لە نوێکردنی دابینکەر')
+    }
+  }
+
+  // Payment functions
+  const openPaymentModal = (supplier: Supplier) => {
+    setSupplierToPay(supplier)
+    setPaymentForm({
+      amount: '',
+      date: new Date().toISOString().split('T')[0],
+      note: ''
+    })
+    setShowPaymentModal(true)
+  }
+
+  const updatePaymentForm = (field: string, value: string) => {
+    setPaymentForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const submitPayment = async () => {
+    if (!supplierToPay || !supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت پارەدان تۆمار بکرێت')
+      return
+    }
+
+    const amount = parseFloat(paymentForm.amount)
+    if (!amount || amount <= 0) {
+      alert('بڕی پارە پێویستە و دەبێت گەورەتر بێت لە سفر')
+      return
+    }
+
+    // Allow payments that exceed the debt (negative balance)
+    console.log('💰 Processing payment:', {
+      supplier: supplierToPay.name,
+      amount: amount,
+      currentBalance: supplierToPay.balance,
+      newBalance: supplierToPay.balance - amount
+    })
+
+    try {
+      // Step A: Insert payment into supplier_payments table
+      console.log('📝 Step A: Inserting payment record...')
+      const { error: paymentError } = await supabase
+        .from('supplier_payments')
+        .insert({
+          supplier_id: supplierToPay.id,
+          date: paymentForm.date,
+          amount: amount,
+          note: paymentForm.note.trim() || null
+        })
+
+      if (paymentError) {
+        console.error('❌ Payment insert error:', paymentError)
+        throw new Error(`Payment record failed: ${paymentError.message}`)
+      }
+      console.log('✅ Payment record inserted')
+
+      // Step B: Update supplier balance
+      console.log('⚖️ Step B: Updating supplier balance...')
+      const newBalance = supplierToPay.balance - amount
+      const { error: balanceError } = await supabase
+        .from('suppliers')
+        .update({ balance: newBalance })
+        .eq('id', supplierToPay.id)
+
+      if (balanceError) {
+        console.error('❌ Balance update error:', balanceError)
+        throw new Error(`Balance update failed: ${balanceError.message}`)
+      }
+      console.log('✅ Supplier balance updated to:', newBalance)
+
+      // Step C: Insert expense record (optional but recommended)
+      console.log('💸 Step C: Inserting expense record...')
+      try {
+        const { error: expenseError } = await supabase
+          .from('expenses')
+          .insert({
+            description: `پارەدان بە دابینکەر: ${supplierToPay.name}`,
+            amount: amount,
+            category: 'supplier_payment',
+            date: paymentForm.date
+          })
+
+        if (expenseError) {
+          console.error('❌ Expense insert error:', expenseError)
+          // Don't throw here - expense is optional
+          console.log('⚠️ Expense record failed, continuing...')
+        } else {
+          console.log('✅ Expense record inserted')
+        }
+      } catch (expenseError) {
+        console.log('⚠️ Expense table not available, skipping...')
+      }
+
+      // Success
+      console.log('🎉 Payment processed successfully!')
+      alert(`بڕی ${amount.toFixed(2)} بە سەرکەوتوویی بۆ ${supplierToPay.name} تۆمار کرا.`)
+
+      setShowPaymentModal(false)
+      setSupplierToPay(null)
+      fetchSuppliers()
+    } catch (error) {
+      console.error('💥 Payment processing failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`هەڵە لە تۆمارکردنی پارەدان: ${errorMessage}`)
     }
   }
 
@@ -354,21 +465,32 @@ export default function SuppliersPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => openEditModal(supplier)}
-                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <FaEdit size={14} />
-                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
-                  </button>
-                  <button
-                    onClick={() => confirmDelete(supplier)}
-                    className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <FaTrash size={14} />
-                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
-                  </button>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex justify-center space-x-2">
+                    <button
+                      onClick={() => openEditModal(supplier)}
+                      className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <FaEdit size={14} />
+                      <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(supplier)}
+                      className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <FaTrash size={14} />
+                      <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
+                    </button>
+                  </div>
+                  {supplier.balance > 0 && (
+                    <button
+                      onClick={() => openPaymentModal(supplier)}
+                      className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <FaMoneyBillWave size={14} />
+                      <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دانەوەی قەرز</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -593,6 +715,82 @@ export default function SuppliersPage() {
                   style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   نوێکردنەوە
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && supplierToPay && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="p-8">
+              <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                دانەوەی قەرز - {supplierToPay.name}
+              </h3>
+
+              <div className="mb-6 p-4 rounded-lg" style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)' }}>
+                <div className="text-center">
+                  <p className="text-sm opacity-75 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>قەرزی کۆی گشتی</p>
+                  <p className="text-2xl font-bold text-red-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    {supplierToPay.balance.toFixed(2)} د.ع
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕی پارە *</label>
+                  <input
+                    type="text"
+                    value={paymentForm.amount}
+                    onChange={(e) => updatePaymentForm('amount', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەرواری پارەدان</label>
+                  <input
+                    type="date"
+                    value={paymentForm.date}
+                    onChange={(e) => updatePaymentForm('date', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>تێبینی</label>
+                  <textarea
+                    value={paymentForm.note}
+                    onChange={(e) => updatePaymentForm('note', e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm resize-none"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="تێبینی پارەدان..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-4 mt-8">
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  onClick={submitPayment}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پارەدان
                 </button>
               </div>
             </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaMoneyBillWave } from 'react-icons/fa'
+import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaMoneyBillWave, FaHistory } from 'react-icons/fa'
 
 interface Supplier {
   id: string
@@ -23,9 +23,12 @@ export default function SuppliersPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
   const [supplierToPay, setSupplierToPay] = useState<Supplier | null>(null)
+  const [supplierHistory, setSupplierHistory] = useState<any[]>([])
+  const [totalPaid, setTotalPaid] = useState(0)
   const [newSupplier, setNewSupplier] = useState({
     name: '',
     company: '',
@@ -302,6 +305,40 @@ export default function SuppliersPage() {
     }
   }
 
+  // History functions
+  const openHistoryModal = async (supplier: Supplier) => {
+    console.log('📜 Opening history modal for supplier:', supplier.name)
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت مێژووی پارەدان ببینرێت')
+      return
+    }
+
+    try {
+      // Fetch payment history for this supplier
+      const { data: payments, error } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', supplier.id)
+        .order('date', { ascending: false })
+
+      if (error) throw error
+
+      // Calculate total paid
+      const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0
+
+      setSupplierHistory(payments || [])
+      setTotalPaid(totalPaid)
+      setSupplierToPay(supplier) // Reuse this state for the modal
+      setShowHistoryModal(true)
+
+      console.log('✅ Payment history loaded:', payments?.length || 0, 'payments, total paid:', totalPaid)
+    } catch (error) {
+      console.error('❌ Error fetching payment history:', error)
+      alert('هەڵە لە بارکردنی مێژووی پارەدان')
+    }
+  }
+
   // Delete supplier functions
   const confirmDelete = (supplier: Supplier) => {
     setSupplierToDelete(supplier)
@@ -482,15 +519,24 @@ export default function SuppliersPage() {
                       <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
                     </button>
                   </div>
-                  {supplier.balance > 0 && (
+                  <div className="flex justify-center space-x-2">
                     <button
-                      onClick={() => openPaymentModal(supplier)}
-                      className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg transition-colors flex items-center space-x-1"
+                      onClick={() => openHistoryModal(supplier)}
+                      className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg transition-colors flex items-center space-x-1"
                     >
-                      <FaMoneyBillWave size={14} />
-                      <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دانەوەی قەرز</span>
+                      <FaHistory size={14} />
+                      <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>مێژوو</span>
                     </button>
-                  )}
+                    {supplier.balance > 0 && (
+                      <button
+                        onClick={() => openPaymentModal(supplier)}
+                        className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-600 rounded-lg transition-colors flex items-center space-x-1"
+                      >
+                        <FaMoneyBillWave size={14} />
+                        <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دانەوەی قەرز</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -791,6 +837,80 @@ export default function SuppliersPage() {
                   style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   پارەدان
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && supplierToPay && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-4xl max-h-screen overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="p-8">
+              <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                مێژووی پارەدان - {supplierToPay.name}
+              </h3>
+
+              {/* Total Paid Summary */}
+              <div className="mb-6 p-4 rounded-lg" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <div className="text-center">
+                  <p className="text-sm opacity-75 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی پارەی دراو</p>
+                  <p className="text-3xl font-bold text-green-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    {totalPaid.toFixed(2)} د.ع
+                  </p>
+                </div>
+              </div>
+
+              {/* Payment History Table */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto">
+                  <thead>
+                    <tr style={{ background: 'var(--theme-muted)' }}>
+                      <th className="px-4 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                        بەروار
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                        بڕی پارە
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                        تێبینی
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplierHistory.map((payment: any) => (
+                      <tr key={payment.id} style={{ borderTop: '1px solid var(--theme-border)' }}>
+                        <td className="px-4 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                          {new Date(payment.date).toLocaleDateString('ku')}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-green-600" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                          {payment.amount.toFixed(2)} د.ع
+                        </td>
+                        <td className="px-4 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                          {payment.note || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {supplierHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-8 text-center text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          هیچ مێژوویەکی پارەدان بۆ ئەم دابینکەرە نییە
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end mt-8">
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  داخستن
                 </button>
               </div>
             </div>

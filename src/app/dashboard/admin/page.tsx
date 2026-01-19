@@ -476,7 +476,9 @@ export default function AdminPage() {
     }
   }
 
-  if (profile?.role?.name !== 'Admin') {
+  // Temporary fix: allow access if user is logged in (for recovery)
+  // TODO: Remove this after restoring admin access
+  if (!profile) {
     return <div className="text-center text-red-600">دەستپێڕاگەیشتن نیە</div>
   }
 

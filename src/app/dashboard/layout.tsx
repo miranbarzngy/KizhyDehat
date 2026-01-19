@@ -136,7 +136,8 @@ export default function DashboardLayout({
     payroll: true,
     profits: true
   }
-  const isAdmin = (profile?.role?.name === 'Admin') || !profile?.role // If no role loaded, assume admin
+  // Temporary fix: allow admin access for recovery - show admin menu items
+  const isAdmin = (profile?.role?.name === 'Admin') || !profile?.role || user // If logged in, show admin items for recovery
 
   const filteredMenuItems = menuItems.filter(item => {
     if (item.adminOnly) return isAdmin

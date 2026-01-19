@@ -104,38 +104,15 @@ export default function SuppliersPage() {
     }
   }
 
-  // Convert Kurdish numerals to Western numerals
-  const convertKurdishToWestern = (kurdishNum: string): string => {
-    // Handle Arabic decimal separator (٫) and convert to Western decimal point (.)
-    const processedNum = kurdishNum.replace(/٫/g, '.')
-
-    const kurdishToWestern: { [key: string]: string } = {
-      '٠': '0',
-      '١': '1',
-      '٢': '2',
-      '٣': '3',
-      '٤': '4',
-      '٥': '5',
-      '٦': '6',
-      '٧': '7',
-      '٨': '8',
-      '٩': '9'
-    }
-
-    return processedNum.split('').map(char => kurdishToWestern[char] || char).join('')
-  }
-
   // Filtered suppliers based on search term
   const filteredSuppliers = suppliers.filter((supplier) => {
     if (!searchTerm) return true
 
     const searchLower = searchTerm.toLowerCase()
-    const searchWestern = convertKurdishToWestern(searchLower)
 
     return supplier.name.toLowerCase().includes(searchLower) ||
            (supplier.company && supplier.company.toLowerCase().includes(searchLower)) ||
-           supplier.phone.toLowerCase().includes(searchLower) ||
-           supplier.phone.toLowerCase().includes(searchWestern)
+           supplier.phone.toLowerCase().includes(searchLower)
   })
 
   // Add supplier function
@@ -151,16 +128,13 @@ export default function SuppliersPage() {
     }
 
     try {
-      // Convert Kurdish numerals to Western numerals for phone number
-      const westernPhone = convertKurdishToWestern(newSupplier.phone.trim())
-
-      console.log('➕ Adding new supplier:', { ...newSupplier, phone: westernPhone })
+      console.log('➕ Adding new supplier:', newSupplier)
       const { error } = await supabase
         .from('suppliers')
         .insert({
           name: newSupplier.name.trim(),
           company: newSupplier.company.trim() || null,
-          phone: westernPhone,
+          phone: newSupplier.phone.trim(),
           address: newSupplier.address.trim() || null
         })
 
@@ -205,16 +179,13 @@ export default function SuppliersPage() {
     }
 
     try {
-      // Convert Kurdish numerals to Western numerals for phone number
-      const westernPhone = convertKurdishToWestern(editForm.phone.trim())
-
-      console.log('✏️ Updating supplier:', editingSupplier.id, { ...editForm, phone: westernPhone })
+      console.log('✏️ Updating supplier:', editingSupplier.id, editForm)
       const { error } = await supabase
         .from('suppliers')
         .update({
           name: editForm.name.trim(),
           company: editForm.company.trim() || null,
-          phone: westernPhone,
+          phone: editForm.phone.trim(),
           address: editForm.address.trim() || null
         })
         .eq('id', editingSupplier.id)

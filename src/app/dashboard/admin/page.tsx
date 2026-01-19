@@ -244,7 +244,7 @@ export default function AdminPage() {
   }
 
   if (loading) {
-    return <div className="text-center">بارکردن...</div>
+    return <div className="text-center">چاوەڕوانبە...</div>
   }
 
   return (

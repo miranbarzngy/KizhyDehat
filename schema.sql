@@ -82,6 +82,18 @@ CREATE TABLE supplier_payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Supplier transactions table (for tracking purchases and debts)
+CREATE TABLE supplier_transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  supplier_id UUID REFERENCES suppliers(id) ON DELETE CASCADE,
+  item_name TEXT NOT NULL,
+  total_price NUMERIC(10,2) NOT NULL,
+  amount_paid NUMERIC(10,2) NOT NULL DEFAULT 0,
+  debt_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  date DATE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Products table (detailed product information)
 CREATE TABLE products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

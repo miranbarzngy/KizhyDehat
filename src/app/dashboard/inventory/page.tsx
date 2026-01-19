@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { FaTh, FaList, FaEdit, FaTrash, FaPlus, FaMinus, FaSearch } from 'react-icons/fa'
 
 interface InventoryItem {
   id: string
@@ -32,6 +33,8 @@ interface PurchaseItem {
   quantity: number
   unit: string
   total_purchase_price?: number
+  amount_paid?: number
+  debt_amount?: number
   barcode1?: string
   barcode2?: string
   barcode3?: string
@@ -51,6 +54,26 @@ export default function InventoryPage() {
     { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }
   ])
   const [searchTerm, setSearchTerm] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [editForm, setEditForm] = useState({
+    item_name: '',
+    quantity: 0,
+    unit: '',
+    cost_price: 0,
+    selling_price: 0,
+    category: '',
+    barcode1: '',
+    barcode2: '',
+    barcode3: '',
+    barcode4: '',
+    expire_date: '',
+    note: ''
+  })
 
   // Convert Kurdish numerals to Western numerals
   const convertKurdishToWestern = (kurdishNum: string): string => {
@@ -253,10 +276,18 @@ export default function InventoryPage() {
   }
 
   const submitStockEntry = async () => {
+    console.log('🚀 Starting multi-table stock entry submission...')
+
     // Validation: Ensure required fields are filled
     const item = purchaseItems[0]
     if (!item?.item_name || !item?.quantity || !item?.total_purchase_price || !item?.selling_price || !selectedSupplier) {
-      alert('تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە (ناو، بڕ، نرخی کڕین، نرخی فرۆشتن، دابینکەر)')
+      const missing = []
+      if (!item?.item_name) missing.push('ناو')
+      if (!item?.quantity) missing.push('بڕ')
+      if (!item?.total_purchase_price) missing.push('نرخی کڕین')
+      if (!item?.selling_price) missing.push('نرخی فرۆشتن')
+      if (!selectedSupplier) missing.push('دابینکەر')
+      alert(`تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە: ${missing.join(', ')}`)
       return
     }
 
@@ -269,31 +300,34 @@ export default function InventoryPage() {
       return
     }
 
-    console.log('Starting stock entry submission...')
-    console.log('Supabase client:', !!supabase)
-    console.log('Item data:', purchaseItems[0])
-    console.log('Selected supplier:', selectedSupplier)
+    // Validate supplier_id is a valid UUID
+    if (!selectedSupplier || selectedSupplier.length !== 36) {
+      console.error('❌ Invalid supplier_id:', selectedSupplier)
+      alert('خەتا: supplier_id نادروستە')
+      return
+    }
+
+    // Convert all numeric values to ensure proper types
+    const quantity = Number(item.quantity)
+    const totalPurchasePrice = Number(item.total_purchase_price)
+    const sellingPrice = Number(item.selling_price)
+    const amountPaid = Number(item.amount_paid || 0)
+    const debtAmount = Number(item.debt_amount || 0)
+    const unitCost = Math.round(totalPurchasePrice / quantity)
+
+    console.log('📊 Calculated values:', {
+      quantity,
+      totalPurchasePrice,
+      sellingPrice,
+      amountPaid,
+      debtAmount,
+      unitCost,
+      supplierId: selectedSupplier
+    })
 
     try {
-      // Calculate unit cost: Total Purchase Price / Total Amount Bought
-      const unitCost = Math.round(item.total_purchase_price / item.quantity)
-
-      // Add purchase cost immediately to expenses
-      const { error: expenseError } = await supabase
-        .from('expenses')
-        .insert({
-          description: `کڕینی کۆگا - ${item.item_name}`,
-          amount: item.total_purchase_price,
-          category: 'inventory_purchase',
-          date: new Date().toISOString().split('T')[0]
-        })
-
-      if (expenseError) {
-        console.error('Expense error:', expenseError)
-        throw expenseError
-      }
-
-      // Update or insert inventory (main inventory tracking)
+      // ===== STEP 1: Insert/Update Inventory Table =====
+      console.log('📦 Step 1: Handling inventory table...')
       const { data: existingItem, error: checkError } = await supabase
         .from('inventory')
         .select('*')
@@ -302,56 +336,68 @@ export default function InventoryPage() {
         .single()
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Check error:', checkError)
-        throw checkError
+        console.error('❌ Inventory check error:', JSON.stringify(checkError, null, 2))
+        throw new Error(`Inventory check failed: ${checkError.message}`)
       }
 
+      let inventoryId: string
       if (existingItem) {
-        // Update existing
-        const { error: updateError } = await supabase
+        // Update existing inventory
+        console.log('🔄 Updating existing inventory item...')
+        const { data: updateData, error: updateError } = await supabase
           .from('inventory')
           .update({
-            quantity: existingItem.quantity + item.quantity,
+            quantity: existingItem.quantity + quantity,
             cost_price: unitCost,
-            selling_price: item.selling_price,
+            selling_price: sellingPrice,
             image: item.image || existingItem.image
           })
           .eq('id', existingItem.id)
+          .select('id')
+          .single()
 
         if (updateError) {
-          console.error('Update error:', updateError)
-          throw updateError
+          console.error('❌ Inventory update error:', JSON.stringify(updateError, null, 2))
+          throw new Error(`Inventory update failed: ${updateError.message}`)
         }
+        inventoryId = updateData.id
+        console.log('✅ Inventory updated, ID:', inventoryId)
       } else {
-        // Insert new
-        const { error: insertError } = await supabase
+        // Insert new inventory item
+        console.log('➕ Inserting new inventory item...')
+        const { data: insertData, error: insertError } = await supabase
           .from('inventory')
           .insert({
             item_name: item.item_name,
-            quantity: item.quantity,
+            quantity: quantity,
             unit: item.unit,
             cost_price: unitCost,
-            selling_price: item.selling_price,
+            selling_price: sellingPrice,
             image: item.image || ''
           })
+          .select('id')
+          .single()
 
         if (insertError) {
-          console.error('Insert error:', insertError)
-          throw insertError
+          console.error('❌ Inventory insert error:', JSON.stringify(insertError, null, 2))
+          throw new Error(`Inventory insert failed: ${insertError.message}`)
         }
+        inventoryId = insertData.id
+        console.log('✅ Inventory inserted, ID:', inventoryId)
       }
 
-      // Try to save to products table if it exists (for advanced product management)
+      // ===== STEP 2: Insert into Products Table =====
+      console.log('📋 Step 2: Inserting into products table...')
       try {
         const { error: productError } = await supabase
           .from('products')
           .insert({
             name: item.item_name,
             image: item.image || '',
-            total_amount_bought: item.quantity,
+            total_amount_bought: quantity,
             unit: item.unit,
-            total_purchase_price: item.total_purchase_price,
-            selling_price_per_unit: item.selling_price,
+            total_purchase_price: totalPurchasePrice,
+            selling_price_per_unit: sellingPrice,
             cost_per_unit: unitCost,
             barcode1: item.barcode1 || '',
             barcode2: item.barcode2 || '',
@@ -359,45 +405,98 @@ export default function InventoryPage() {
             barcode4: item.barcode4 || '',
             added_date: new Date().toISOString().split('T')[0],
             expire_date: item.expire_date || null,
-            supplier_id: selectedSupplier
+            supplier_id: selectedSupplier,
+            note: item.note || ''
           })
 
-        // Don't throw error if products table doesn't exist - it's optional
-        if (productError && !productError.message?.includes('relation "products" does not exist')) {
-          console.warn('Products table insertion warning:', productError)
+        if (productError) {
+          console.error('❌ Products insert error:', JSON.stringify(productError, null, 2))
+          // Don't throw here - products table is optional
+          console.log('⚠️ Products table insert failed, continuing...')
+        } else {
+          console.log('✅ Products record inserted')
         }
-      } catch (productTableError) {
-        // Products table might not exist - that's okay, continue with inventory
-        console.log('Products table not available, continuing with inventory only')
+      } catch (productError) {
+        console.log('⚠️ Products table not available, skipping...')
       }
 
-      // Update supplier balance
+      // ===== STEP 3: Insert Supplier Transaction =====
+      console.log('💰 Step 3: Inserting supplier transaction...')
+      const transactionData = {
+        supplier_id: selectedSupplier,
+        item_name: item.item_name,
+        total_price: totalPurchasePrice,
+        amount_paid: amountPaid,
+        debt_amount: debtAmount,
+        date: new Date().toISOString().split('T')[0]
+      }
+      console.log('Transaction data:', JSON.stringify(transactionData, null, 2))
+
+      const { error: transactionError } = await supabase
+        .from('supplier_transactions')
+        .insert(transactionData)
+
+      if (transactionError) {
+        console.error('❌ Supplier transaction insert error:', JSON.stringify(transactionError, null, 2))
+        throw new Error(`Supplier transaction failed: ${transactionError.message}`)
+      }
+      console.log('✅ Supplier transaction inserted')
+
+      // ===== STEP 4: Update Supplier Balance =====
+      console.log('⚖️ Step 4: Updating supplier balance...')
       const supplier = suppliers.find(s => s.id === selectedSupplier)
       if (supplier) {
+        const newBalance = supplier.balance + debtAmount
+        console.log(`Balance update: ${supplier.balance} + ${debtAmount} = ${newBalance}`)
+
         const { error: balanceError } = await supabase
           .from('suppliers')
-          .update({
-            balance: supplier.balance + item.total_purchase_price
-          })
+          .update({ balance: newBalance })
           .eq('id', selectedSupplier)
 
         if (balanceError) {
-          console.error('Balance error:', balanceError)
-          throw balanceError
+          console.error('❌ Supplier balance update error:', JSON.stringify(balanceError, null, 2))
+          throw new Error(`Supplier balance update failed: ${balanceError.message}`)
         }
+        console.log('✅ Supplier balance updated')
+      } else {
+        console.warn('⚠️ Supplier not found for balance update')
       }
 
-      // Success message
-      alert('کاڵاکە بە سەرکەوتوویی زیادکرا')
+      // ===== STEP 5: Insert Expense Record =====
+      console.log('💸 Step 5: Inserting expense record...')
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .insert({
+          description: `کڕینی کۆگا - ${item.item_name} (${quantity} ${item.unit})`,
+          amount: totalPurchasePrice,
+          category: 'inventory_purchase',
+          date: new Date().toISOString().split('T')[0]
+        })
 
+      if (expenseError) {
+        console.error('❌ Expense insert error:', JSON.stringify(expenseError, null, 2))
+        throw new Error(`Expense record failed: ${expenseError.message}`)
+      }
+      console.log('✅ Expense record inserted')
+
+      // ===== SUCCESS =====
+      console.log('🎉 All steps completed successfully!')
+      alert('کاڵاکە بە سەرکەوتوویی زیادکرا و هەموو تۆمارەکان نوێکران')
+
+      // Reset form
       setShowStockEntry(false)
       setSelectedSupplier('')
       setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'pieces' }])
+
+      // Refresh data
       fetchInventory()
       fetchSuppliers()
+
     } catch (error) {
-      console.error('Error submitting stock entry:', error)
-      alert('هەڵە لە زیادکردنی کاڵا: ' + (error as Error)?.message || 'هەڵەی نەناسراو')
+      console.error('💥 Multi-table transaction failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'هەڵەی نەناسراو'
+      alert(`هەڵە لە زیادکردنی کاڵا: ${errorMessage}`)
     }
   }
 
@@ -425,8 +524,191 @@ export default function InventoryPage() {
     return item.quantity <= item.low_stock_threshold
   }
 
+  // Get unique categories for filter
+  const getUniqueCategories = () => {
+    const categories = inventory.map(item => item.category).filter(Boolean)
+    return [...new Set(categories)]
+  }
+
+  // Enhanced search function
+  const filteredInventory = inventory.filter((item) => {
+    // Category filter
+    if (selectedCategory && item.category !== selectedCategory) return false
+
+    // Search term filter
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+
+    // Search by name
+    if (item.item_name.toLowerCase().includes(searchLower)) return true
+
+    // Search by supplier name
+    if (item.supplier_name?.toLowerCase().includes(searchLower)) return true
+
+    // Search by category
+    if (item.category?.toLowerCase().includes(searchLower)) return true
+
+    // Search by unit
+    if (item.unit?.toLowerCase().includes(searchLower)) return true
+
+    // Search by note
+    if (item.note?.toLowerCase().includes(searchLower)) return true
+
+    return false
+  })
+
+  // Quick stock update functions
+  const updateStockQuantity = async (itemId: string, newQuantity: number) => {
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت بڕ بگۆڕدرێت')
+      return
+    }
+
+    if (newQuantity < 0) {
+      alert('بڕ نابێت لە سفر کەمتر بێت')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ quantity: newQuantity })
+        .eq('id', itemId)
+
+      if (error) throw error
+      fetchInventory()
+    } catch (error) {
+      console.error('Error updating stock quantity:', error)
+      alert('هەڵە لە نوێکردنی بڕ')
+    }
+  }
+
+  // Edit item functions
+  const openEditModal = (item: InventoryItem) => {
+    setEditingItem(item)
+    setEditForm({
+      item_name: item.item_name,
+      quantity: item.quantity,
+      unit: item.unit,
+      cost_price: item.cost_price || 0,
+      selling_price: item.selling_price || 0,
+      category: item.category || '',
+      barcode1: '',
+      barcode2: '',
+      barcode3: '',
+      barcode4: '',
+      expire_date: item.expire_date || '',
+      note: item.note || ''
+    })
+    setShowEditModal(true)
+  }
+
+  const updateEditForm = (field: string, value: string | number) => {
+    setEditForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const submitEditForm = async () => {
+    if (!editingItem || !supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت کاڵا دەستکاری بکرێت')
+      return
+    }
+
+    try {
+      // Update inventory table
+      const { error: inventoryError } = await supabase
+        .from('inventory')
+        .update({
+          item_name: editForm.item_name,
+          quantity: editForm.quantity,
+          unit: editForm.unit,
+          cost_price: editForm.cost_price,
+          selling_price: editForm.selling_price,
+          category: editForm.category
+        })
+        .eq('id', editingItem.id)
+
+      if (inventoryError) throw inventoryError
+
+      // Update products table if it exists
+      try {
+        const { error: productError } = await supabase
+          .from('products')
+          .update({
+            name: editForm.item_name,
+            barcode1: editForm.barcode1,
+            barcode2: editForm.barcode2,
+            barcode3: editForm.barcode3,
+            barcode4: editForm.barcode4,
+            expire_date: editForm.expire_date || null,
+            note: editForm.note
+          })
+          .eq('name', editingItem.item_name)
+
+        if (productError) {
+          console.log('Products table update failed, continuing...')
+        }
+      } catch (productError) {
+        console.log('Products table not available, skipping...')
+      }
+
+      alert('کاڵاکە بە سەرکەوتوویی نوێکرایەوە')
+      setShowEditModal(false)
+      setEditingItem(null)
+      fetchInventory()
+    } catch (error) {
+      console.error('Error updating item:', error)
+      alert('هەڵە لە نوێکردنی کاڵا')
+    }
+  }
+
+  // Delete item functions
+  const confirmDelete = (item: InventoryItem) => {
+    setItemToDelete(item)
+    setShowDeleteConfirm(true)
+  }
+
+  const executeDelete = async () => {
+    if (!itemToDelete || !supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت کاڵا بسڕدرێتەوە')
+      return
+    }
+
+    try {
+      // Delete from products table first (if exists)
+      try {
+        const { error: productError } = await supabase
+          .from('products')
+          .delete()
+          .eq('name', itemToDelete.item_name)
+
+        if (productError) {
+          console.log('Products table delete failed, continuing...')
+        }
+      } catch (productError) {
+        console.log('Products table not available, skipping...')
+      }
+
+      // Delete from inventory table
+      const { error: inventoryError } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', itemToDelete.id)
+
+      if (inventoryError) throw inventoryError
+
+      alert('کاڵاکە بە سەرکەوتوویی سڕدرایەوە')
+      setShowDeleteConfirm(false)
+      setItemToDelete(null)
+      fetchInventory()
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      alert('هەڵە لە سڕینەوەی کاڵا')
+    }
+  }
+
   if (loading) {
-    return <div className="text-center">بارکردن...</div>
+    return <div className="text-center">چاوەڕوانبە...</div>
   }
 
   return (
@@ -446,110 +728,214 @@ export default function InventoryPage() {
       </div>
 
       <div className="p-6 rounded-lg shadow-md" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-border)' }}>
-        <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--theme-primary)' }}>لیستی کاڵا</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--theme-primary)' }}>لیستی کاڵا</h2>
 
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="گەڕان بە ناو، بارکۆد، دابینکەر..."
-              className="w-full px-4 py-3 pr-12 rounded-lg border backdrop-blur-sm"
+          {/* View Toggle */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <FaTh size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <FaList size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1 relative">
+              <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="گەڕان بە ناو، بارکۆد، دابینکەر..."
+                className="w-full px-4 py-3 pr-12 rounded-lg border backdrop-blur-sm"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  borderColor: 'rgba(0, 0, 0, 0.1)',
+                  fontFamily: 'var(--font-uni-salar)',
+                  color: 'var(--theme-primary)'
+                }}
+              />
+            </div>
+
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-3 rounded-lg border backdrop-blur-sm min-w-[200px]"
               style={{
                 background: 'rgba(255, 255, 255, 0.8)',
                 borderColor: 'rgba(0, 0, 0, 0.1)',
                 fontFamily: 'var(--font-uni-salar)',
                 color: 'var(--theme-primary)'
               }}
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <span className="text-gray-400">🔍</span>
-            </div>
+            >
+              <option value="">هەموو پۆلەکان</option>
+              {getUniqueCategories().map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr style={{ background: 'var(--theme-muted)' }}>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>ناو</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>بڕی کڕدراو</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>یەکە</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>کۆی تێچوو</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>نرخی فرۆشتن</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>نرخی کڕین</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>قازانج</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>بەرواری بەسەرچوون</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>دابینکەر</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>بارکۆد</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>تێبینی</th>
-                <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>کۆگا</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventory
-                .filter((item) => {
-                  if (!searchTerm) return true
 
-                  const searchLower = searchTerm.toLowerCase()
+        {/* Grid View */}
+        {viewMode === 'grid' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredInventory.map((item) => (
+              <div
+                key={item.id}
+                className="relative p-6 rounded-2xl backdrop-blur-md border transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderColor: isLowStock(item) ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                {/* Item Image */}
+                <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                  {item.image ? (
+                    <img src={item.image} alt={item.item_name} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <span className="text-gray-400 text-4xl">📦</span>
+                  )}
+                </div>
 
-                  // Search by name (ناو)
-                  if (item.item_name.toLowerCase().includes(searchLower)) return true
+                {/* Item Name */}
+                <h3 className="text-lg font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                  {item.item_name}
+                </h3>
 
-                  // Search by supplier name (دابینکەر) - would come from products table
-                  // For now, search in suppliers list
-                  const supplierMatch = suppliers.some(supplier =>
-                    supplier.name.toLowerCase().includes(searchLower)
-                  )
-                  if (supplierMatch) return true
+                {/* Stock Quantity */}
+                <div className="text-center mb-4">
+                  <div className="text-2xl font-bold" style={{ color: isLowStock(item) ? '#dc2626' : 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)' }}>
+                    {item.quantity} {item.unit}
+                  </div>
+                  {isLowStock(item) && (
+                    <div className="text-sm text-red-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      کەمە!
+                    </div>
+                  )}
+                </div>
 
-                  // Search by barcode (بارکۆد) - would come from products table
-                  // For now, return false as barcodes aren't stored in inventory table
-                  // This can be extended when products table is implemented
+                {/* Quick Stock Controls */}
+                <div className="flex justify-center items-center space-x-3 mb-4">
+                  <button
+                    onClick={() => updateStockQuantity(item.id, item.quantity - 1)}
+                    className="w-8 h-8 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
+                  >
+                    <FaMinus className="text-red-600" size={12} />
+                  </button>
+                  <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    بڕ
+                  </span>
+                  <button
+                    onClick={() => updateStockQuantity(item.id, item.quantity + 1)}
+                    className="w-8 h-8 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center transition-colors"
+                  >
+                    <FaPlus className="text-green-600" size={12} />
+                  </button>
+                </div>
 
-                  return false
-                })
-                .map((item) => (
-                <tr key={item.id} style={{ borderTop: '1px solid var(--theme-border)' }}>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>{item.item_name}</td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {item.quantity}
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>{item.unit}</td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {Math.round((item.cost_price || 0) * item.quantity)} د.ع
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {Math.round(item.selling_price || 0)} د.ع
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {Math.round(item.cost_price || 0)} د.ع
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {Math.round((item.selling_price || 0) - (item.cost_price || 0))} د.ع
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {item.expire_date || '-'}
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {item.supplier_name || '-'}
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {/* Barcodes would come from products table */}
-                    -
-                  </td>
-                  <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
-                    {item.note || '-'}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold', fontSize: '0.9em' }}>{item.quantity} {item.unit}</span>
-                  </td>
+                {/* Action Buttons */}
+                <div className="flex justify-center space-x-2">
+                  <button
+                    onClick={() => openEditModal(item)}
+                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center space-x-1"
+                  >
+                    <FaEdit size={14} />
+                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(item)}
+                    className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
+                  >
+                    <FaTrash size={14} />
+                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Table View */}
+        {viewMode === 'table' && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr style={{ background: 'var(--theme-muted)' }}>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>ناو</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>بڕ</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>یەکە</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>نرخی کڕین</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>نرخی فرۆشتن</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>پۆل</th>
+                  <th className="px-3 py-3 text-right font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>کردارەکان</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredInventory.map((item) => (
+                  <tr key={item.id} style={{ borderTop: '1px solid var(--theme-border)' }}>
+                    <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>{item.item_name}</td>
+                    <td className="px-3 py-3" style={{ color: isLowStock(item) ? '#dc2626' : 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em', fontWeight: 'bold' }}>
+                      {item.quantity}
+                    </td>
+                    <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>{item.unit}</td>
+                    <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                      {Math.round(item.cost_price || 0)} د.ع
+                    </td>
+                    <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                      {Math.round(item.selling_price || 0)} د.ع
+                    </td>
+                    <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.9em' }}>
+                      {item.category || '-'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded transition-colors"
+                        >
+                          <FaEdit size={12} />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(item)}
+                          className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {filteredInventory.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📦</div>
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              هیچ کاڵایەک نەدۆزرایەوە
+            </h3>
+            <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              {searchTerm || selectedCategory ? 'گەڕانەکەت بگۆڕە یان فیلتەرەکان پاکبکە' : 'کاڵای نوێ زیادبکە'}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Advanced Stock Entry Modal */}
@@ -651,6 +1037,37 @@ export default function InventoryPage() {
                           className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
                           style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
                           placeholder="13000 د.ع"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕی پارەی دراو</label>
+                        <input
+                          type="text"
+                          value={purchaseItems[0]?.amount_paid || ''}
+                          onChange={(e) => {
+                            const westernNum = convertKurdishToWestern(e.target.value)
+                            const amountPaid = parseFloat(westernNum) || 0
+                            const totalPrice = purchaseItems[0]?.total_purchase_price || 0
+                            const debtAmount = Math.max(0, totalPrice - amountPaid)
+                            updatePurchaseItem(0, 'amount_paid', amountPaid)
+                            updatePurchaseItem(0, 'debt_amount', debtAmount)
+                          }}
+                          className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                          style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                          placeholder="0.00 د.ع"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕی قەرز</label>
+                        <input
+                          type="text"
+                          value={purchaseItems[0]?.debt_amount ? purchaseItems[0].debt_amount.toFixed(2) : '0.00'}
+                          readOnly
+                          className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm bg-gray-100"
+                          style={{ borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)', color: purchaseItems[0]?.debt_amount > 0 ? '#dc2626' : '#16a34a' }}
+                          placeholder="0.00 د.ع"
                         />
                       </div>
                     </div>
@@ -805,6 +1222,215 @@ export default function InventoryPage() {
                   style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   تۆمارکردنی کاڵا
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-2xl max-h-screen overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="p-8">
+              <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                دەستکاریکردنی کاڵا
+              </h3>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</label>
+                    <input
+                      type="text"
+                      value={editForm.item_name}
+                      onChange={(e) => updateEditForm('item_name', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</label>
+                    <input
+                      type="number"
+                      value={editForm.quantity}
+                      onChange={(e) => updateEditForm('quantity', parseInt(e.target.value) || 0)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</label>
+                    <select
+                      value={editForm.unit}
+                      onChange={(e) => updateEditForm('unit', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <option value="دانە">دانە</option>
+                      <option value="کیلۆگرام">کیلۆگرام</option>
+                      <option value="گرام">گرام</option>
+                      <option value="لیتر">لیتر</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>پۆل</label>
+                    <input
+                      type="text"
+                      value={editForm.category}
+                      onChange={(e) => updateEditForm('category', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                      placeholder="خۆراك، شیرینی..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین</label>
+                    <input
+                      type="number"
+                      value={editForm.cost_price}
+                      onChange={(e) => updateEditForm('cost_price', parseFloat(e.target.value) || 0)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن</label>
+                    <input
+                      type="number"
+                      value={editForm.selling_price}
+                      onChange={(e) => updateEditForm('selling_price', parseFloat(e.target.value) || 0)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆدی 1</label>
+                    <input
+                      type="text"
+                      value={editForm.barcode1}
+                      onChange={(e) => updateEditForm('barcode1', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆدی 2</label>
+                    <input
+                      type="text"
+                      value={editForm.barcode2}
+                      onChange={(e) => updateEditForm('barcode2', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆدی 3</label>
+                    <input
+                      type="text"
+                      value={editForm.barcode3}
+                      onChange={(e) => updateEditForm('barcode3', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆدی 4</label>
+                    <input
+                      type="text"
+                      value={editForm.barcode4}
+                      onChange={(e) => updateEditForm('barcode4', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەرواری بەسەرچوون</label>
+                  <input
+                    type="date"
+                    value={editForm.expire_date}
+                    onChange={(e) => updateEditForm('expire_date', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>تێبینی</label>
+                  <textarea
+                    value={editForm.note}
+                    onChange={(e) => updateEditForm('note', e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm resize-none"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end space-x-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  onClick={submitEditForm}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  نوێکردنەوە
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  دڵنیای لە سڕینەوە؟
+                </h3>
+                <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ئایا دڵنیای لە سڕینەوەی <strong>{itemToDelete.item_name}</strong>؟
+                </p>
+                <p className="text-sm text-red-600 mt-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ئەم کردارە ناتوانرێت پاشگەز بکرێتەوە
+                </p>
+              </div>
+
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{ backgroundColor: '#dc2626', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  سڕینەوە
                 </button>
               </div>
             </div>

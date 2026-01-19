@@ -151,13 +151,16 @@ export default function SuppliersPage() {
     }
 
     try {
-      console.log('➕ Adding new supplier:', newSupplier)
+      // Convert Kurdish numerals to Western numerals for phone number
+      const westernPhone = convertKurdishToWestern(newSupplier.phone.trim())
+
+      console.log('➕ Adding new supplier:', { ...newSupplier, phone: westernPhone })
       const { error } = await supabase
         .from('suppliers')
         .insert({
           name: newSupplier.name.trim(),
           company: newSupplier.company.trim() || null,
-          phone: newSupplier.phone.trim(),
+          phone: westernPhone,
           address: newSupplier.address.trim() || null
         })
 
@@ -202,13 +205,16 @@ export default function SuppliersPage() {
     }
 
     try {
-      console.log('✏️ Updating supplier:', editingSupplier.id, editForm)
+      // Convert Kurdish numerals to Western numerals for phone number
+      const westernPhone = convertKurdishToWestern(editForm.phone.trim())
+
+      console.log('✏️ Updating supplier:', editingSupplier.id, { ...editForm, phone: westernPhone })
       const { error } = await supabase
         .from('suppliers')
         .update({
           name: editForm.name.trim(),
           company: editForm.company.trim() || null,
-          phone: editForm.phone.trim(),
+          phone: westernPhone,
           address: editForm.address.trim() || null
         })
         .eq('id', editingSupplier.id)

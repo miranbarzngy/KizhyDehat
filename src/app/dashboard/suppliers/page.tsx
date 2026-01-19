@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaMoneyBillWave, FaHistory } from 'react-icons/fa'
+import { FaTh, FaList, FaEdit, FaTrash, FaMoneyBillWave, FaHistory, FaSearch } from 'react-icons/fa'
 
 interface Supplier {
   id: string
@@ -110,7 +110,8 @@ export default function SuppliersPage() {
 
     const searchLower = searchTerm.toLowerCase()
     return supplier.name.toLowerCase().includes(searchLower) ||
-           (supplier.company && supplier.company.toLowerCase().includes(searchLower))
+           (supplier.company && supplier.company.toLowerCase().includes(searchLower)) ||
+           supplier.phone.toLowerCase().includes(searchLower)
   })
 
   // Add supplier function
@@ -443,7 +444,7 @@ export default function SuppliersPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="گەڕان بە ناو یان کۆمپانیا..."
+              placeholder="گەڕان بەپێی ناو، مۆبایل، یان کۆمپانیا..."
               className="w-full px-4 py-3 pr-12 rounded-lg border backdrop-blur-sm"
               style={{
                 background: 'rgba(255, 255, 255, 0.8)',

@@ -305,6 +305,11 @@ export default function InventoryPage() {
           throw new Error(`هەڵە: باکەتی 'images' لە Supabase Storage نییە.\n\nچۆن باکەت دروست بکەیت:\n1. بڕۆ بۆ Supabase Dashboard\n2. کلیکی بکە لەسەر "Storage" لە مێنۆی چەپ\n3. کلیکی بکە لەسەر "Create bucket"\n4. ناوی باکەت بنووسە: "images"\n5. هەڵبژێرە "Public bucket"\n6. کلیکی بکە لەسەر "Create bucket"\n\nدوای دروستکردنی باکەت، دووبارە هەوڵبدەوە.`)
         }
 
+        // Provide guidance for RLS policy error
+        if (uploadError.message.includes('violates row-level security policy')) {
+          throw new Error(`هەڵە: ڕێگەپێدانەکانی باکەت سەپێنراوە.\n\nچۆن ڕێگەپێدانەکان چاک بکەیت:\n1. بڕۆ بۆ Supabase Dashboard > SQL Editor\n2. فایلەکەی setup_storage_policies.sql بکەرەوە\n3. هەموو کۆدەکە کۆپی بکە و لە SQL Editor دابنێ\n4. کلیکی بکە لەسەر "Run" بکە\n\nیان بە شێوەیەکی سادەتر:\n- بڕۆ بۆ Storage > images > Policies\n- زیادبکە ڕێگەپێدانێک بۆ Authenticated users بۆ INSERT و SELECT\n\nدوای چاککردنی ڕێگەپێدانەکان، دووبارە هەوڵبدەوە.`)
+        }
+
         throw new Error(`Upload failed: ${uploadError.message}`)
       }
 

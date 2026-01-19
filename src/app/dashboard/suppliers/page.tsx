@@ -104,14 +104,38 @@ export default function SuppliersPage() {
     }
   }
 
+  // Convert Kurdish numerals to Western numerals
+  const convertKurdishToWestern = (kurdishNum: string): string => {
+    // Handle Arabic decimal separator (٫) and convert to Western decimal point (.)
+    const processedNum = kurdishNum.replace(/٫/g, '.')
+
+    const kurdishToWestern: { [key: string]: string } = {
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9'
+    }
+
+    return processedNum.split('').map(char => kurdishToWestern[char] || char).join('')
+  }
+
   // Filtered suppliers based on search term
   const filteredSuppliers = suppliers.filter((supplier) => {
     if (!searchTerm) return true
 
     const searchLower = searchTerm.toLowerCase()
+    const searchWestern = convertKurdishToWestern(searchLower)
+
     return supplier.name.toLowerCase().includes(searchLower) ||
            (supplier.company && supplier.company.toLowerCase().includes(searchLower)) ||
-           supplier.phone.toLowerCase().includes(searchLower)
+           supplier.phone.toLowerCase().includes(searchLower) ||
+           supplier.phone.toLowerCase().includes(searchWestern)
   })
 
   // Add supplier function

@@ -102,8 +102,11 @@ export default function InventoryPage() {
   }, [])
 
   const fetchInventory = async () => {
+    console.log('🔄 Fetching inventory data...')
+
     // Demo mode: show sample inventory data when Supabase is not configured
     if (!supabase) {
+      console.log('⚠️ Supabase not configured, showing demo data')
       const demoInventory: InventoryItem[] = [
         {
           id: '1',

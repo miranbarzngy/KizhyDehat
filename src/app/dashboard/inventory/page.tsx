@@ -248,30 +248,80 @@ export default function InventoryPage() {
   }
 
   const handleImageUpload = async (file: File) => {
+    console.log('🖼️ Starting image upload process...')
+
     if (!supabase) {
+      console.error('❌ Supabase not configured')
       alert('Supabase not configured')
       return
     }
 
+    // File size validation (max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB in bytes
+    if (file.size > maxSize) {
+      console.error('❌ File too large:', file.size, 'bytes (max 5MB)')
+      alert('وێنەکە زۆر گەورەیە. دەبێت لە 5MB کەمتر بێت.')
+      return
+    }
+
+    // File type validation
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      console.error('❌ Invalid file type:', file.type)
+      alert('جۆری وێنە نادروستە. تکایە JPEG، PNG یان WebP بەکاربهێنە.')
+      return
+    }
+
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}.${fileExt}`
+      console.log('📁 File details:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      })
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `inventory/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file)
+      console.log('📤 Uploading to path:', filePath)
 
-      if (uploadError) throw uploadError
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
-      const { data } = supabase.storage
-        .from('images')
+      if (uploadError) {
+        console.error('❌ Upload error details:', {
+          message: uploadError.message,
+          details: uploadError,
+          filePath: filePath,
+          bucket: 'product-images'
+        })
+        throw new Error(`Upload failed: ${uploadError.message}`)
+      }
+
+      console.log('✅ Upload successful:', uploadData)
+
+      const { data: urlData } = supabase.storage
+        .from('product-images')
         .getPublicUrl(filePath)
 
-      updatePurchaseItem(0, 'image', data.publicUrl)
+      if (!urlData?.publicUrl) {
+        console.error('❌ Failed to get public URL')
+        throw new Error('Failed to get public URL')
+      }
+
+      console.log('🔗 Public URL generated:', urlData.publicUrl)
+
+      updatePurchaseItem(0, 'image', urlData.publicUrl)
+      console.log('✅ Image URL updated in form')
+
     } catch (error) {
-      console.error('Error uploading image:', error)
-      alert('Error uploading image')
+      console.error('💥 Image upload failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`هەڵە لە بارکردنی وێنە: ${errorMessage}`)
     }
   }
 

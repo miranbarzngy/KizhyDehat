@@ -349,7 +349,7 @@ export default function SuppliersPage() {
                     {supplier.balance.toFixed(2)} د.ع
                   </div>
                   <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    قەرزی کۆی گشتی
+                    کۆی گشتی قەرز
                   </div>
                 </div>
 

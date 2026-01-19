@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
@@ -49,6 +50,7 @@ export default function AdminPage() {
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newRoleName, setNewRoleName] = useState('')
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
     sales: false,
@@ -60,7 +62,13 @@ export default function AdminPage() {
   })
 
   useEffect(() => {
-    if (profile?.role?.name === 'Admin') {
+    // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
+    const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
+                    profile?.role?.name?.toLowerCase() === 'ئادمین' ||
+                    profile?.role?.name?.toLowerCase() === 'admin' ||
+                    profile?.role?.name?.toLowerCase() === 'administrator'
+
+    if (isAdmin) {
       fetchUsers()
       fetchRoles()
       fetchShopSettings()
@@ -230,15 +238,84 @@ export default function AdminPage() {
     }
 
     try {
+      console.log('Fetching roles...')
       const { data, error } = await supabase
         .from('roles')
         .select('*')
 
-      if (error) throw error
-      setRoles(data || [])
+      console.log('Roles query result:', { data, error })
+
+      if (error) {
+        console.error('Error fetching roles:', error)
+        // If roles table doesn't exist or is empty, create default roles
+        if (error.code === 'PGRST116' || error.message?.includes('relation "roles" does not exist')) {
+          console.log('Roles table not found, using demo data')
+          const demoRoles: Role[] = [
+            {
+              id: 'admin-role',
+              name: 'Admin',
+              permissions: {
+                sales: true,
+                inventory: true,
+                customers: true,
+                suppliers: true,
+                payroll: true,
+                profits: true
+              }
+            },
+            {
+              id: 'manager-role',
+              name: 'Manager',
+              permissions: {
+                sales: true,
+                inventory: true,
+                customers: true,
+                suppliers: false,
+                payroll: false,
+                profits: true
+              }
+            },
+            {
+              id: 'cashier-role',
+              name: 'Cashier',
+              permissions: {
+                sales: true,
+                inventory: false,
+                customers: false,
+                suppliers: false,
+                payroll: false,
+                profits: false
+              }
+            }
+          ]
+          setRoles(demoRoles)
+        } else {
+          throw error
+        }
+      } else {
+        console.log('Roles loaded:', data)
+        setRoles(data || [])
+      }
     } catch (error) {
       console.error('Error fetching roles:', error)
+      // Fallback: use demo roles
+      const demoRoles: Role[] = [
+        {
+          id: 'admin-role',
+          name: 'Admin',
+          permissions: {
+            sales: true,
+            inventory: true,
+            customers: true,
+            suppliers: true,
+            payroll: true,
+            profits: true
+          }
+        }
+      ]
+      setRoles(demoRoles)
     } finally {
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }
@@ -455,6 +532,11 @@ export default function AdminPage() {
 
       alert('ڕێکخستنەکان بە سەرکەوتوویی نوێکرانەوە')
       fetchShopSettings()
+
+      // Refresh the page to update browser title and favicon
+      if (typeof window !== 'undefined') {
+        window.location.reload()
+      }
     } catch (error) {
       console.error('Error updating all shop settings:', error)
       alert('هەڵە لە نوێکردنی ڕێکخستنەکان')
@@ -476,9 +558,80 @@ export default function AdminPage() {
     }
   }
 
-  // Temporary fix: allow access if user is logged in (for recovery)
-  // TODO: Remove this after restoring admin access
-  if (!profile) {
+  const editUser = (user: User) => {
+    setEditingUser(user)
+    setNewUserName(user.name || '')
+    setNewUserImage(user.image || '')
+    setNewUserPhone(user.phone || '')
+    setNewUserLocation(user.location || '')
+    setNewUserEmail(user.email || '')
+    setNewUserPassword('') // Don't pre-fill password for security
+    setSelectedRoleId(user.role_id || '')
+    setShowCreateUser(true)
+  }
+
+  const updateUser = async () => {
+    if (!editingUser) return
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: editingUser.id,
+          name: newUserName,
+          image: newUserImage,
+          phone: newUserPhone,
+          location: newUserLocation,
+          email: newUserEmail,
+          password: newUserPassword || undefined, // Only update if provided
+          roleId: selectedRoleId
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user')
+      }
+
+      setShowCreateUser(false)
+      setEditingUser(null)
+      setNewUserName('')
+      setNewUserImage('')
+      setNewUserPhone('')
+      setNewUserLocation('')
+      setNewUserEmail('')
+      setNewUserPassword('')
+      setSelectedRoleId('')
+      fetchUsers()
+      alert('User updated successfully!')
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert(`Error updating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const resetForm = () => {
+    setEditingUser(null)
+    setNewUserName('')
+    setNewUserImage('')
+    setNewUserPhone('')
+    setNewUserLocation('')
+    setNewUserEmail('')
+    setNewUserPassword('')
+    setSelectedRoleId('')
+  }
+
+  // Check for admin access - support Kurdish, English role names, and role ID, case-insensitive
+  const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
+                  profile?.role?.name?.toLowerCase() === 'ئادمین' ||
+                  profile?.role?.name?.toLowerCase() === 'admin' ||
+                  profile?.role?.name?.toLowerCase() === 'administrator'
+
+  if (!isAdmin) {
     return <div className="text-center text-red-600">دەستپێڕاگەیشتن نیە</div>
   }
 
@@ -543,7 +696,7 @@ export default function AdminPage() {
 
                 <div className="mt-4 flex space-x-2">
                   <button
-                    onClick={() => setShowCreateUser(true)}
+                    onClick={() => editUser(user)}
                     className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 text-sm"
                   >
                     نوێکردنەوە
@@ -699,11 +852,13 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Create User Modal */}
+      {/* Create/Edit User Modal */}
       {showCreateUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>زیادکردنی بەکارهێنەر</h3>
+            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</label>
@@ -718,6 +873,16 @@ export default function AdminPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</label>
+                {editingUser?.image && (
+                  <div className="mb-2">
+                    <img
+                      src={editingUser.image}
+                      alt="Current user image"
+                      className="w-16 h-16 object-cover rounded border"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">وێنەی ئێستا (بۆ گۆڕین وێنە نوێ هەڵبژێرە)</p>
+                  </div>
+                )}
                 <input
                   type="file"
                   accept="image/*"
@@ -770,10 +935,12 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>وشەی نهێنی</label>
+                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وشەی نهێنی {editingUser && '(بەتاڵ بهێڵە بۆ نەگۆڕین)'}
+                </label>
                 <input
                   type="password"
-                  placeholder="وشەی نهێنی"
+                  placeholder={editingUser ? "وشەی نهێنی نوێ (ئارەزوومەندانە)" : "وشەی نهێنی"}
                   value={newUserPassword}
                   onChange={(e) => setNewUserPassword(e.target.value)}
                   className="w-full border rounded px-3 py-2"
@@ -798,23 +965,17 @@ export default function AdminPage() {
               <button
                 onClick={() => {
                   setShowCreateUser(false)
-                  setNewUserName('')
-                  setNewUserImage('')
-                  setNewUserPhone('')
-                  setNewUserLocation('')
-                  setNewUserEmail('')
-                  setNewUserPassword('')
-                  setSelectedRoleId('')
+                  resetForm()
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 پاشگەزبوونەوە
               </button>
               <button
-                onClick={createUser}
+                onClick={editingUser ? updateUser : createUser}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
-                نوێکردنەوە
+                {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { Store } from 'lucide-react'
 
 interface ShopSettings {
   id: string
@@ -136,8 +137,12 @@ export default function DashboardLayout({
     payroll: true,
     profits: true
   }
-  // Temporary fix: allow admin access for recovery - show admin menu items
-  const isAdmin = (profile?.role?.name === 'Admin') || !profile?.role || user // If logged in, show admin items for recovery
+  // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
+  const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
+                  profile?.role?.name?.toLowerCase() === 'ئادمین' ||
+                  profile?.role?.name?.toLowerCase() === 'admin' ||
+                  profile?.role?.name?.toLowerCase() === 'administrator' ||
+                  !profile?.role || user // Fallback for recovery
 
   const filteredMenuItems = menuItems.filter(item => {
     if (item.adminOnly) return isAdmin
@@ -164,10 +169,16 @@ export default function DashboardLayout({
                       src={shopSettings.icon}
                       alt="Shop Logo"
                       className="w-16 h-16 object-cover rounded-lg"
+                      onError={(e) => {
+                        // Hide broken image and show fallback icon
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
                     />
-                  ) : (
-                    <span className="text-4xl">🏪</span>
-                  )}
+                  ) : null}
+                  <Store
+                    className={`w-16 h-16 text-yellow-400 ${shopSettings?.icon && shopSettings.icon.trim() !== '' ? 'hidden' : ''}`}
+                  />
                 </div>
               </div>
               <div className="text-center">
@@ -176,7 +187,45 @@ export default function DashboardLayout({
                 </h1>
               </div>
             </div>
-            <p className="text-sm opacity-75" style={{ color: 'var(--theme-secondary)' }}>{profile?.role?.name}</p>
+          </div>
+
+          {/* User Profile Section */}
+          <div className="p-4 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-lg flex items-center justify-center overflow-hidden">
+                  {profile?.image ? (
+                    <img
+                      src={profile.image}
+                      alt="User Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl">👤</span>
+                  )}
+                </div>
+              </div>
+              <div className="text-center">
+                <h3 className="text-sm font-bold" style={{ color: 'var(--theme-sidebar-text)', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
+                  {profile?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'}
+                </h3>
+                <p className="text-xs opacity-75" style={{ color: 'var(--theme-secondary)' }}>
+                  {profile?.role?.name || 'ڕۆڵی نەناسراو'}
+                </p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 hover:scale-105"
+                style={{
+                  color: 'var(--theme-sidebar-text)',
+                  fontFamily: 'var(--font-uni-salar)',
+                  background: 'var(--theme-sidebar-hover)'
+                }}
+              >
+                <span className="mr-2">🚪</span>
+                دەرچوون
+              </button>
+            </div>
           </div>
           <nav className="flex-1 mt-6">
             <div className="px-3">
@@ -212,23 +261,6 @@ export default function DashboardLayout({
                 دامەزراندنی ئەپ
               </button>
             )}
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 hover:scale-105"
-              style={{
-                color: 'var(--theme-sidebar-text)',
-                fontFamily: 'var(--font-uni-salar)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--theme-sidebar-hover)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <span className="mr-3">🚪</span>
-              دەرچوون
-            </button>
           </div>
         </div>
 

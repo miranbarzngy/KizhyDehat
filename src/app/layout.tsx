@@ -17,30 +17,90 @@ const uniSalar = localFont({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: "POS PWA - Kurdish POS System",
-  description: "Professional Point of Sale system for Kurdish businesses",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "POS Kurdish",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  openGraph: {
-    type: "website",
-    siteName: "POS Kurdish System",
-    title: "POS Kurdish System",
-    description: "Professional Point of Sale system for Kurdish businesses",
-  },
-  twitter: {
-    card: "summary",
-    title: "POS Kurdish System",
-    description: "Professional Point of Sale system for Kurdish businesses",
-  },
-};
+// Dynamic metadata generation
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    // Import Supabase client for server-side usage
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    // Fetch shop settings
+    const { data: shopSettings } = await supabase
+      .from('shop_settings')
+      .select('shopname, icon')
+      .single()
+
+    const shopName = shopSettings?.shopname || 'سیستمی فرۆشتن'
+    const shopIcon = shopSettings?.icon
+
+    return {
+      title: shopName,
+      description: `Professional Point of Sale system - ${shopName}`,
+      manifest: "/api/manifest",
+      icons: shopIcon ? {
+        icon: shopIcon,
+        apple: shopIcon,
+      } : {
+        icon: "/icon-192x192.png",
+        apple: "/icon-512x512.png",
+      },
+      appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: shopName,
+      },
+      formatDetection: {
+        telephone: false,
+      },
+      openGraph: {
+        type: "website",
+        siteName: shopName,
+        title: shopName,
+        description: `Professional Point of Sale system - ${shopName}`,
+      },
+      twitter: {
+        card: "summary",
+        title: shopName,
+        description: `Professional Point of Sale system - ${shopName}`,
+      },
+    }
+  } catch (error) {
+    console.error('Error generating metadata:', error)
+
+    // Fallback metadata
+    return {
+      title: "سیستمی فرۆشتن",
+      description: "Professional Point of Sale system for Kurdish businesses",
+      manifest: "/api/manifest",
+      icons: {
+        icon: "/icon-192x192.png",
+        apple: "/icon-512x512.png",
+      },
+      appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "سیستمی فرۆشتن",
+      },
+      formatDetection: {
+        telephone: false,
+      },
+      openGraph: {
+        type: "website",
+        siteName: "سیستمی فرۆشتن",
+        title: "سیستمی فرۆشتن",
+        description: "Professional Point of Sale system for Kurdish businesses",
+      },
+      twitter: {
+        card: "summary",
+        title: "سیستمی فرۆشتن",
+        description: "Professional Point of Sale system for Kurdish businesses",
+      },
+    }
+  }
+}
 
 export default function RootLayout({
   children,

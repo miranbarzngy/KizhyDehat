@@ -6,6 +6,11 @@ import { supabase } from '@/lib/supabase'
 
 interface Profile {
   id: string
+  name?: string
+  image?: string
+  phone?: string
+  location?: string
+  email?: string
   role_id: string
   role?: {
     name: string
@@ -111,6 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select(`
           id,
+          name,
+          image,
+          phone,
+          location,
+          email,
           role_id,
           roles (
             name,
@@ -134,6 +144,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Supabase returns joined data as an object, not an array
       const transformedData: Profile = {
         id: data.id,
+        name: data.name,
+        image: data.image,
+        phone: data.phone,
+        location: data.location,
+        email: data.email,
         role_id: data.role_id,
         role: data.roles && typeof data.roles === 'object' && !Array.isArray(data.roles) ? data.roles : undefined
       }

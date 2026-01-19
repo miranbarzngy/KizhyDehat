@@ -88,6 +88,78 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, name, image, phone, location, email, password, roleId } = await request.json()
+
+    // Validate required fields
+    if (!id) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      name,
+      image,
+      phone,
+      location,
+      email,
+      role_id: roleId
+    }
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key]
+      }
+    })
+
+    // Update profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update(updateData)
+      .eq('id', id)
+
+    if (profileError) {
+      console.error('Profile update error:', profileError)
+      return NextResponse.json(
+        { error: 'Failed to update user profile' },
+        { status: 400 }
+      )
+    }
+
+    // Update password if provided
+    if (password && password.trim() !== '') {
+      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(id, {
+        password: password
+      })
+
+      if (passwordError) {
+        console.error('Password update error:', passwordError)
+        return NextResponse.json(
+          { error: 'Failed to update password' },
+          { status: 400 }
+        )
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'User updated successfully'
+    })
+
+  } catch (error) {
+    console.error('User update error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function GET() {
   try {
     // Get all users with their profiles and roles

@@ -299,6 +299,12 @@ export default function InventoryPage() {
           filePath: filePath,
           bucket: 'images'
         })
+
+        // Provide specific guidance for bucket not found error
+        if (uploadError.message.includes('Bucket not found')) {
+          throw new Error(`هەڵە: باکەتی 'images' لە Supabase Storage نییە.\n\nچۆن باکەت دروست بکەیت:\n1. بڕۆ بۆ Supabase Dashboard\n2. کلیکی بکە لەسەر "Storage" لە مێنۆی چەپ\n3. کلیکی بکە لەسەر "Create bucket"\n4. ناوی باکەت بنووسە: "images"\n5. هەڵبژێرە "Public bucket"\n6. کلیکی بکە لەسەر "Create bucket"\n\nدوای دروستکردنی باکەت، دووبارە هەوڵبدەوە.`)
+        }
+
         throw new Error(`Upload failed: ${uploadError.message}`)
       }
 
@@ -743,7 +749,11 @@ export default function InventoryPage() {
 
       <div className="mb-6">
         <button
-          onClick={() => setShowStockEntry(true)}
+          onClick={() => {
+            console.log('🖱️ Add Item button clicked')
+            setShowStockEntry(true)
+            console.log('📂 Modal state set to true')
+          }}
           className="px-4 py-2 rounded-md text-white transition-colors duration-200"
           style={{ backgroundColor: 'var(--theme-accent)' }}
           onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}

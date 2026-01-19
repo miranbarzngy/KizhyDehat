@@ -78,7 +78,7 @@ export default function SuppliersPage() {
           id: '3',
           name: 'کۆمپانیای چای ناوەندی',
           company: 'کۆمپانیای چای ناوەندی',
-          phone: '0750-555-1234',
+          phone: '0770-555-1234',
           address: 'دهۆک، کوردستان',
           balance: 2340.25
         }

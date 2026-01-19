@@ -117,6 +117,7 @@ export default function AdminPage() {
     }
 
     try {
+      // Fetch users with proper join to roles table
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -127,16 +128,58 @@ export default function AdminPage() {
           location,
           email,
           role_id,
-          roles (
+          roles!inner (
+            id,
             name,
             permissions
           )
         `)
 
-      if (error) throw error
-      setUsers(data || [])
+      if (error) {
+        console.error('Error fetching users with roles:', error)
+        // Fallback: fetch users without role join and manually fetch roles
+        const { data: usersData, error: usersError } = await supabase
+          .from('profiles')
+          .select('id, name, image, phone, location, email, role_id')
+
+        if (usersError) throw usersError
+
+        // Fetch all roles
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('roles')
+          .select('id, name, permissions')
+
+        if (rolesError) throw rolesError
+
+        // Map roles to users
+        const usersWithRoles: User[] = usersData?.map(user => ({
+          ...user,
+          role: rolesData?.find(role => role.id === user.role_id) || undefined
+        })) || []
+
+        setUsers(usersWithRoles)
+      } else {
+        // Transform the data to match our interface
+        const transformedData: User[] = data?.map(user => ({
+          id: user.id,
+          name: user.name,
+          image: user.image,
+          phone: user.phone,
+          location: user.location,
+          email: user.email,
+          role_id: user.role_id,
+          role: user.roles && Array.isArray(user.roles) && user.roles.length > 0 ? {
+            name: user.roles[0].name,
+            permissions: user.roles[0].permissions
+          } : undefined
+        })) || []
+
+        setUsers(transformedData)
+      }
     } catch (error) {
       console.error('Error fetching users:', error)
+      // Final fallback: show empty array
+      setUsers([])
     }
   }
 
@@ -202,29 +245,27 @@ export default function AdminPage() {
 
   const createUser = async () => {
     try {
-      // First create auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUserEmail,
-        password: newUserPassword,
-        email_confirm: true
-      })
-
-      if (authError) throw authError
-
-      // Then create profile with all fields
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: newUserName,
           image: newUserImage,
           phone: newUserPhone,
           location: newUserLocation,
           email: newUserEmail,
-          role_id: selectedRoleId
+          password: newUserPassword,
+          roleId: selectedRoleId
         })
+      })
 
-      if (profileError) throw profileError
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user')
+      }
 
       setShowCreateUser(false)
       setNewUserName('')
@@ -235,9 +276,10 @@ export default function AdminPage() {
       setNewUserPassword('')
       setSelectedRoleId('')
       fetchUsers()
+      alert('User created successfully!')
     } catch (error) {
       console.error('Error creating user:', error)
-      alert('Error creating user')
+      alert(`Error creating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

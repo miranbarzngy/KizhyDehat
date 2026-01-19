@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaPlus, FaMinus, FaSearch } from 'react-icons/fa'
+import { FaTh, FaList, FaEdit, FaTrash, FaSearch } from 'react-icons/fa'
 
 interface InventoryItem {
   id: string
@@ -558,31 +558,7 @@ export default function InventoryPage() {
     return false
   })
 
-  // Quick stock update functions
-  const updateStockQuantity = async (itemId: string, newQuantity: number) => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت بڕ بگۆڕدرێت')
-      return
-    }
 
-    if (newQuantity < 0) {
-      alert('بڕ نابێت لە سفر کەمتر بێت')
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('inventory')
-        .update({ quantity: newQuantity })
-        .eq('id', itemId)
-
-      if (error) throw error
-      fetchInventory()
-    } catch (error) {
-      console.error('Error updating stock quantity:', error)
-      alert('هەڵە لە نوێکردنی بڕ')
-    }
-  }
 
   // Edit item functions
   const openEditModal = (item: InventoryItem) => {
@@ -817,7 +793,7 @@ export default function InventoryPage() {
                 </h3>
 
                 {/* Stock Quantity */}
-                <div className="text-center mb-4">
+                <div className="text-center mb-6">
                   <div className="text-2xl font-bold" style={{ color: isLowStock(item) ? '#dc2626' : 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)' }}>
                     {item.quantity} {item.unit}
                   </div>
@@ -826,25 +802,6 @@ export default function InventoryPage() {
                       کەمە!
                     </div>
                   )}
-                </div>
-
-                {/* Quick Stock Controls */}
-                <div className="flex justify-center items-center space-x-3 mb-4">
-                  <button
-                    onClick={() => updateStockQuantity(item.id, item.quantity - 1)}
-                    className="w-8 h-8 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
-                  >
-                    <FaMinus className="text-red-600" size={12} />
-                  </button>
-                  <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    بڕ
-                  </span>
-                  <button
-                    onClick={() => updateStockQuantity(item.id, item.quantity + 1)}
-                    className="w-8 h-8 rounded-full bg-green-100 hover:bg-green-200 flex items-center justify-center transition-colors"
-                  >
-                    <FaPlus className="text-green-600" size={12} />
-                  </button>
                 </div>
 
                 {/* Action Buttons */}

@@ -711,8 +711,27 @@ export default function InventoryPage() {
       return
     }
 
+    console.log('🗑️ Starting delete operation for item:', itemToDelete.item_name, 'ID:', itemToDelete.id)
+
     try {
+      // Check if item is referenced in sale_items table
+      console.log('🔍 Checking for references in sale_items...')
+      const { data: saleReferences, error: saleCheckError } = await supabase
+        .from('sale_items')
+        .select('id')
+        .eq('item_id', itemToDelete.id)
+        .limit(1)
+
+      if (saleCheckError) {
+        console.error('❌ Error checking sale references:', saleCheckError)
+      } else if (saleReferences && saleReferences.length > 0) {
+        console.error('❌ Cannot delete: Item is referenced in sales')
+        alert('ناتوانرێت کاڵاکە بسڕدرێتەوە چونکە لە فرۆشتنەکاندا بەکارهاتووە')
+        return
+      }
+
       // Delete from products table first (if exists)
+      console.log('📋 Deleting from products table...')
       try {
         const { error: productError } = await supabase
           .from('products')
@@ -720,27 +739,37 @@ export default function InventoryPage() {
           .eq('name', itemToDelete.item_name)
 
         if (productError) {
+          console.error('❌ Products table delete error:', productError)
           console.log('Products table delete failed, continuing...')
+        } else {
+          console.log('✅ Products record deleted')
         }
       } catch (productError) {
+        console.error('❌ Products table error:', productError)
         console.log('Products table not available, skipping...')
       }
 
       // Delete from inventory table
+      console.log('📦 Deleting from inventory table...')
       const { error: inventoryError } = await supabase
         .from('inventory')
         .delete()
         .eq('id', itemToDelete.id)
 
-      if (inventoryError) throw inventoryError
+      if (inventoryError) {
+        console.error('❌ Inventory delete error:', inventoryError)
+        throw inventoryError
+      }
 
+      console.log('✅ Inventory record deleted successfully')
       alert('کاڵاکە بە سەرکەوتوویی سڕدرایەوە')
       setShowDeleteConfirm(false)
       setItemToDelete(null)
       fetchInventory()
     } catch (error) {
-      console.error('Error deleting item:', error)
-      alert('هەڵە لە سڕینەوەی کاڵا')
+      console.error('💥 Delete operation failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`هەڵە لە سڕینەوەی کاڵا: ${errorMessage}`)
     }
   }
 

@@ -35,6 +35,9 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
 
   // Settings form state
   const [formData, setFormData] = useState({
@@ -44,7 +47,7 @@ export default function InvoicesPage() {
     shop_logo: null as File | null,
     thank_you_note: '',
     qr_code_url: '',
-    starting_invoice_number: 1000
+    qr_code_file: null as File | null
   })
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export default function InvoicesPage() {
           shop_logo: null,
           thank_you_note: data.thank_you_note,
           qr_code_url: data.qr_code_url || '',
-          starting_invoice_number: data.starting_invoice_number
+          qr_code_file: null
         })
       } else {
         // Create default settings
@@ -83,7 +86,7 @@ export default function InvoicesPage() {
           shop_logo: null,
           thank_you_note: 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.',
           qr_code_url: '',
-          starting_invoice_number: 1000
+          qr_code_file: null
         }
         setFormData(defaultSettings)
       }
@@ -96,35 +99,77 @@ export default function InvoicesPage() {
     if (!supabase) return
 
     try {
-      // Get sales with customer info and item counts
-      const { data, error } = await supabase
-        .from('sales')
-        .select(`
+      // First, check if invoice_number column exists
+      let hasInvoiceNumberColumn = false
+      try {
+        const testQuery = await supabase
+          .from('sales')
+          .select('invoice_number')
+          .limit(1)
+
+        hasInvoiceNumberColumn = !testQuery.error
+      } catch (columnError) {
+        console.log('invoice_number column not available yet, using fallback numbering')
+      }
+
+      // First, fetch basic sales data
+      let selectFields = `
+        id,
+        total,
+        payment_method,
+        date,
+        customers!inner(name)
+      `
+
+      if (hasInvoiceNumberColumn) {
+        selectFields = `
           id,
+          invoice_number,
           total,
           payment_method,
           date,
-          customers!inner(name),
-          sale_items(count)
-        `)
-        .order('date', { ascending: false })
+          customers!inner(name)
+        `
+      }
 
-      if (error) throw error
+      const { data, error } = await supabase
+        .from('sales')
+        .select(selectFields)
+        .order(hasInvoiceNumberColumn ? 'invoice_number' : 'date', { ascending: false, nullsFirst: false })
 
-      // Transform data and add invoice numbers
+      if (error) {
+        console.error('Error fetching invoices:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error, null, 2),
+          stack: error.stack
+        })
+        // Don't throw error, just return empty array to prevent crashes
+        setInvoices([])
+        return
+      }
+
+      // Transform data and handle invoice numbers gracefully
       const transformedInvoices: Invoice[] = (data || []).map((sale: any, index: number) => ({
         id: sale.id,
-        invoice_number: 1000 + index, // Temporary numbering, will be replaced with proper invoice numbers
+        invoice_number: hasInvoiceNumberColumn ? (sale.invoice_number || (1000 + index)) : (1000 + index),
         customer_name: sale.customers?.name || 'نەناسراو',
         total: sale.total,
         payment_method: sale.payment_method,
         date: sale.date,
-        items_count: sale.sale_items?.length || 0
+        items_count: 0 // Will be populated when viewing details
       }))
 
       setInvoices(transformedInvoices)
     } catch (error) {
-      console.error('Error fetching invoices:', error)
+      console.error('Error fetching invoices:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        fullError: JSON.stringify(error, null, 2)
+      })
+      // Set empty invoices array on error to prevent crashes
+      setInvoices([])
     } finally {
       setLoading(false)
     }
@@ -195,9 +240,8 @@ export default function InvoicesPage() {
       }
 
       // Upload new QR code if provided
-      if (formData.qr_code_url && formData.qr_code_url !== settings?.qr_code_url) {
-        // For QR code, we'll assume it's already a URL or handle file upload
-        qrUrl = formData.qr_code_url
+      if (formData.qr_code_file) {
+        qrUrl = await handleImageUpload(formData.qr_code_file) || qrUrl
       }
 
       const settingsData = {
@@ -207,8 +251,6 @@ export default function InvoicesPage() {
         shop_logo: logoUrl,
         thank_you_note: formData.thank_you_note,
         qr_code_url: qrUrl,
-        starting_invoice_number: formData.starting_invoice_number,
-        current_invoice_number: Math.max(formData.starting_invoice_number, settings?.current_invoice_number || 1000),
         updated_at: new Date().toISOString()
       }
 
@@ -244,9 +286,85 @@ export default function InvoicesPage() {
     alert(`دووبارە چاپکردنی فاکتور ${invoice.invoice_number}`)
   }
 
-  const viewInvoiceDetails = (invoice: Invoice) => {
-    // TODO: Implement invoice details view
-    alert(`پیشاندانی وردەکارییەکانی فاکتور ${invoice.invoice_number}`)
+  const viewInvoiceDetails = async (invoice: Invoice) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      // First, fetch the basic sale data with customer info
+      const { data: saleData, error: saleError } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          customers(name, phone1)
+        `)
+        .eq('id', invoice.id)
+        .single()
+
+      if (saleError) {
+        console.error('Sale query error:', saleError)
+        throw new Error(`Sale record not found: ${saleError.message}`)
+      }
+
+      // Then fetch the sale items
+      const { data: saleItemsData, error: itemsError } = await supabase
+        .from('sale_items')
+        .select(`
+          id,
+          quantity,
+          price,
+          unit,
+          item_id
+        `)
+        .eq('sale_id', invoice.id)
+
+      if (itemsError) {
+        console.error('Sale items query error:', itemsError)
+        // Continue with empty items if this fails
+      }
+
+      // Fetch inventory item names for each sale item
+      const saleItemsWithNames = await Promise.all(
+        (saleItemsData || []).map(async (item: any) => {
+          try {
+            const { data: inventoryData, error: inventoryError } = await supabase
+              .from('inventory')
+              .select('item_name')
+              .eq('id', item.item_id)
+              .single()
+
+            return {
+              ...item,
+              products: {
+                name: inventoryData?.item_name || 'نەناسراو',
+                unit: item.unit
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching inventory item:', error)
+            return {
+              ...item,
+              products: {
+                name: 'نەناسراو',
+                unit: item.unit
+              }
+            }
+          }
+        })
+      )
+
+      setSelectedInvoice(invoice)
+      setInvoiceDetails({
+        ...saleData,
+        sale_items: saleItemsWithNames
+      })
+      setShowInvoiceModal(true)
+    } catch (error) {
+      console.error('Error fetching invoice details:', error)
+      alert(`هەڵە لە بارکردنی وردەکارییەکانی فاکتور: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   const generateReceiptPreview = () => {
@@ -359,13 +477,14 @@ export default function InvoicesPage() {
         </div>
 
         ${qrCodeUrl ? `
-          <div style="text-align: center; margin: 10px 0;">
+          <div style="display: flex; justify-content: center; align-items: center; margin: 12px 0;">
             <img src="${qrCodeUrl}" alt="QR Code" style="width: 55px; height: 55px; border: 2px solid #000; border-radius: 4px;" />
           </div>
         ` : ''}
 
-        <div style="font-size: 7px; color: #adb5bd; margin-top: 6px; border-top: 1px solid #dee2e6; padding-top: 4px;">
-          سیستم بەرهەم هێنراوە لە لایەن Click Group
+        <div style="font-size: 7px; color: #adb5bd; margin-top: 6px; border-top: 1px solid #dee2e6; padding-top: 4px; text-align: center;">
+          گەشەپێدانی سیستم لە لایەن Click Group<br>
+          07701466787
         </div>
       </div>
     `
@@ -479,6 +598,31 @@ export default function InvoicesPage() {
                           </div>
                         </div>
 
+                        {/* Shop Logo */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            لۆگۆی فرۆشگا
+                          </label>
+                          <div className="relative">
+                            <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setFormData(prev => ({ ...prev, shop_logo: e.target.files?.[0] || null }))}
+                              className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                          </div>
+                          {settings?.shop_logo && (
+                            <div className="mt-2">
+                              <img
+                                src={settings.shop_logo}
+                                alt="Current logo"
+                                className="w-16 h-16 object-contain"
+                              />
+                            </div>
+                          )}
+                        </div>
+
                         {/* Shop Phone */}
                         <div>
                           <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
@@ -517,52 +661,38 @@ export default function InvoicesPage() {
                           </div>
                         </div>
 
-                        {/* Shop Logo */}
+                        {/* QR Code for Social Media */}
                         <div>
                           <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            لۆگۆی فرۆشگا
+                            QR کۆد   
                           </label>
                           <div className="relative">
-                            <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <FaQrcode className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) => setFormData(prev => ({ ...prev, shop_logo: e.target.files?.[0] || null }))}
+                              onChange={(e) => setFormData(prev => ({ ...prev, qr_code_file: e.target.files?.[0] || null }))}
                               className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                             />
                           </div>
-                          {settings?.shop_logo && (
+                          <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            وێنەی QR کۆد دابنێ   
+                          </p>
+                          {settings?.qr_code_url && (
                             <div className="mt-2">
                               <img
-                                src={settings.shop_logo}
-                                alt="Current logo"
-                                className="w-16 h-16 object-cover rounded-lg border"
+                                src={settings.qr_code_url}
+                                alt="Current QR Code"
+                                className="w-16 h-16 object-contain border rounded"
                               />
                             </div>
                           )}
                         </div>
 
-                        {/* QR Code URL */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            QR کۆد (بۆ واتسئەپ یان ناونیشان)
-                          </label>
-                          <div className="relative">
-                            <FaQrcode className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                              type="url"
-                              value={formData.qr_code_url}
-                              onChange={(e) => setFormData(prev => ({ ...prev, qr_code_url: e.target.value }))}
-                              className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                              placeholder="https://wa.me/964XXXXXXXXX"
-                            />
-                          </div>
-                        </div>
-
                         {/* Thank You Note */}
                         <div>
                           <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            پەیامی سوپاس
+                            دانانی پەیام 
                           </label>
                           <textarea
                             value={formData.thank_you_note}
@@ -571,21 +701,6 @@ export default function InvoicesPage() {
                             style={{ fontFamily: 'var(--font-uni-salar)' }}
                             placeholder="پەیامی سوپاس بۆ کڕیار"
                             rows={2}
-                          />
-                        </div>
-
-                        {/* Starting Invoice Number */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            ژمارەی دەستپێکردنی فاکتور
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.starting_invoice_number}
-                            onChange={(e) => setFormData(prev => ({ ...prev, starting_invoice_number: parseInt(e.target.value) || 1000 }))}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-left"
-                            style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
-                            min="1"
                           />
                         </div>
                       </div>
@@ -764,7 +879,7 @@ export default function InvoicesPage() {
                         ))}
                         {filteredInvoices.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center">
+                            <td colSpan={7} className="px-6 py-12 text-center">
                               <div className="text-gray-400">
                                 <FaFileInvoice className="text-4xl mx-auto mb-4" />
                                 <p className="text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
@@ -788,6 +903,202 @@ export default function InvoicesPage() {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* Invoice Details Modal */}
+      <AnimatePresence>
+        {showInvoiceModal && invoiceDetails && selectedInvoice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowInvoiceModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <FaFileInvoice className="text-blue-500 text-2xl" />
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      وردەکارییەکانی فاکتور #{selectedInvoice.invoice_number}
+                    </h3>
+                    <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {new Date(selectedInvoice.date).toLocaleDateString('ku')} - {invoiceDetails.customers?.name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowInvoiceModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FaEye className="text-gray-400" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                {/* Invoice Preview */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div
+                    className="text-xs"
+                    style={{
+                      fontFamily: 'UniSalar_F_007, sans-serif',
+                      fontWeight: 'bold',
+                      letterSpacing: '0.5px',
+                      lineHeight: '1.4',
+                      direction: 'rtl'
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: generateInvoiceHTML(invoiceDetails, selectedInvoice)
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+                <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  کۆی گشتی: {formatCurrency(selectedInvoice.total)} IQD
+                </div>
+                <div className="flex space-x-3">
+                  <motion.button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <FaPrint className="inline ml-2" />
+                    چاپکردن
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setShowInvoiceModal(false)}
+                    className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    داخستن
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
+}
+
+function generateInvoiceHTML(saleData: any, invoice: Invoice) {
+  const shopName = 'فرۆشگای کوردستان' // This should come from settings
+  const shopPhone = '' // This should come from settings
+  const shopAddress = '' // This should come from settings
+  const shopLogo = '' // This should come from settings
+  const thankYouNote = 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.' // This should come from settings
+  const qrCodeUrl = '' // This should come from settings
+
+  return `
+    <!-- 1. Header Section (Visual Brand) -->
+    <div style="text-align: center; margin-bottom: 10px;">
+      ${shopLogo ? `
+        <div style="width: 70px; height: 70px; margin: 0 auto 8px; border-radius: 6px; overflow: hidden; background: #f8f9fa; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center;">
+          <img src="${shopLogo}" alt="${shopName}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+        </div>
+      ` : ''}
+      <div style="font-size: 15px; font-weight: bold; margin: 6px 0 4px; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
+      ${shopPhone ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📞 ${shopPhone}</div>` : ''}
+      ${shopAddress ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📍 ${shopAddress}</div>` : ''}
+    </div>
+
+    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+
+    <!-- 2. Invoice Meta Details -->
+    <div style="margin: 8px 0; font-size: 9px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-bottom: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; color: #495057;">ژمارەی فاکتور:</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">#${invoice.invoice_number}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; color: #495057;">بەروار/کات:</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${new Date(invoice.date).toLocaleString('ku')}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; color: #495057;">کڕیار:</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${saleData.customers?.name || 'نەناسراو'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; color: #495057;">تەلەفۆن:</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${saleData.customers?.phone || ''}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; grid-column: span 2;">
+          <span style="font-weight: bold; color: #495057;">شێوازی پارەدان:</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${invoice.payment_method === 'cash' ? 'نەختینە' : invoice.payment_method === 'fib' ? 'ئۆنلاین' : 'قەرز'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+
+    <!-- 3. Itemized List (The Grid) -->
+    <table style="margin: 10px 0; border-collapse: collapse; width: 100%; font-size: 9px;">
+      <thead>
+        <tr>
+          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">ناوی کاڵا</th>
+          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; font-size: 8px; background: #f8f9fa;">یەکە</th>
+          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">بڕ</th>
+          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">نرخ</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${saleData.sale_items?.map((item: any) => `
+          <tr>
+            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">${item.products?.name || 'نەناسراو'}</td>
+            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: center; min-width: 25px; font-weight: 500;">${item.products?.unit || ''}</td>
+            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 25px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr;">${item.quantity}</td>
+            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 40px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr; padding-left: 5px;">${item.price.toFixed(2)}</td>
+          </tr>
+        `).join('') || ''}
+      </tbody>
+    </table>
+
+    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+
+    <!-- 4. Financial Summary (The Totals) -->
+    <div style="margin: 10px 0; border-top: 2px solid #000; padding-top: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
+        <span style="font-weight: bold; color: #495057;">کۆی گشتی:</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${formatCurrency(invoice.total)} IQD</span>
+      </div>
+    </div>
+
+    <!-- Grand Total Highlight -->
+    <div style="background: #000; color: #fff; padding: 10px 15px; text-align: center; font-size: 15px; font-weight: 900; margin: 12px 0; font-family: 'JetBrains Mono', monospace; border-radius: 6px; letter-spacing: 1px;">
+      کۆی گشتی: ${formatCurrency(invoice.total)} IQD
+    </div>
+
+    <!-- 5. Footer & Social -->
+    <div style="text-align: center; margin-top: 10px;">
+      <div style="font-size: 9px; margin: 8px 0; font-style: italic; text-align: center; color: #6c757d;">
+        ${thankYouNote}
+      </div>
+
+      ${qrCodeUrl ? `
+        <div style="display: flex; justify-content: center; align-items: center; margin: 12px 0;">
+          <img src="${qrCodeUrl}" alt="QR Code" style="width: 55px; height: 55px; border: 2px solid #000; border-radius: 4px;" />
+        </div>
+      ` : ''}
+
+      <div style="font-size: 7px; color: #adb5bd; margin-top: 6px; border-top: 1px solid #dee2e6; padding-top: 4px; text-align: center;">
+        گەشەپێدانی سیستم لە لایەن Click Group<br>
+        07701466787
+      </div>
+    </div>
+  `
 }

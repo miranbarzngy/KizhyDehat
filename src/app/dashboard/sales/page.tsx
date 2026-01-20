@@ -413,23 +413,20 @@ export default function SalesPage() {
         userId: user?.id
       })
 
-      // Insert sale with payment method - ALL sales now linked to customer
-      console.log('Attempting to insert sale with data:', {
-        customer_id: selectedCustomer,
+      // Insert sale with payment method - invoice_number will be auto-assigned by database sequence
+      const saleInsertData = {
+        customer_id: selectedCustomer, // Always link to customer
         total,
         payment_method: paymentMethod,
         user_id: user?.id
-      })
+      }
+
+      console.log('Attempting to insert sale with data:', saleInsertData)
 
       const { data: saleData, error: saleError } = await supabase!
         .from('sales')
-        .insert({
-          customer_id: selectedCustomer, // Always link to customer
-          total,
-          payment_method: paymentMethod,
-          user_id: user?.id
-        })
-        .select()
+        .insert(saleInsertData)
+        .select('id, invoice_number, total, payment_method, date, user_id, customers(name, phone1)') // Explicitly select invoice_number
         .single()
 
       if (saleError) {
@@ -438,12 +435,13 @@ export default function SalesPage() {
           details: saleError.details,
           hint: saleError.hint,
           code: saleError.code,
-          fullError: saleError
+          fullError: JSON.stringify(saleError, null, 2)
         })
         throw saleError
       }
 
       console.log('Sale created:', saleData)
+      console.log('Invoice number from database:', saleData.invoice_number)
 
       // Insert sale items with converted quantities for inventory tracking
       const saleItems = cart.map(item => ({
@@ -519,10 +517,11 @@ export default function SalesPage() {
         }
       }
 
-      // Print receipt with customer name for ALL sales
+      // Print receipt with customer name and actual invoice number for ALL sales
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
-      console.log('Printing receipt for customer:', customerName)
-      printReceipt(cart, total, customerName, paymentMethod)
+      const actualInvoiceNumber = saleData.invoice_number
+      console.log('Printing receipt for customer:', customerName, 'with invoice number:', actualInvoiceNumber)
+      printReceipt(cart, total, customerName, paymentMethod, actualInvoiceNumber)
 
       // Reset cart
       setCart([])
@@ -540,7 +539,7 @@ export default function SalesPage() {
     }
   }
 
-  const printReceipt = (items: CartItem[], total: number, customerName?: string, paymentMethod?: 'cash' | 'fib' | 'debt') => {
+  const printReceipt = (items: CartItem[], total: number, customerName?: string, paymentMethod?: 'cash' | 'fib' | 'debt', invoiceNumber?: number) => {
     const receiptWindow = window.open('', '_blank', 'width=400,height=800')
     if (!receiptWindow) return
 
@@ -569,9 +568,6 @@ export default function SalesPage() {
     const shopLogo = invoiceSettings?.shop_logo || ''
     const thankYouNote = invoiceSettings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
     const qrCodeUrl = invoiceSettings?.qr_code_url || ''
-
-    // Generate invoice number (temporary - will be replaced with proper numbering)
-    const invoiceNumber = Math.floor(Math.random() * 9000) + 1000
 
     // Calculate tax (assuming 0% for now, can be configured later)
     const tax = 0

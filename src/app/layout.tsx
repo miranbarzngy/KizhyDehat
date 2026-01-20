@@ -20,12 +20,51 @@ const uniSalar = localFont({
 // Dynamic metadata generation
 export async function generateMetadata(): Promise<Metadata> {
   try {
+    // Check if Supabase environment variables are available
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    console.log('🔧 Layout metadata generation - Environment variables:', {
+      supabaseUrl: supabaseUrl ? '***' + supabaseUrl.slice(-10) : 'undefined',
+      supabaseServiceKey: supabaseServiceKey ? '***present***' : 'undefined'
+    })
+
+    // If environment variables are missing, return fallback metadata
+    if (!supabaseUrl || !supabaseServiceKey || supabaseUrl === 'your_supabase_url_here') {
+      console.warn('⚠️ Supabase environment variables not configured, using fallback metadata')
+      return {
+        title: "سیستمی فرۆشتن",
+        description: "Professional Point of Sale system for Kurdish businesses",
+        manifest: "/api/manifest",
+        icons: {
+          icon: "/icon-192x192.png",
+          apple: "/icon-512x512.png",
+        },
+        appleWebApp: {
+          capable: true,
+          statusBarStyle: "default",
+          title: "سیستمی فرۆشتن",
+        },
+        formatDetection: {
+          telephone: false,
+        },
+        openGraph: {
+          type: "website",
+          siteName: "سیستمی فرۆشتن",
+          title: "سیستمی فرۆشتن",
+          description: "Professional Point of Sale system for Kurdish businesses",
+        },
+        twitter: {
+          card: "summary",
+          title: "سیستمی فرۆشتن",
+          description: "Professional Point of Sale system for Kurdish businesses",
+        },
+      }
+    }
+
     // Import Supabase client for server-side usage
     const { createClient } = await import('@supabase/supabase-js')
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Fetch shop settings
     const { data: shopSettings } = await supabase

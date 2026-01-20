@@ -1,6 +1,10 @@
 import withPWA from 'next-pwa'
 
-const nextConfig = {}
+const nextConfig = {
+  images: {
+    domains: ['ulsjciplzhkdmgotawux.supabase.co', '*.supabase.co'],
+  },
+}
 
 export default withPWA({
   dest: 'public',

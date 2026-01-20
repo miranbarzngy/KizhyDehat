@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import { sanitizePhoneNumber } from '@/lib/numberUtils'
 
 interface User {
   id: string
@@ -60,6 +61,7 @@ export default function AdminPage() {
     payroll: false,
     profits: false,
   })
+  const [editingRole, setEditingRole] = useState<Role | null>(null)
 
   useEffect(() => {
     // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
@@ -625,6 +627,87 @@ export default function AdminPage() {
     setSelectedRoleId('')
   }
 
+  const editRole = (role: Role) => {
+    setEditingRole(role)
+    setNewRoleName(role.name)
+    setPermissions(role.permissions)
+    setShowCreateRole(true)
+  }
+
+  const updateRole = async () => {
+    if (!editingRole) return
+
+    try {
+      const { error } = await supabase
+        .from('roles')
+        .update({
+          name: newRoleName,
+          permissions
+        })
+        .eq('id', editingRole.id)
+
+      if (error) throw error
+
+      setShowCreateRole(false)
+      setEditingRole(null)
+      setNewRoleName('')
+      setPermissions({
+        sales: false,
+        inventory: false,
+        customers: false,
+        suppliers: false,
+        payroll: false,
+        profits: false,
+      })
+      fetchRoles()
+      alert('Role updated successfully!')
+    } catch (error) {
+      console.error('Error updating role:', error)
+      alert('Error updating role')
+    }
+  }
+
+  const deleteRole = async (roleId: string, roleName: string) => {
+    // Check if any users are using this role
+    const usersWithRole = users.filter(user => user.role_id === roleId)
+    if (usersWithRole.length > 0) {
+      alert(`ناتوانرێت ڕۆڵ بسڕدرێتەوە چونکە ${usersWithRole.length} بەکارهێنەر ئەم ڕۆڵە بەکاردەهێنن. تکایە یەکەم ڕۆڵی ئەم بەکارهێنەرانە بگۆڕە.`)
+      return
+    }
+
+    if (!confirm(`دڵنیایت لە سڕینەوەی ڕۆڵی "${roleName}"؟`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('roles')
+        .delete()
+        .eq('id', roleId)
+
+      if (error) throw error
+
+      fetchRoles()
+      alert('Role deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting role:', error)
+      alert('Error deleting role')
+    }
+  }
+
+  const resetRoleForm = () => {
+    setEditingRole(null)
+    setNewRoleName('')
+    setPermissions({
+      sales: false,
+      inventory: false,
+      customers: false,
+      suppliers: false,
+      payroll: false,
+      profits: false,
+    })
+  }
+
   // Check for admin access - support Kurdish, English role names, and role ID, case-insensitive
   const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
                   profile?.role?.name?.toLowerCase() === 'ئادمین' ||
@@ -725,7 +808,23 @@ export default function AdminPage() {
           <div className="space-y-4">
             {roles.map((role) => (
               <div key={role.id} className="border p-4 rounded">
-                <h3 className="font-semibold">{role.name}</h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold">{role.name}</h3>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => editRole(role)}
+                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                    >
+                      نوێکردنەوە
+                    </button>
+                    <button
+                      onClick={() => deleteRole(role.id, role.name)}
+                      className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                    >
+                      سڕینەوە
+                    </button>
+                  </div>
+                </div>
                 <p className="text-sm text-gray-600">
                   مۆڵەتەکان: {Object.keys(role.permissions).filter(key => role.permissions[key]).join(', ')}
                 </p>
@@ -907,7 +1006,7 @@ export default function AdminPage() {
                   type="text"
                   placeholder="+964 XXX XXX XXXX"
                   value={newUserPhone}
-                  onChange={(e) => setNewUserPhone(e.target.value)}
+                  onChange={(e) => setNewUserPhone(sanitizePhoneNumber(e.target.value))}
                   className="w-full border rounded px-3 py-2"
                 />
               </div>
@@ -982,11 +1081,13 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Create Role Modal */}
+      {/* Create/Edit Role Modal */}
       {showCreateRole && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-4">زیادکردنی ڕۆڵ</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
+            </h3>
             <div className="space-y-4">
               <input
                 type="text"
@@ -1011,16 +1112,19 @@ export default function AdminPage() {
             </div>
             <div className="flex justify-end space-x-2 mt-4">
               <button
-                onClick={() => setShowCreateRole(false)}
+                onClick={() => {
+                  setShowCreateRole(false)
+                  resetRoleForm()
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 پاشگەزبوونەوە
               </button>
               <button
-                onClick={createRole}
+                onClick={editingRole ? updateRole : createRole}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
               >
-                زیادکردن
+                {editingRole ? 'نوێکردنەوە' : 'زیادکردن'}
               </button>
             </div>
           </div>

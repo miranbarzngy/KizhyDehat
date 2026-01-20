@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { motion } from 'framer-motion'
+import { formatCurrency } from '@/lib/numberUtils'
 
 interface ChartData {
   date: string
@@ -210,68 +212,124 @@ export default function DashboardPage() {
     fetchShopSettings()
   }, [])
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5
+      }
+    }
+  }
+
+  const hoverVariants = {
+    hover: {
+      scale: 1.02,
+      transition: {
+        duration: 0.2
+      }
+    }
+  }
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>داشبۆردی دارایی</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 relative overflow-hidden">
+      {/* Background Grid Effect */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none"></div>
 
-      {/* Quick Action Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <button
-          onClick={() => router.push('/dashboard/sales')}
-          className="p-2 rounded-xl shadow-md backdrop-blur-md border transition-all duration-200 hover:scale-105"
-          style={{
-            background: 'rgba(59, 130, 246, 0.1)',
-            borderColor: 'rgba(59, 130, 246, 0.3)',
-            color: '#3b82f6'
-          }}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="relative z-10"
+      >
+        <motion.h1
+          variants={cardVariants}
+          className="text-4xl font-bold mb-12 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent text-center"
+          style={{ fontFamily: 'var(--font-uni-salar)' }}
         >
-          <div className="flex items-center justify-center space-x-2">
-            <span className="text-xl">🛒</span>
-            <div className="text-center">
-              <div className="text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>تۆمارکردنی فرۆشتن</div>
-              <div className="text-xs opacity-75">New Order</div>
-            </div>
-          </div>
-        </button>
+          داشبۆردی دارایی
+        </motion.h1>
 
-        <button
-          onClick={() => router.push('/dashboard/inventory')}
-          className="p-2 rounded-xl shadow-md backdrop-blur-md border transition-all duration-200 hover:scale-105"
-          style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            borderColor: 'rgba(16, 185, 129, 0.3)',
-            color: '#10b981'
-          }}
+        {/* Quick Action Buttons */}
+        <motion.div
+          variants={cardVariants}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
         >
-          <div className="flex items-center justify-center space-x-2">
-            <span className="text-xl">📦</span>
-            <div className="text-center">
-              <div className="text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>زیادکردنی کاڵا</div>
-              <div className="text-xs opacity-75">Add Product</div>
+          <motion.button
+            variants={hoverVariants}
+            whileHover="hover"
+            onClick={() => router.push('/dashboard/sales')}
+            className="group p-6 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.05))',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1)'
+            }}
+          >
+            <div className="flex items-center justify-center space-x-4">
+              <div className="text-4xl group-hover:scale-110 transition-transform duration-300">🛒</div>
+              <div className="text-center">
+                <div className="text-lg font-semibold mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: '#1e40af' }}>تۆمارکردنی فرۆشتن</div>
+                <div className="text-sm opacity-75 text-blue-600">New Order</div>
+              </div>
             </div>
-          </div>
-        </button>
+          </motion.button>
 
-        <button
-          onClick={() => router.push('/dashboard/expenses')}
-          className="p-2 rounded-xl shadow-md backdrop-blur-md border transition-all duration-200 hover:scale-105"
-          style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            borderColor: 'rgba(239, 68, 68, 0.3)',
-            color: '#ef4444'
-          }}
-        >
-          <div className="flex items-center justify-center space-x-2">
-            <span className="text-xl">💸</span>
-            <div className="text-center">
-              <div className="text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>خەرجی نوێ</div>
-              <div className="text-xs opacity-75">Add Expense</div>
+          <motion.button
+            variants={hoverVariants}
+            whileHover="hover"
+            onClick={() => router.push('/dashboard/inventory')}
+            className="group p-6 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(110, 231, 183, 0.05))',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              boxShadow: '0 8px 32px rgba(16, 185, 129, 0.1)'
+            }}
+          >
+            <div className="flex items-center justify-center space-x-4">
+              <div className="text-4xl group-hover:scale-110 transition-transform duration-300">📦</div>
+              <div className="text-center">
+                <div className="text-lg font-semibold mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: '#047857' }}>زیادکردنی کاڵا</div>
+                <div className="text-sm opacity-75 text-green-600">Add Product</div>
+              </div>
             </div>
-          </div>
-        </button>
-      </div>
+          </motion.button>
 
-      {/* Main Financial Cards */}
+          <motion.button
+            variants={hoverVariants}
+            whileHover="hover"
+            onClick={() => router.push('/dashboard/expenses')}
+            className="group p-6 rounded-3xl backdrop-blur-xl bg-white/60 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(252, 165, 165, 0.05))',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              boxShadow: '0 8px 32px rgba(239, 68, 68, 0.1)'
+            }}
+          >
+            <div className="flex items-center justify-center space-x-4">
+              <div className="text-4xl group-hover:scale-110 transition-transform duration-300">💸</div>
+              <div className="text-center">
+                <div className="text-lg font-semibold mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: '#dc2626' }}>خەرجی نوێ</div>
+                <div className="text-sm opacity-75 text-red-600">Add Expense</div>
+              </div>
+            </div>
+          </motion.button>
+        </motion.div>
+
+        {/* Main Financial Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className={`p-6 rounded-2xl shadow-lg backdrop-blur-md border text-center ${theme === 'colourful' ? 'colourful-card' : ''}`} style={{
           background: 'rgba(59, 130, 246, 0.1)',
@@ -279,7 +337,7 @@ export default function DashboardPage() {
           color: '#3b82f6'
         }}>
           <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی فرۆشتن</h3>
-          <p className="numerical-value text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.totalSales)} د.ع</p>
+          <p className="numerical-value text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.totalSales)} IQD</p>
           <p className="text-sm opacity-75">Total sales</p>
         </div>
 
@@ -299,7 +357,7 @@ export default function DashboardPage() {
           color: '#ef4444'
         }}>
           <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی خەرجییەکان</h3>
-          <p className="numerical-value text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.totalExpenses)} د.ع</p>
+          <p className="numerical-value text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.totalExpenses)} IQD</p>
           <p className="text-sm opacity-75">Total Expenses</p>
         </div>
 
@@ -310,7 +368,7 @@ export default function DashboardPage() {
         }}>
           <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانجی پاک</h3>
           <p className={`numerical-value text-2xl font-bold ${theme === 'black-gold' ? 'gold-text-glow' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>
-            {Math.round(stats.netProfit)} د.ع
+            {Math.round(stats.netProfit)} IQD
           </p>
           <p className="text-sm opacity-75">Net Profit</p>
         </div>
@@ -331,7 +389,7 @@ export default function DashboardPage() {
               <YAxis stroke="var(--theme-secondary)" />
               <Tooltip
                 labelFormatter={(date) => new Date(date).toLocaleDateString('ku')}
-                formatter={(value: number | undefined) => [`${Math.round(value || 0)} د.ع`, 'قازانج']}
+                formatter={(value: number | undefined) => [`${Math.round(value || 0)} IQD`, 'قازانج']}
                 contentStyle={{
                   backgroundColor: 'var(--theme-card-bg)',
                   border: '1px solid var(--theme-border)',
@@ -355,7 +413,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={`p-6 rounded-lg shadow-md ${theme === 'colourful' ? 'colourful-card' : ''}`} style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-border)' }}>
           <h3 className="text-lg font-semibold accessible-secondary">فرۆشتنی ئەمڕۆ</h3>
-          <p className={`numerical-value ${theme === 'black-gold' ? 'gold-text-glow' : ''}`} style={{ color: 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.todaySales)} د.ع</p>
+          <p className={`numerical-value ${theme === 'black-gold' ? 'gold-text-glow' : ''}`} style={{ color: 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(stats.todaySales)} IQD</p>
         </div>
 
         <div className={`p-6 rounded-lg shadow-md ${theme === 'colourful' ? 'colourful-card' : ''}`} style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-border)' }}>
@@ -390,7 +448,7 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="numerical-value font-semibold" style={{ color: 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>
-                        {Math.round(order.total_price)} د.ع
+                        {Math.round(order.total_price)} IQD
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -423,6 +481,7 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+      </motion.div>
     </div>
   )
 }

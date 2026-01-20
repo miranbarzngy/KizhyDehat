@@ -135,6 +135,7 @@ CREATE TABLE sales (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   customer_id UUID REFERENCES customers(id),
   total NUMERIC(10,2) NOT NULL,
+  payment_method TEXT DEFAULT 'cash',
   date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   user_id UUID REFERENCES auth.users(id)
 );
@@ -199,6 +200,21 @@ CREATE TABLE orders (
   total NUMERIC(10,2) NOT NULL,
   status TEXT DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Invoice settings table
+CREATE TABLE invoice_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shop_name TEXT NOT NULL DEFAULT 'فرۆشگای کوردستان',
+  shop_phone TEXT,
+  shop_address TEXT,
+  shop_logo TEXT,
+  thank_you_note TEXT DEFAULT 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.',
+  qr_code_url TEXT,
+  starting_invoice_number INTEGER DEFAULT 1000,
+  current_invoice_number INTEGER DEFAULT 1000,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable Row Level Security (RLS) on all tables

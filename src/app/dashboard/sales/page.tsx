@@ -583,17 +583,24 @@ export default function SalesPage() {
           <title>فاکتور #${invoiceNumber}</title>
           <meta charset="UTF-8">
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+            @font-face {
+              font-family: 'UniSalar_F_007';
+              src: url('/fonts/UniSalar_F_007.otf') format('truetype');
+              font-weight: normal;
+              font-style: normal;
+            }
 
             body {
-              font-family: 'JetBrains Mono', 'Courier New', monospace;
+              font-family: 'UniSalar_F_007', sans-serif;
               font-size: 11px;
-              line-height: 1.3;
+              line-height: 1.4;
               margin: 0;
               padding: 5px;
               direction: rtl;
               background: white;
               color: #000;
+              font-weight: bold !important;
+              letter-spacing: 0.5px;
             }
 
             .receipt {

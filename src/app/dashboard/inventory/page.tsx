@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaSearch } from 'react-icons/fa'
+import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaTags, FaArchive, FaBox, FaTruck, FaCalculator, FaBarcode, FaChartLine, FaMoneyBillWave, FaCalendarAlt } from 'react-icons/fa'
 import { sanitizeNumericInput, safeStringToNumber, toEnglishDigits, sanitizeBarcode, formatCurrency } from '@/lib/numberUtils'
 
 interface InventoryItem {
@@ -33,6 +33,13 @@ interface Category {
   created_at: string
 }
 
+interface Unit {
+  id: string
+  name: string
+  symbol?: string
+  created_at: string
+}
+
 interface PurchaseItem {
   item_name: string
   cost_price: number
@@ -40,22 +47,31 @@ interface PurchaseItem {
   quantity: number
   unit: string
   category?: string
-  total_purchase_price?: number
-  amount_paid?: number
-  debt_amount?: number
+  price_of_bought?: number // Total amount paid to supplier
+  amount_of_pay?: number // Amount paid now
+  debt_pay?: number // Auto-calculated: price_of_bought - amount_of_pay
   barcode1?: string
   barcode2?: string
   barcode3?: string
   barcode4?: string
   expire_date?: string
+  created_date?: string
   image?: string
   note?: string
+  supplier_id?: string
 }
 
 export default function InventoryPage() {
+  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'units' | 'archive'>('inventory')
+  const [showUnitModal, setShowUnitModal] = useState(false)
+  const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
+  const [newUnitName, setNewUnitName] = useState('')
+  const [newUnitSymbol, setNewUnitSymbol] = useState('')
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
+  const [archivedItems, setArchivedItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showStockEntry, setShowStockEntry] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState('')
@@ -72,11 +88,14 @@ export default function InventoryPage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>('')
 
   useEffect(() => {
     fetchInventory()
     fetchSuppliers()
     fetchCategories()
+    fetchUnits()
   }, [])
 
   const fetchCategories = async () => {
@@ -92,6 +111,216 @@ export default function InventoryPage() {
       setCategories(data || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
+    }
+  }
+
+  const createCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('تکایە ناوی پۆل بنووسە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: پۆل دروست نەکراوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .insert({
+          name: newCategoryName.trim()
+        })
+
+      if (error) throw error
+
+      alert('پۆل بە سەرکەوتوویی دروستکرا')
+      setShowCategoryModal(false)
+      setNewCategoryName('')
+      fetchCategories()
+    } catch (error) {
+      console.error('Error creating category:', error)
+      alert('هەڵە لە دروستکردنی پۆل')
+    }
+  }
+
+  const updateCategory = async () => {
+    if (!editingCategory || !newCategoryName.trim()) {
+      alert('تکایە ناوی پۆل بنووسە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: پۆل نوێ نەکرایەوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({
+          name: newCategoryName.trim()
+        })
+        .eq('id', editingCategory.id)
+
+      if (error) throw error
+
+      alert('پۆل بە سەرکەوتوویی نوێکرایەوە')
+      setShowCategoryModal(false)
+      setEditingCategory(null)
+      setNewCategoryName('')
+      fetchCategories()
+    } catch (error) {
+      console.error('Error updating category:', error)
+      alert('هەڵە لە نوێکردنەوەی پۆل')
+    }
+  }
+
+  const deleteCategory = async (categoryId: string, categoryName: string) => {
+    // Check if any items are using this category
+    const itemsWithCategory = inventory.filter(item => item.category === categoryName)
+    if (itemsWithCategory.length > 0) {
+      alert(`ناتوانرێت پۆل بسڕدرێتەوە چونکە ${itemsWithCategory.length} کاڵا ئەم پۆلە بەکاردەهێنن. تکایە یەکەم کاڵاکان بگوازەوە بۆ پۆلی تر.`)
+      return
+    }
+
+    if (!confirm(`دڵنیایت لە سڕینەوەی پۆلی "${categoryName}"؟`)) {
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: پۆل سڕاوە نەکراوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryId)
+
+      if (error) throw error
+
+      alert('پۆل بە سەرکەوتوویی سڕایەوە')
+      fetchCategories()
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      alert('هەڵە لە سڕینەوەی پۆل')
+    }
+  }
+
+  const fetchUnits = async () => {
+    if (!supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setUnits(data || [])
+    } catch (error) {
+      console.error('Error fetching units:', error)
+    }
+  }
+
+  const createUnit = async () => {
+    if (!newUnitName.trim()) {
+      alert('تکایە ناوی یەکە بنووسە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: یەکە دروست نەکراوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('units')
+        .insert({
+          name: newUnitName.trim(),
+          symbol: newUnitSymbol.trim() || null
+        })
+
+      if (error) throw error
+
+      alert('یەکە بە سەرکەوتوویی دروستکرا')
+      setShowUnitModal(false)
+      setNewUnitName('')
+      setNewUnitSymbol('')
+      fetchUnits()
+    } catch (error) {
+      console.error('Error creating unit:', error)
+      alert('هەڵە لە دروستکردنی یەکە')
+    }
+  }
+
+  const updateUnit = async () => {
+    if (!editingUnit || !newUnitName.trim()) {
+      alert('تکایە ناوی یەکە بنووسە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: یەکە نوێ نەکرایەوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('units')
+        .update({
+          name: newUnitName.trim(),
+          symbol: newUnitSymbol.trim() || null
+        })
+        .eq('id', editingUnit.id)
+
+      if (error) throw error
+
+      alert('یەکە بە سەرکەوتوویی نوێکرایەوە')
+      setShowUnitModal(false)
+      setEditingUnit(null)
+      setNewUnitName('')
+      setNewUnitSymbol('')
+      fetchUnits()
+    } catch (error) {
+      console.error('Error updating unit:', error)
+      alert('هەڵە لە نوێکردنەوەی یەکە')
+    }
+  }
+
+  const deleteUnit = async (unitId: string, unitName: string) => {
+    // Check if any items are using this unit
+    const itemsWithUnit = inventory.filter(item => item.unit === unitName)
+    if (itemsWithUnit.length > 0) {
+      alert(`ناتوانرێت یەکە بسڕدرێتەوە چونکە ${itemsWithUnit.length} کاڵا ئەم یەکەیە بەکاردەهێنن. تکایە یەکەم کاڵاکان بگۆڕە بۆ یەکەی تر.`)
+      return
+    }
+
+    if (!confirm(`دڵنیایت لە سڕینەوەی یەکەی "${unitName}"؟`)) {
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: یەکە سڕاوە نەکراوە')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('units')
+        .delete()
+        .eq('id', unitId)
+
+      if (error) throw error
+
+      alert('یەکە بە سەرکەوتوویی سڕایەوە')
+      fetchUnits()
+    } catch (error) {
+      console.error('Error deleting unit:', error)
+      alert('هەڵە لە سڕینەوەی یەکە')
     }
   }
 
@@ -236,6 +465,116 @@ export default function InventoryPage() {
     ))
   }
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedImageFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setImagePreview(result)
+        updatePurchaseItem(0, 'image', result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const openCamera = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.capture = 'environment' // Use back camera on mobile
+    input.onchange = (e) => handleImageUpload(e as any)
+    input.click()
+  }
+
+  const editItem = (item: InventoryItem) => {
+    setEditingItem(item)
+    // Pre-populate the form with existing item data
+    const editData: PurchaseItem = {
+      item_name: item.item_name,
+      cost_price: item.cost_price,
+      selling_price: item.selling_price,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category,
+      image: item.image,
+      note: item.note,
+      expire_date: item.expire_date,
+      created_date: new Date().toISOString().split('T')[0], // Current date for updates
+      // Note: Financial fields (price_of_bought, amount_of_pay) are not stored in inventory table
+      // They would need to be fetched from a separate purchases/transactions table if implemented
+      price_of_bought: item.cost_price * item.quantity, // Estimate based on current cost
+      amount_of_pay: item.cost_price * item.quantity, // Assume fully paid for existing items
+    }
+    setPurchaseItems([editData])
+    setImagePreview(item.image || '')
+    setShowStockEntry(true)
+  }
+
+  const updateItem = async () => {
+    console.log('🚀 Starting item update...')
+
+    if (!editingItem) {
+      alert('هیچ کاڵایەک بۆ نوێکردنەوە هەڵنەبژێراوە')
+      return
+    }
+
+    // Validation: Ensure required fields are filled
+    const item = purchaseItems[0]
+    if (!item?.item_name || !item?.quantity || !item?.selling_price) {
+      const missing = []
+      if (!item?.item_name) missing.push('ناو')
+      if (!item?.quantity) missing.push('بڕ')
+      if (!item?.selling_price) missing.push('نرخی فرۆشتن')
+      alert(`تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە: ${missing.join(', ')}`)
+      return
+    }
+
+    if (!supabase) {
+      console.log('Running in demo mode - no Supabase connection')
+      alert('دۆخی دیمۆ: کاڵاکە بە سەرکەوتوویی نوێکرایەوە (دیمۆ)')
+      setShowStockEntry(false)
+      setEditingItem(null)
+      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }])
+      setImagePreview('')
+      return
+    }
+
+    try {
+      const quantity = Number(item.quantity)
+      const totalPurchasePrice = Number(item.price_of_bought || 0)
+      const sellingPrice = Number(item.selling_price)
+
+      // Update inventory table
+      const { error: updateError } = await supabase
+        .from('inventory')
+        .update({
+          item_name: item.item_name,
+          quantity: quantity,
+          unit: item.unit,
+          cost_price: totalPurchasePrice > 0 ? Math.round(totalPurchasePrice / quantity) : 0,
+          selling_price: sellingPrice,
+          category: item.category || null,
+          image: item.image || ''
+        })
+        .eq('id', editingItem.id)
+
+      if (updateError) throw updateError
+
+      alert('کاڵاکە بە سەرکەوتوویی نوێکرایەوە')
+      setShowStockEntry(false)
+      setEditingItem(null)
+      setPurchaseItems([{ item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }])
+      setImagePreview('')
+      fetchInventory()
+
+    } catch (error) {
+      console.error('Error updating item:', error)
+      alert('هەڵە لە نوێکردنەوەی کاڵا')
+    }
+  }
+
   const submitStockEntry = async () => {
     console.log('🚀 Starting stock entry submission...')
 
@@ -261,7 +600,7 @@ export default function InventoryPage() {
 
     try {
       const quantity = Number(item.quantity)
-      const totalPurchasePrice = Number(item.total_purchase_price || 0)
+      const totalPurchasePrice = Number(item.price_of_bought || 0)
       const sellingPrice = Number(item.selling_price)
 
       // Insert into inventory table
@@ -316,6 +655,16 @@ export default function InventoryPage() {
     return false
   })
 
+  // Skeleton Loader Component
+  const ProductSkeleton = () => (
+    <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 shadow-lg border border-white/20 animate-pulse">
+      <div className="w-20 h-20 bg-gray-200 rounded-2xl mx-auto mb-4"></div>
+      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+      <div className="h-6 bg-gray-200 rounded mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-2/3 mx-auto"></div>
+    </div>
+  )
+
   if (loading) {
     return <div className="text-center">چاوەڕوانبە...</div>
   }
@@ -327,213 +676,913 @@ export default function InventoryPage() {
           بەڕێوەبردنی کاڵاکان
         </h1>
 
-        {/* Add Item Button */}
-        <div className="mb-6">
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
           <button
-            onClick={() => setShowStockEntry(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+            onClick={() => setActiveTab('inventory')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              activeTab === 'inventory'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
             style={{ fontFamily: 'var(--font-uni-salar)' }}
           >
-            <span>زیادکردنی کاڵا</span>
+            <FaBox className="inline ml-2" />
+            کاڵاکان
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              activeTab === 'categories'
+                ? 'bg-green-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
+            style={{ fontFamily: 'var(--font-uni-salar)' }}
+          >
+            <FaTags className="inline ml-2" />
+            پۆلەکان
+          </button>
+          <button
+            onClick={() => setActiveTab('units')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              activeTab === 'units'
+                ? 'bg-purple-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
+            style={{ fontFamily: 'var(--font-uni-salar)' }}
+          >
+            <FaCalculator className="inline ml-2" />
+            یەکەکان
+          </button>
+          <button
+            onClick={() => setActiveTab('archive')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              activeTab === 'archive'
+                ? 'bg-orange-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
+            style={{ fontFamily: 'var(--font-uni-salar)' }}
+          >
+            <FaArchive className="inline ml-2" />
+            ئەرشیڤ
           </button>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="گەڕان بە ناو، بارکۆد، دابینکەر..."
-                className="w-full px-4 py-3 pr-12 rounded-lg border backdrop-blur-sm"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  borderColor: 'rgba(0, 0, 0, 0.1)',
-                  fontFamily: 'var(--font-uni-salar)',
-                  color: 'var(--theme-primary)'
-                }}
-              />
+        {/* Add Item Button - Only show on inventory tab */}
+        {activeTab === 'inventory' && (
+          <>
+            <div className="mb-6">
+              <button
+                onClick={() => setShowStockEntry(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+              >
+                <span>زیادکردنی کاڵا</span>
+              </button>
             </div>
 
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 rounded-lg border backdrop-blur-sm min-w-[200px]"
-              style={{
-                background: 'rgba(255, 255, 255, 0.8)',
-                borderColor: 'rgba(0, 0, 0, 0.1)',
-                fontFamily: 'var(--font-uni-salar)',
-                color: 'var(--theme-primary)'
-              }}
-            >
-              <option value="">هەموو پۆلەکان</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.name}>{category.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Grid View */}
-        {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredInventory.map((item) => (
-              <div
-                key={item.id}
-                className="relative p-6 rounded-2xl backdrop-blur-md border transition-all duration-300 hover:scale-105 hover:shadow-xl"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  borderColor: isLowStock(item) ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.2)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                {/* Item Image */}
-                <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-                  {item.image ? (
-                    <img src={item.image} alt={item.item_name} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <span className="text-gray-400 text-4xl">📦</span>
-                  )}
+            {/* Search and Filter Bar */}
+            <div className="mb-6 space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search Bar */}
+                <div className="flex-1 relative">
+                  <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="گەڕان بە ناو، بارکۆد، دابینکەر..."
+                    className="w-full px-4 py-3 pr-12 rounded-lg border backdrop-blur-sm"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      borderColor: 'rgba(0, 0, 0, 0.1)',
+                      fontFamily: 'var(--font-uni-salar)',
+                      color: 'var(--theme-primary)'
+                    }}
+                  />
                 </div>
 
-                {/* Item Name */}
-                <h3 className="text-lg font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
-                  {item.item_name}
-                </h3>
-
-                {/* Stock Quantity */}
-                <div className="text-center mb-6">
-                  <div className="text-2xl font-bold" style={{ color: isLowStock(item) ? '#dc2626' : 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)' }}>
-                    {item.quantity} {item.unit}
-                  </div>
-                  {isLowStock(item) && (
-                    <div className="text-sm text-red-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      کەمە!
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-center space-x-2">
-                  <button
-                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <FaEdit size={14} />
-                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
-                  </button>
-                  <button
-                    className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
-                  >
-                    <FaTrash size={14} />
-                    <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
-                  </button>
-                </div>
+                {/* Category Filter */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-4 py-3 rounded-lg border backdrop-blur-sm min-w-[200px]"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    borderColor: 'rgba(0, 0, 0, 0.1)',
+                    fontFamily: 'var(--font-uni-salar)',
+                    color: 'var(--theme-primary)'
+                  }}
+                >
+                  <option value="">هەموو پۆلەکان</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>{category.name}</option>
+                  ))}
+                </select>
               </div>
-            ))}
+            </div>
+
+            {/* Grid View */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredInventory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative p-6 rounded-2xl backdrop-blur-md border transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      borderColor: isLowStock(item) ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    {/* Item Image */}
+                    <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                      {item.image ? (
+                        <img src={item.image} alt={item.item_name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span className="text-gray-400 text-4xl">📦</span>
+                      )}
+                    </div>
+
+                    {/* Item Name */}
+                    <h3 className="text-lg font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                      {item.item_name}
+                    </h3>
+
+                    {/* Stock Quantity */}
+                    <div className="text-center mb-6">
+                      <div className="text-2xl font-bold" style={{ color: isLowStock(item) ? '#dc2626' : 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)' }}>
+                        {item.quantity} {item.unit}
+                      </div>
+                      {isLowStock(item) && (
+                        <div className="text-sm text-red-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          کەمە!
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-center space-x-2">
+                      <button
+                        onClick={() => editItem(item)}
+                        className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center space-x-1"
+                      >
+                        <FaEdit size={14} />
+                        <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
+                      </button>
+                      <button
+                        className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
+                      >
+                        <FaTrash size={14} />
+                        <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {filteredInventory.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📦</div>
+                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  هیچ کاڵایەک نەدۆزرایەوە
+                </h3>
+                <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  {searchTerm || selectedCategory ? 'گەڕانەکەت بگۆڕە یان فیلتەرەکان پاکبکە' : 'کاڵای نوێ زیادبکە'}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Categories Tab */}
+        {activeTab === 'categories' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                بەڕێوەبردنی پۆلەکان
+              </h2>
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+              >
+                <FaTags className="ml-2" />
+                <span>پۆلی نوێ</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
+                        <FaTags className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="font-bold text-xl text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {category.name}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    دروستکراوە: {new Date(category.created_at).toLocaleDateString('ku-IQ')}
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setEditingCategory(category)
+                        setNewCategoryName(category.name)
+                        setShowCategoryModal(true)
+                      }}
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <FaEdit className="inline ml-2" />
+                      دەستکاری
+                    </button>
+                    <button
+                      onClick={() => deleteCategory(category.id, category.name)}
+                      className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {categories.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🏷️</div>
+                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  هیچ پۆلێک نییە
+                </h3>
+                <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  پۆلی نوێ دروستبکە بۆ ڕێکخستنی کاڵاکانت
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Empty State */}
-        {filteredInventory.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-              هیچ کاڵایەک نەدۆزرایەوە
-            </h3>
-            <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              {searchTerm || selectedCategory ? 'گەڕانەکەت بگۆڕە یان فیلتەرەکان پاکبکە' : 'کاڵای نوێ زیادبکە'}
-            </p>
+        {/* Units Tab */}
+        {activeTab === 'units' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                بەڕێوەبردنی یەکەکان
+              </h2>
+              <button
+                onClick={() => setShowUnitModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+              >
+                <FaCalculator className="ml-2" />
+                <span>یەکەی نوێ</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {units.map((unit) => (
+                <div
+                  key={unit.id}
+                  className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+                        <FaCalculator className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-xl text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          {unit.name}
+                        </h3>
+                        {unit.symbol && (
+                          <p className="text-sm text-purple-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            نماد: {unit.symbol}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    دروستکراوە: {new Date(unit.created_at).toLocaleDateString('ku-IQ')}
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setEditingUnit(unit)
+                        setNewUnitName(unit.name)
+                        setNewUnitSymbol(unit.symbol || '')
+                        setShowUnitModal(true)
+                      }}
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <FaEdit className="inline ml-2" />
+                      دەستکاری
+                    </button>
+                    <button
+                      onClick={() => deleteUnit(unit.id, unit.name)}
+                      className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {units.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">⚖️</div>
+                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  هیچ یەکەیەک نییە
+                </h3>
+                <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  یەکەی نوێ دروستبکە بۆ بەکارهێنانی لە کاڵاکاندا
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Add Item Modal */}
-        {showStockEntry && (
+        {/* Archive Tab */}
+        {activeTab === 'archive' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                کاڵاکانی فرۆشراو
+              </h2>
+            </div>
+
+            <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📦</div>
+                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  هیچ کاڵای ئەرشیڤکراو نییە
+                </h3>
+                <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  کاڵاکانی فرۆشراو لێرە دەردەکەون
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Modal */}
+        {showCategoryModal && (
           <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
-            <div className="w-full max-w-2xl max-h-screen overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+            <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-                  زیادکردنی کاڵای نوێ
+                  {editingCategory ? 'دەستکاری پۆل' : 'پۆلی نوێ'}
                 </h3>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</label>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی پۆل</label>
                     <input
                       type="text"
-                      value={purchaseItems[0]?.item_name || ''}
-                      onChange={(e) => updatePurchaseItem(0, 'item_name', e.target.value)}
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
                       style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
-                      placeholder="ناوی کاڵا"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={toEnglishDigits(purchaseItems[0]?.quantity || '')}
-                      onChange={(e) => {
-                        const sanitized = sanitizeNumericInput(e.target.value)
-                        updatePurchaseItem(0, 'quantity', safeStringToNumber(sanitized))
-                      }}
-                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                        fontFamily: '"Inter", "Roboto", system-ui, sans-serif'
-                      }}
-                      placeholder="1000"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={toEnglishDigits(purchaseItems[0]?.selling_price || '')}
-                      onChange={(e) => {
-                        const sanitized = sanitizeNumericInput(e.target.value)
-                        updatePurchaseItem(0, 'selling_price', safeStringToNumber(sanitized))
-                      }}
-                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                        fontFamily: '"Inter", "Roboto", system-ui, sans-serif'
-                      }}
-                      placeholder="13000 IQD"
+                      placeholder="ناوی پۆل"
                     />
                   </div>
                 </div>
 
                 <div className="mt-8 flex justify-end space-x-4">
                   <button
-                    onClick={() => setShowStockEntry(false)}
+                    onClick={() => {
+                      setShowCategoryModal(false)
+                      setEditingCategory(null)
+                      setNewCategoryName('')
+                    }}
                     className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
                     style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                   >
                     پاشگەزبوونەوە
                   </button>
                   <button
-                    onClick={submitStockEntry}
+                    onClick={editingCategory ? updateCategory : createCategory}
                     className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
                     style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                   >
-                    تۆمارکردنی کاڵا
+                    {editingCategory ? 'نوێکردنەوە' : 'دروستکردن'}
                   </button>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Advanced Add Item Modal */}
+        {showStockEntry && (() => {
+          const item = purchaseItems[0] || {}
+          const priceOfBought = Number(item.price_of_bought) || 0
+          const amountOfPay = Number(item.amount_of_pay) || 0
+          const debtPay = priceOfBought - amountOfPay
+          const quantity = Number(item.quantity) || 0
+          const sellingPrice = Number(item.selling_price) || 0
+          const unitPrice = quantity > 0 ? priceOfBought / quantity : 0
+          const totalBenefit = quantity > 0 ? (sellingPrice - unitPrice) * quantity : 0
+
+          return (
+            <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+              <div className="w-full max-w-6xl max-h-screen overflow-y-auto rounded-3xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+                <div className="p-8">
+                  <h3 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    {editingItem ? 'دەستکاری کاڵا' : 'زیادکردنی کاڵای نوێ'}
+                  </h3>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* 1. Supplier & Financials Section */}
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-6 shadow-xl border border-blue-200">
+                      <div className="flex items-center mb-6">
+                        <FaTruck className="text-blue-600 text-2xl ml-3" />
+                        <h4 className="text-xl font-bold text-blue-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          دابینکەر و دارایی
+                        </h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Supplier Select */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            دابینکەر *
+                          </label>
+                          <select
+                            value={item.supplier_id || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'supplier_id', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            <option value="">دابینکەر هەڵبژێرە</option>
+                            {suppliers.map((supplier) => (
+                              <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Financial Fields */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              نرخی کڕین (کۆی)
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={toEnglishDigits(priceOfBought.toString())}
+                              onChange={(e) => {
+                                const sanitized = sanitizeNumericInput(e.target.value)
+                                updatePurchaseItem(0, 'price_of_bought', safeStringToNumber(sanitized))
+                              }}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="0.00 IQD"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              پارەی دراو
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={toEnglishDigits(amountOfPay.toString())}
+                              onChange={(e) => {
+                                const sanitized = sanitizeNumericInput(e.target.value)
+                                updatePurchaseItem(0, 'amount_of_pay', safeStringToNumber(sanitized))
+                              }}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="0.00 IQD"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Paid in Full Checkbox */}
+                        <div className="flex items-center space-x-3 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                          <input
+                            type="checkbox"
+                            id="paidInFull"
+                            checked={amountOfPay === priceOfBought && priceOfBought > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                updatePurchaseItem(0, 'amount_of_pay', priceOfBought)
+                              } else {
+                                updatePurchaseItem(0, 'amount_of_pay', 0)
+                              }
+                            }}
+                            className="w-5 h-5 text-blue-600 bg-white border-2 border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label
+                            htmlFor="paidInFull"
+                            className="text-sm font-semibold text-blue-700 cursor-pointer"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            هەموو پارە دراوە، قەرز نییە
+                          </label>
+                        </div>
+
+                        {/* Auto-calculated Debt */}
+                        <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              قەرز:
+                            </span>
+                            <span className={`text-lg font-bold ${debtPay > 0 ? 'text-red-600' : 'text-green-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(debtPay)} IQD
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Quantity & Unit Logic */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-3xl p-6 shadow-xl border border-green-200">
+                      <div className="flex items-center mb-6">
+                        <FaCalculator className="text-green-600 text-2xl ml-3" />
+                        <h4 className="text-xl font-bold text-green-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          بڕ و یەکە
+                        </h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              بڕ *
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={toEnglishDigits(quantity.toString())}
+                              onChange={(e) => {
+                                const sanitized = sanitizeNumericInput(e.target.value)
+                                updatePurchaseItem(0, 'quantity', safeStringToNumber(sanitized))
+                              }}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="1000"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              یەکە *
+                            </label>
+                            <select
+                              value={item.unit || 'pieces'}
+                              onChange={(e) => updatePurchaseItem(0, 'unit', e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                              style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              <option value="pieces">دانە</option>
+                              <option value="gram">گرام</option>
+                              <option value="kilogram">کیلۆگرام</option>
+                              <option value="litre">لیتر</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Unit Price Calculator */}
+                        {quantity > 0 && priceOfBought > 0 && (
+                          <div className="bg-green-100 rounded-xl p-4 border border-green-200">
+                            <div className="text-center">
+                              <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            نرخی یەک {item.unit}
+                              </div>
+                              <div className="text-2xl font-bold text-green-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                {formatCurrency(unitPrice)} IQD / 
+                              </div>
+                              <div className="text-xs text-green-600 mt-1">
+                                ({quantity} {item.unit} × {formatCurrency(priceOfBought)} IQD)
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 3. Item Details & Dates */}
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-3xl p-6 shadow-xl border border-purple-200">
+                      <div className="flex items-center mb-6">
+                        <FaBarcode className="text-purple-600 text-2xl ml-3" />
+                        <h4 className="text-xl font-bold text-purple-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          زانیارییەکان و بەروارەکان
+                        </h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Item Name */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            ناوی کاڵا *
+                          </label>
+                          <input
+                            type="text"
+                            value={item.item_name || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'item_name', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            placeholder="ناوی کاڵا"
+                          />
+                        </div>
+
+                        {/* Category */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            پۆل
+                          </label>
+                          <select
+                            value={item.category || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'category', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            <option value="">پۆل هەڵبژێرە</option>
+                            {categories.map((category) => (
+                              <option key={category.id} value={category.name}>{category.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Barcode Fields */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بارکۆدەکان
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={item.barcode1 || ''}
+                              onChange={(e) => updatePurchaseItem(0, 'barcode1', sanitizeBarcode(e.target.value))}
+                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="بارکۆد 1"
+                            />
+                            <input
+                              type="text"
+                              value={item.barcode2 || ''}
+                              onChange={(e) => updatePurchaseItem(0, 'barcode2', sanitizeBarcode(e.target.value))}
+                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="بارکۆد 2"
+                            />
+                            <input
+                              type="text"
+                              value={item.barcode3 || ''}
+                              onChange={(e) => updatePurchaseItem(0, 'barcode3', sanitizeBarcode(e.target.value))}
+                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="بارکۆد 3"
+                            />
+                            <input
+                              type="text"
+                              value={item.barcode4 || ''}
+                              onChange={(e) => updatePurchaseItem(0, 'barcode4', sanitizeBarcode(e.target.value))}
+                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                              placeholder="بارکۆد 4"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Dates */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              بەرواری بەسەرچوون
+                            </label>
+                            <input
+                              type="date"
+                              value={item.expire_date || ''}
+                              onChange={(e) => updatePurchaseItem(0, 'expire_date', e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              بەرواری دروستکردن
+                            </label>
+                            <input
+                              type="date"
+                              value={item.created_date || new Date().toISOString().split('T')[0]}
+                              onChange={(e) => updatePurchaseItem(0, 'created_date', e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Image Upload */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            وێنە
+                          </label>
+
+                          {/* Image Preview */}
+                          {imagePreview && (
+                            <div className="mb-4">
+                              <img
+                                src={imagePreview}
+                                alt="Preview"
+                                className="w-full h-32 object-cover rounded-xl border-2 border-purple-200 shadow-lg"
+                              />
+                            </div>
+                          )}
+
+                          {/* Upload Buttons */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => document.getElementById('imageUpload')?.click()}
+                              className="flex items-center justify-center px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 transition-all duration-300 hover:scale-105"
+                              style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              <FaBox className="ml-2" />
+                              هەڵبژاردنی وێنە
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={openCamera}
+                              className="flex items-center justify-center px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border-2 border-dashed border-blue-300 transition-all duration-300 hover:scale-105"
+                              style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              📷
+                              کامێرا
+                            </button>
+                          </div>
+
+                          {/* Hidden File Input */}
+                          <input
+                            id="imageUpload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+
+                          {/* Clear Image Button */}
+                          {imagePreview && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setImagePreview('')
+                                setSelectedImageFile(null)
+                                updatePurchaseItem(0, 'image', '')
+                              }}
+                              className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                              style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              سڕینەوەی وێنە
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            تێبینی
+                          </label>
+                          <textarea
+                            value={item.note || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'note', e.target.value)}
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                            placeholder="تێبینی دەربارەی کاڵا..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Profit Projection */}
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-6 shadow-xl border border-orange-200">
+                      <div className="flex items-center mb-6">
+                        <FaChartLine className="text-orange-600 text-2xl ml-3" />
+                        <h4 className="text-xl font-bold text-orange-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          پێشبینی قازانج
+                        </h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Selling Price */}
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            نرخی فرۆشتن *
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={toEnglishDigits(sellingPrice.toString())}
+                            onChange={(e) => {
+                              const sanitized = sanitizeNumericInput(e.target.value)
+                              updatePurchaseItem(0, 'selling_price', safeStringToNumber(sanitized))
+                            }}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="0.00 IQD"
+                          />
+                        </div>
+
+                        {/* Cost Price Display */}
+                        <div className="bg-orange-100 rounded-xl p-4 border border-orange-200">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              نرخی کڕین بە یەکە:
+                            </span>
+                            <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(unitPrice)} IQD
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              نرخی فرۆشتن بە یەکە:
+                            </span>
+                            <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(sellingPrice)} IQD
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Total Benefit Calculation */}
+                        <div className="bg-gradient-to-r from-green-100 to-green-200 rounded-xl p-4 border border-green-300">
+                          <div className="text-center">
+                            <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              کۆی قازانج
+                            </div>
+                            <div className={`text-3xl font-bold ${totalBenefit >= 0 ? 'text-green-800' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(totalBenefit)} IQD
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">
+                              ({formatCurrency(sellingPrice - unitPrice)} × {quantity} {item.unit})
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Profit Margin */}
+                        {unitPrice > 0 && (
+                          <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
+                            <div className="text-center">
+                              <div className="text-sm text-blue-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                ڕێژەی قازانج
+                              </div>
+                              <div className="text-2xl font-bold text-blue-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                {((sellingPrice - unitPrice) / unitPrice * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="mt-8 flex justify-end space-x-4">
+                    <button
+                      onClick={() => setShowStockEntry(false)}
+                      className="px-8 py-4 rounded-2xl font-bold transition-all duration-300 hover:scale-105 shadow-lg"
+                      style={{
+                        backgroundColor: '#6b7280',
+                        color: '#ffffff',
+                        fontFamily: 'var(--font-uni-salar)',
+                        boxShadow: '0 8px 32px rgba(107, 114, 128, 0.3)'
+                      }}
+                    >
+                      پاشگەزبوونەوە
+                    </button>
+                    <button
+                      onClick={editingItem ? updateItem : submitStockEntry}
+                      className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      {editingItem ? 'نوێکردنەوەی کاڵا' : 'تۆمارکردنی کاڵا'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

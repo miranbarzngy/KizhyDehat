@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { formatCurrency, safeStringToNumber, sanitizeBarcode, sanitizeNumericInput, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
-import { FaTh, FaList, FaEdit, FaTrash, FaSearch, FaTags, FaArchive, FaBox, FaTruck, FaCalculator, FaBarcode, FaChartLine, FaMoneyBillWave, FaCalendarAlt } from 'react-icons/fa'
-import { sanitizeNumericInput, safeStringToNumber, toEnglishDigits, sanitizeBarcode, formatCurrency } from '@/lib/numberUtils'
+import { useEffect, useState } from 'react'
+import { FaArchive, FaBarcode, FaBox, FaCalculator, FaChartLine, FaEdit, FaSearch, FaTags, FaTrash, FaTruck } from 'react-icons/fa'
+import { motion } from 'framer-motion'
 
 interface InventoryItem {
   id: string
@@ -232,28 +233,108 @@ export default function InventoryPage() {
     }
 
     if (!supabase) {
-      alert('دۆخی دیمۆ: یەکە دروست نەکراوە')
+      console.log('⚠️ Supabase not configured, showing demo mode')
+      alert('دۆخی دیمۆ: یەکە بە سەرکەوتوویی دروستکرا (دیمۆ)')
+      setShowUnitModal(false)
+      setNewUnitName('')
+      setNewUnitSymbol('')
+      // In demo mode, we'll just close the modal without actually creating anything
       return
     }
 
     try {
-      const { error } = await supabase
+      console.log('🚀 Creating unit:', { name: newUnitName.trim(), symbol: newUnitSymbol.trim() || null })
+
+      // Try to insert with symbol first, if it fails, try without symbol
+      let { data, error } = await supabase
         .from('units')
         .insert({
           name: newUnitName.trim(),
           symbol: newUnitSymbol.trim() || null
         })
+        .select()
 
-      if (error) throw error
+      // If error is about missing symbol column, try without symbol
+      if (error && error.code === 'PGRST204' && error.message.includes('symbol')) {
+        console.log('Symbol column not found, trying without symbol...')
+        const fallbackResult = await supabase
+          .from('units')
+          .insert({
+            name: newUnitName.trim()
+          })
+          .select()
 
+        data = fallbackResult.data
+        error = fallbackResult.error
+      }
+
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        console.error('Error type:', typeof error)
+        console.error('Error keys:', Object.keys(error))
+        
+        // Try to get more detailed error information
+        if (error instanceof Error) {
+          console.error('Error message:', error.message)
+          console.error('Error stack:', error.stack)
+        } else if (typeof error === 'object' && error !== null) {
+          console.error('Error object:', JSON.stringify(error, null, 2))
+        }
+        
+        throw error
+      }
+
+      console.log('✅ Unit created successfully:', data)
       alert('یەکە بە سەرکەوتوویی دروستکرا')
-      setShowUnitModal(false)
+      setEditingUnit(null)
       setNewUnitName('')
       setNewUnitSymbol('')
       fetchUnits()
     } catch (error) {
       console.error('Error creating unit:', error)
-      alert('هەڵە لە دروستکردنی یەکە')
+      console.error('Error type:', typeof error)
+      console.error('Error keys:', Object.keys(error || {}))
+      
+      // Enhanced error handling with better debugging
+      let errorMessage = 'هەڵەی نادیار'
+      let shouldShowDetails = false
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+        shouldShowDetails = true
+      } else if (typeof error === 'object' && error !== null) {
+        const errorObj = error as any
+        errorMessage = errorObj?.message || errorObj?.error || 'هەڵەی نادیار'
+        shouldShowDetails = true
+        
+        // Log detailed error information
+        console.error('Detailed error info:', {
+          message: errorObj?.message,
+          code: errorObj?.code,
+          details: errorObj?.details,
+          hint: errorObj?.hint,
+          status: errorObj?.status,
+          statusText: errorObj?.statusText
+        })
+      }
+      
+      // Provide more specific error messages
+      if (typeof error === 'object' && error !== null) {
+        const errorObj = error as any
+        if (errorObj?.code === '23505') {
+          alert('هەڵە: یەکەیەکی لەم ناونیشەوە پێشتر هەیە')
+        } else if (errorObj?.code === '42P01') {
+          alert('هەڵە: جدولی یەکەکان نییە، تکایە یەکەکان دروست بکەرەوە')
+        } else if (errorObj?.status === 401) {
+          alert('هەڵە: دەستگەیشتن بۆ سیستەم نییە، تکایە دووبارە بچووە سیستەم')
+        } else if (errorObj?.status === 403) {
+          alert('هەڵە: مۆڵەتی دروستکردنی یەکە نییە')
+        } else {
+          alert('هەڵە لە دروستکردنی یەکە: ' + errorMessage)
+        }
+      } else {
+        alert('هەڵە لە دروستکردنی یەکە: ' + errorMessage)
+      }
     }
   }
 
@@ -280,7 +361,6 @@ export default function InventoryPage() {
       if (error) throw error
 
       alert('یەکە بە سەرکەوتوویی نوێکرایەوە')
-      setShowUnitModal(false)
       setEditingUnit(null)
       setNewUnitName('')
       setNewUnitSymbol('')
@@ -377,18 +457,49 @@ export default function InventoryPage() {
           note: 'چای ڕەسەنی کوردستانی'
         }
       ]
+      const demoArchived: InventoryItem[] = [
+        {
+          id: '4',
+          item_name: 'گۆشت',
+          quantity: 0,
+          unit: 'کیلۆ',
+          low_stock_threshold: 5,
+          cost_price: 28.00,
+          selling_price: 35.00,
+          category: 'گۆشت و ماسی',
+          is_online_visible: false,
+          image: '',
+          expire_date: '2026-01-15',
+          supplier_name: 'فرۆشیاری گۆشت',
+          note: 'گۆشتی پاک و تازە'
+        }
+      ]
       setInventory(demoInventory)
+      setArchivedItems(demoArchived)
       setLoading(false)
       return
     }
 
     try {
-      // Fetch inventory data
+      // Fetch active inventory data (not archived AND quantity > 0)
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('*')
+        .or('is_archived.is.null,is_archived.eq.false')
+        .gt('quantity', 0)
 
       if (inventoryError) throw inventoryError
+
+      // Fetch archived items (is_archived = TRUE OR quantity <= 0)
+      const { data: archivedData, error: archivedError } = await supabase
+        .from('inventory')
+        .select('*')
+        .or('is_archived.eq.true,quantity.lte.0')
+
+      if (archivedError) {
+        console.warn('Error fetching archived items:', archivedError)
+        // Continue without archived items
+      }
 
       // Try to fetch product data if products table exists
       let productsData = []
@@ -427,7 +538,30 @@ export default function InventoryPage() {
         }
       })
 
+      // Merge archived data with product data
+      const mergedArchived = (archivedData || []).map((archivedItem: InventoryItem) => {
+        // Find matching product data
+        const productData = productsData.find((product: { name: string }) =>
+          product.name === archivedItem.item_name
+        )
+
+        // Find supplier name if supplier_id exists
+        let supplierName = ''
+        if (productData?.supplier_id) {
+          const supplier = suppliers.find(s => s.id === productData.supplier_id)
+          supplierName = supplier?.name || ''
+        }
+
+        return {
+          ...archivedItem,
+          expire_date: productData?.expire_date || '',
+          supplier_name: supplierName,
+          note: productData?.note || ''
+        }
+      })
+
       setInventory(mergedInventory)
+      setArchivedItems(mergedArchived)
     } catch (error) {
       console.error('Error fetching inventory:', error)
     } finally {
@@ -627,6 +761,34 @@ export default function InventoryPage() {
     } catch (error) {
       console.error('Error adding item:', error)
       alert('هەڵە لە زیادکردنی کاڵا')
+    }
+  }
+
+  const deleteItem = async () => {
+    if (!itemToDelete) return
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: کاڵا سڕاوە نەکراوە')
+      setShowDeleteConfirm(false)
+      setItemToDelete(null)
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', itemToDelete.id)
+
+      if (error) throw error
+
+      alert(`کاڵای "${itemToDelete.item_name}" بە سەرکەوتوویی سڕایەوە`)
+      setShowDeleteConfirm(false)
+      setItemToDelete(null)
+      fetchInventory()
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      alert('هەڵە لە سڕینەوەی کاڵا')
     }
   }
 
@@ -831,6 +993,10 @@ export default function InventoryPage() {
                         <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
                       </button>
                       <button
+                        onClick={() => {
+                          setItemToDelete(item)
+                          setShowDeleteConfirm(true)
+                        }}
                         className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
                       >
                         <FaTrash size={14} />
@@ -850,7 +1016,7 @@ export default function InventoryPage() {
                   هیچ کاڵایەک نەدۆزرایەوە
                 </h3>
                 <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  {searchTerm || selectedCategory ? 'گەڕانەکەت بگۆڕە یان فیلتەرەکان پاکبکە' : 'کاڵای نوێ زیادبکە'}
+                  {searchTerm || selectedCategory ? 'گەڕانەکەت  یان فیلتەرەکان بگۆڕە' : 'کاڵای نوێ زیادبکە'}
                 </p>
               </div>
             )}
@@ -940,14 +1106,82 @@ export default function InventoryPage() {
               <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
                 بەڕێوەبردنی یەکەکان
               </h2>
-              <button
-                onClick={() => setShowUnitModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
-                style={{ fontFamily: 'var(--font-uni-salar)' }}
-              >
-                <FaCalculator className="ml-2" />
-                <span>یەکەی نوێ</span>
-              </button>
+            </div>
+
+            {/* Unit Add/Update Form */}
+            <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      ناوی یەکە
+                    </label>
+                    <input
+                      type="text"
+                      value={newUnitName}
+                      onChange={(e) => setNewUnitName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                      placeholder="ناوی یەکە"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      نمادی یەکە (بۆ نموونە: kg, m, L)
+                    </label>
+                    <input
+                      type="text"
+                      value={newUnitSymbol}
+                      onChange={(e) => setNewUnitSymbol(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                      placeholder="نمادی یەکە"
+                    />
+                  </div>
+
+                  <div className="flex space-x-2">
+                    {editingUnit ? (
+                      <>
+                        <button
+                          onClick={updateUnit}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          نوێکردنەوە
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUnit(null)
+                            setNewUnitName('')
+                            setNewUnitSymbol('')
+                          }}
+                          className="px-4 py-3 bg-gray-400 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          پاشگەزبوونەوە
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={createUnit}
+                        className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        زیادکردن
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -978,27 +1212,26 @@ export default function InventoryPage() {
                     دروستکراوە: {new Date(unit.created_at).toLocaleDateString('ku-IQ')}
                   </div>
 
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => {
-                        setEditingUnit(unit)
-                        setNewUnitName(unit.name)
-                        setNewUnitSymbol(unit.symbol || '')
-                        setShowUnitModal(true)
-                      }}
-                      className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                      style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    >
-                      <FaEdit className="inline ml-2" />
-                      دەستکاری
-                    </button>
-                    <button
-                      onClick={() => deleteUnit(unit.id, unit.name)}
-                      className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => {
+                          setEditingUnit(unit)
+                          setNewUnitName(unit.name)
+                          setNewUnitSymbol(unit.symbol || '')
+                        }}
+                        className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        <FaEdit className="inline ml-2" />
+                        دەستکاری
+                      </button>
+                      <button
+                        onClick={() => deleteUnit(unit.id, unit.name)}
+                        className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
                 </div>
               ))}
             </div>
@@ -1024,19 +1257,126 @@ export default function InventoryPage() {
               <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
                 کاڵاکانی فرۆشراو
               </h2>
+              <motion.button
+                onClick={() => fetchInventory()}
+                className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaArchive className="ml-2" />
+                <span>نوێکردنەوە</span>
+              </motion.button>
             </div>
 
-            <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">📦</div>
-                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-                  هیچ کاڵای ئەرشیڤکراو نییە
-                </h3>
-                <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  کاڵاکانی فرۆشراو لێرە دەردەکەون
-                </p>
+            {archivedItems.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {archivedItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
+                  >
+                    {/* Item Image */}
+                    <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center relative">
+                      {item.image ? (
+                        <img src={item.image} alt={item.item_name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span className="text-gray-400 text-4xl">📦</span>
+                      )}
+                      {/* Archive Badge */}
+                      <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-bold" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        فرۆشراو
+                      </div>
+                    </div>
+
+                    {/* Item Name */}
+                    <h3 className="text-lg font-bold mb-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                      {item.item_name}
+                    </h3>
+
+                    {/* Financial Summary */}
+                    <div className="bg-gradient-to-br from-blue-50/80 to-purple-50/80 backdrop-blur-sm rounded-2xl p-4 mb-4 border border-blue-200/50">
+                      {/* Purchase Data */}
+                      <div className="mb-3">
+                        <h4 className="text-sm font-bold text-blue-800 mb-2 flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          🛒 کڕین
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white/60 rounded-lg p-2 text-center">
+                            <div className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی بڕی کڕدراو</div>
+                            <div className="font-bold text-blue-700" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(Number(item.total_sold || 0) + Number(item.quantity || 0))} {item.unit}
+                            </div>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-2 text-center">
+                            <div className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>تێچووی گشتی</div>
+                            <div className="font-bold text-blue-700" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency((Number(item.total_sold || 0) + Number(item.quantity || 0)) * Number(item.cost_price || 0))} IQD
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sales Data */}
+                      <div className="mb-3">
+                        <h4 className="text-sm font-bold text-green-800 mb-2 flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          💰 فرۆشتن
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white/60 rounded-lg p-2 text-center">
+                            <div className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی داهات</div>
+                            <div className="font-bold text-green-700" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(
+                                Number(item.total_revenue || 0) ||
+                                (Number(item.total_sold || 0) * Number(item.selling_price || 0))
+                              )} IQD
+                            </div>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-2 text-center">
+                            <div className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی قازانج</div>
+                            <div className={`font-bold ${((item.total_profit || 0) >= 0) ? 'text-green-700' : 'text-red-700'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(item.total_profit || 0)} IQD
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Profit Margin */}
+                      <div className="flex justify-center">
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          ((item.total_profit || 0) >= 0) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                          {(() => {
+                            const revenue = Number(item.total_revenue || 0) || (Number(item.total_sold || 0) * Number(item.selling_price || 0));
+                            const profit = Number(item.total_profit || 0);
+                            return revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%';
+                          })()} قازانج
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category Badge */}
+                    <div className="text-center">
+                      <div className="inline-block px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {item.category}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📦</div>
+                  <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                    هیچ کاڵای ئەرشیڤکراو نییە
+                  </h3>
+                  <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    کاڵاکانی فرۆشراو لێرە دەردەکەون
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1081,6 +1421,67 @@ export default function InventoryPage() {
                     style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                   >
                     {editingCategory ? 'نوێکردنەوە' : 'دروستکردن'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unit Modal */}
+        {showUnitModal && (
+          <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+              <div className="p-8">
+                <h3 className="text-2xl font-bold mb-6 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  {editingUnit ? 'دەستکاری یەکە' : 'یەکەی نوێ'}
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی یەکە</label>
+                    <input
+                      type="text"
+                      value={newUnitName}
+                      onChange={(e) => setNewUnitName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                      placeholder="ناوی یەکە"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>نمادی یەکە (بۆ نموونە: kg, m, L)</label>
+                    <input
+                      type="text"
+                      value={newUnitSymbol}
+                      onChange={(e) => setNewUnitSymbol(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                      style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                      placeholder="نمادی یەکە"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-end space-x-4">
+                  <button
+                    onClick={() => {
+                      setShowUnitModal(false)
+                      setEditingUnit(null)
+                      setNewUnitName('')
+                      setNewUnitSymbol('')
+                    }}
+                    className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                    style={{ backgroundColor: '#6b7280', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    پاشگەزبوونەوە
+                  </button>
+                  <button
+                    onClick={editingUnit ? updateUnit : createUnit}
+                    className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                    style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {editingUnit ? 'نوێکردنەوە' : 'زیادکردن'}
                   </button>
                 </div>
               </div>
@@ -1247,17 +1648,18 @@ export default function InventoryPage() {
                               یەکە *
                             </label>
                             <select
-                              value={item.unit || 'pieces'}
+                              value={item.unit || ''}
                               onChange={(e) => updatePurchaseItem(0, 'unit', e.target.value)}
                               className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
                               style={{ fontFamily: 'var(--font-uni-salar)' }}
                             >
-                              <option value="pieces">دانە</option>
-                              <option value="gram">گرام</option>
-                              <option value="kilogram">کیلۆگرام</option>
-                              <option value="litre">لیتر</option>
+                              <option value="">یەکە هەڵبژێرە</option>
+                              {units.map((unit) => (
+                                <option key={unit.id} value={unit.name}>{unit.name}</option>
+                              ))}
                             </select>
                           </div>
+
                         </div>
 
                         {/* Unit Price Calculator */}

@@ -85,6 +85,7 @@ export default function AdminPage() {
   })
   const [chartData, setChartData] = useState<ChartData[]>([])
 
+
   useEffect(() => {
     // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
     const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
@@ -121,14 +122,14 @@ export default function AdminPage() {
       const today = new Date().toISOString().split('T')[0]
       const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
 
-      // Total Sales: Sum of total_price from sales table
+      // Total Sales: Sum of total from sales table
       const { data: salesData, error: salesError } = await supabase
         .from('sales')
-        .select('total_price')
+        .select('total')
 
       if (salesError) throw salesError
 
-      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total_price, 0) || 0
+      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Total Expenses: Include both cost of goods sold AND other expenses
       // 1. Cost of goods sold from sale_items
@@ -136,7 +137,7 @@ export default function AdminPage() {
         .from('sale_items')
         .select(`
           quantity,
-          inventory:product_id(cost_price)
+          inventory:item_id(cost_price)
         `)
 
       if (itemsError) throw itemsError
@@ -164,18 +165,18 @@ export default function AdminPage() {
       // Today's sales
       const { data: todaySalesData, error: todayError } = await supabase
         .from('sales')
-        .select('total_price')
+        .select('total')
         .eq('date', today)
 
-      const todaySales = todaySalesData?.reduce((sum, sale) => sum + sale.total_price, 0) || 0
+      const todaySales = todaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Yesterday's sales
       const { data: yesterdaySalesData, error: yesterdayError } = await supabase
         .from('sales')
-        .select('total_price')
+        .select('total')
         .eq('date', yesterday)
 
-      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + sale.total_price, 0) || 0
+      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Sales trend percentage
       const salesTrend = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0
@@ -240,24 +241,34 @@ export default function AdminPage() {
         // Daily sales
         const { data: daySales } = await supabase
           .from('sales')
-          .select('total_price')
+          .select('total')
           .eq('date', dateStr)
 
-        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total_price, 0) || 0
+        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
         // Daily expenses (from sale_items cost_price * quantity)
-        const { data: dayItems } = await supabase
-          .from('sale_items')
-          .select(`
-            quantity,
-            inventory:product_id(cost_price)
-          `)
-          .eq('sale_date', dateStr) // Assuming sale_items has sale_date field
+        // First get sales for this date, then get their items
+        const { data: daySalesIds } = await supabase
+          .from('sales')
+          .select('id')
+          .eq('date', dateStr)
 
-        const dayExpensesTotal = dayItems?.reduce((sum, item) => {
-          const costPrice = item.inventory?.cost_price || 0
-          return sum + (costPrice * item.quantity)
-        }, 0) || 0
+        let dayExpensesTotal = 0
+        if (daySalesIds && daySalesIds.length > 0) {
+          const saleIds = daySalesIds.map(sale => sale.id)
+          const { data: dayItems } = await supabase
+            .from('sale_items')
+            .select(`
+              quantity,
+              inventory:item_id(cost_price)
+            `)
+            .in('sale_id', saleIds)
+
+          dayExpensesTotal = dayItems?.reduce((sum, item) => {
+            const costPrice = item.inventory?.cost_price || 0
+            return sum + (costPrice * item.quantity)
+          }, 0) || 0
+        }
 
         chartDataPoints.push({
           date: dateStr,

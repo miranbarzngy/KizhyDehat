@@ -106,7 +106,7 @@ const ProductSkeleton = () => (
 )
 
 export default function SalesPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -123,6 +123,7 @@ export default function SalesPage() {
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [addedItemId, setAddedItemId] = useState<string | null>(null)
+  const [userName, setUserName] = useState('')
 
   // Group inventory by categories
   const getGroupedInventory = (): CategoryGroup[] => {
@@ -156,6 +157,30 @@ export default function SalesPage() {
     fetchShopSettings()
     fetchInvoiceSettings()
   }, [])
+
+  // Fetch user name from profile
+  useEffect(() => {
+    console.log('🔍 Profile data:', profile)
+    console.log('🔍 User metadata:', user?.user_metadata)
+
+    // Priority: profile.name -> profile.full_name -> profile.display_name -> user.user_metadata.full_name -> user.user_metadata.name -> 'کارمەند'
+    const userNameFromProfile = profile?.name || profile?.full_name || profile?.display_name
+    const userNameFromMetadata = user?.user_metadata?.full_name || user?.user_metadata?.name
+
+    let finalUserName = 'کارمەند' // Default fallback
+
+    if (userNameFromProfile) {
+      finalUserName = userNameFromProfile
+      console.log('✅ Using name from profile:', finalUserName)
+    } else if (userNameFromMetadata) {
+      finalUserName = userNameFromMetadata
+      console.log('✅ Using name from metadata:', finalUserName)
+    } else {
+      console.log('⚠️ No name found, using default:', finalUserName)
+    }
+
+    setUserName(finalUserName)
+  }, [profile, user])
 
   const fetchInventory = async () => {
     // Demo mode: show sample inventory data when Supabase is not configured
@@ -325,10 +350,10 @@ export default function SalesPage() {
     }
   }
 
-  // Multi-unit add to cart function
+  // Auto-unit add to cart function - automatically uses item's base unit
   const addToCart = (item: InventoryItem) => {
     setSelectedItem(item)
-    setSelectedSaleUnit('')
+    setSelectedSaleUnit(item.unit) // Auto-select the item's base unit
     setQuantityInput('')
     setShowUnitModal(true)
   }
@@ -418,7 +443,8 @@ export default function SalesPage() {
         customer_id: selectedCustomer, // Always link to customer
         total,
         payment_method: paymentMethod,
-        user_id: user?.id
+        user_id: user?.id,
+        sold_by: userName
       }
 
       console.log('Attempting to insert sale with data:', saleInsertData)
@@ -426,7 +452,7 @@ export default function SalesPage() {
       const { data: saleData, error: saleError } = await supabase!
         .from('sales')
         .insert(saleInsertData)
-        .select('id, invoice_number, total, payment_method, date, user_id, customers(name, phone1)') // Explicitly select invoice_number
+        .select('id, invoice_number, total, payment_method, date, user_id, sold_by, customers(name, phone1)') // Explicitly select invoice_number and sold_by
         .single()
 
       if (saleError) {
@@ -464,15 +490,35 @@ export default function SalesPage() {
         throw itemsError
       }
 
-      // Update inventory using converted quantities
+      // Update inventory using converted quantities and archive if needed
       for (const item of cart) {
-        console.log(`Updating inventory for ${item.item.item_name}: ${item.item.quantity} - ${item.baseQuantity} = ${item.item.quantity - item.baseQuantity}`)
+        const newQuantity = item.item.quantity - item.baseQuantity
+        const profitPerItem = item.price - (item.item.cost_price || 0)
+        const totalProfit = profitPerItem * item.baseQuantity
+        const totalRevenue = item.price * item.baseQuantity
+
+        console.log(`Updating inventory for ${item.item.item_name}:`)
+        console.log(`  Quantity: ${item.item.quantity} - ${item.baseQuantity} = ${newQuantity}`)
+        console.log(`  Total sold increment: ${item.baseQuantity}`)
+        console.log(`  Total revenue increment: ${totalRevenue}`)
+        console.log(`  Total profit increment: ${totalProfit}`)
+
+        const updateData: any = {
+          quantity: newQuantity,
+          total_sold: (item.item.total_sold || 0) + item.baseQuantity,
+          total_revenue: (item.item.total_revenue || 0) + totalRevenue,
+          total_profit: (item.item.total_profit || 0) + totalProfit
+        }
+
+        // Archive item if quantity becomes zero or negative
+        if (newQuantity <= 0) {
+          updateData.is_archived = true
+          console.log(`Archiving item ${item.item.item_name} due to zero stock`)
+        }
 
         const { error: updateError } = await supabase!
           .from('inventory')
-          .update({
-            quantity: item.item.quantity - item.baseQuantity
-          })
+          .update(updateData)
           .eq('id', item.item.id)
 
         if (updateError) {
@@ -520,8 +566,8 @@ export default function SalesPage() {
       // Print receipt with customer name and actual invoice number for ALL sales
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
       const actualInvoiceNumber = saleData.invoice_number
-      console.log('Printing receipt for customer:', customerName, 'with invoice number:', actualInvoiceNumber)
-      printReceipt(cart, total, customerName, paymentMethod, actualInvoiceNumber)
+      console.log('Printing receipt for customer:', customerName, 'with invoice number:', actualInvoiceNumber, 'sold by:', userName)
+      printReceipt(cart, total, customerName, paymentMethod, actualInvoiceNumber, userName)
 
       // Reset cart
       setCart([])
@@ -539,7 +585,7 @@ export default function SalesPage() {
     }
   }
 
-  const printReceipt = (items: CartItem[], total: number, customerName?: string, paymentMethod?: 'cash' | 'fib' | 'debt', invoiceNumber?: number) => {
+  const printReceipt = (items: CartItem[], total: number, customerName?: string, paymentMethod?: 'cash' | 'fib' | 'debt', invoiceNumber?: number, soldBy?: string) => {
     const receiptWindow = window.open('', '_blank', 'width=400,height=800')
     if (!receiptWindow) return
 
@@ -883,6 +929,12 @@ export default function SalesPage() {
                   <span class="meta-label">شێوازی پارەدان:</span>
                   <span class="meta-value">${getPaymentStatus()}</span>
                 </div>
+                ${soldBy ? `
+                  <div class="meta-item" style="grid-column: span 2;">
+                    <span class="meta-label">فرۆشیار:</span>
+                    <span class="meta-value">${soldBy}</span>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
@@ -1468,7 +1520,7 @@ export default function SalesPage() {
                 </motion.h3>
 
                 <div className="space-y-5">
-                  {/* Unit Selection */}
+                  {/* Unit Display (Fixed - No Selection) */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -1477,17 +1529,11 @@ export default function SalesPage() {
                     <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                       یەکەی فرۆشتن
                     </label>
-                    <select
-                      value={selectedSaleUnit}
-                      onChange={(e) => setSelectedSaleUnit(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    >
-                      <option value="">هەڵبژاردنی یەکە</option>
-                      {getAvailableSaleUnits(selectedItem.unit).map((unit) => (
-                        <option key={unit} value={unit}>{unit}</option>
-                      ))}
-                    </select>
+                    <div className="w-full px-4 py-3 rounded-xl border-0 bg-blue-50/60 backdrop-blur-sm shadow-lg border-2 border-blue-200 text-center">
+                      <span className="text-lg font-bold text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {selectedItem.unit}
+                      </span>
+                    </div>
                   </motion.div>
 
                   {/* Quantity Input */}

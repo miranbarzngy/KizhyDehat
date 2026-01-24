@@ -162,21 +162,44 @@ export default function AdminPage() {
       // Net Profit: Total Sales - Total Expenses
       const netProfit = totalSales - totalExpenses
 
-      // Today's sales
+      // Today's sales - Use date range to avoid timezone issues
+      const startOfToday = new Date(today)
+      startOfToday.setHours(0, 0, 0, 0)
+      const endOfToday = new Date(today)
+      endOfToday.setHours(23, 59, 59, 999)
+
+      console.log('Today date range:', startOfToday.toISOString(), 'to', endOfToday.toISOString())
+
+      // Try a simpler approach - filter by date string
       const { data: todaySalesData, error: todayError } = await supabase
         .from('sales')
-        .select('total')
+        .select('total, date')
         .eq('date', today)
 
-      const todaySales = todaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+      console.log('Today Sales Raw Data:', todaySalesData)
+      console.log('Today Sales Error:', todayError)
 
-      // Yesterday's sales
+      const todaySales = todaySalesData?.reduce((sum, sale) => {
+        const saleAmount = Number(sale.total || 0)
+        console.log('Processing sale:', sale.date, 'amount:', saleAmount)
+        return sum + saleAmount
+      }, 0) || 0
+
+      console.log('Today Sales Total:', todaySales)
+
+      // Yesterday's sales - Use date range to avoid timezone issues
+      const startOfYesterday = new Date(yesterday)
+      startOfYesterday.setHours(0, 0, 0, 0)
+      const endOfYesterday = new Date(yesterday)
+      endOfYesterday.setHours(23, 59, 59, 999)
+
       const { data: yesterdaySalesData, error: yesterdayError } = await supabase
         .from('sales')
-        .select('total')
-        .eq('date', yesterday)
+        .select('total, date')
+        .gte('date', startOfYesterday.toISOString())
+        .lte('date', endOfYesterday.toISOString())
 
-      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0
 
       // Sales trend percentage
       const salesTrend = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
-import { FaSearch, FaEye, FaPrint, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaFileInvoice } from 'react-icons/fa'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { FaCog, FaEye, FaFileInvoice, FaImage, FaMapMarkerAlt, FaPhone, FaPrint, FaQrcode, FaSearch, FaStore } from 'react-icons/fa'
 
 interface InvoiceSettings {
   id: string
@@ -456,7 +456,6 @@ export default function InvoicesPage() {
       <!-- 4. Financial Summary (The Totals) -->
       <div style="margin: 10px 0; border-top: 2px solid #000; padding-top: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
-          <span style="font-weight: bold; color: #495057;">کۆی بە باج:</span>
           <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${mockTotal.toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">

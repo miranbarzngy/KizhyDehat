@@ -1,20 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
-import { Package, ShoppingBag } from 'lucide-react'
 import {
-  sanitizeNumericInput,
-  safeStringToNumber,
-  toEnglishDigits,
-  formatCurrency,
+  calculateUnitPrice,
   convertUnits,
-  getAvailableSaleUnits,
-  calculateUnitPrice
+  formatCurrency,
+  safeStringToNumber,
+  sanitizeNumericInput,
+  toEnglishDigits
 } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface InventoryItem {
   id: string
@@ -124,6 +122,9 @@ export default function SalesPage() {
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [addedItemId, setAddedItemId] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null)
 
   // Group inventory by categories
   const getGroupedInventory = (): CategoryGroup[] => {
@@ -151,11 +152,51 @@ export default function SalesPage() {
     return inventory.filter(item => item.category === selectedCategory)
   }
 
+  // Get filtered customers based on search term
+  const getFilteredCustomers = (): Customer[] => {
+    if (!customerSearchTerm.trim()) {
+      return customers.slice(0, 5) // Show first 5 customers when no search
+    }
+
+    const searchLower = customerSearchTerm.toLowerCase()
+    return customers.filter(customer =>
+      customer.name.toLowerCase().includes(searchLower) ||
+      customer.phone1?.toLowerCase().includes(searchLower) ||
+      customer.phone2?.toLowerCase().includes(searchLower)
+    ).slice(0, 10) // Limit to 10 results
+  }
+
+  // Handle customer selection
+  const selectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer.id)
+    setSelectedCustomerData(customer)
+    setCustomerSearchTerm('')
+    setShowCustomerDropdown(false)
+    setCustomerRequired(false)
+  }
+
+  // Handle new customer creation
+  const createNewCustomer = () => {
+    // For now, just show an alert - in a real implementation, this would open a modal
+    alert('زیادکردنی کڕیاری نوێ لە بەشی کڕیاران بکە')
+  }
+
   useEffect(() => {
     fetchInventory()
     fetchCustomers()
     fetchShopSettings()
     fetchInvoiceSettings()
+
+    // Add click outside handler
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.customer-search-container')) {
+        setShowCustomerDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   // Fetch user name from profile
@@ -967,14 +1008,10 @@ export default function SalesPage() {
             <!-- 4. Financial Summary (The Totals) -->
             <div class="financial-summary">
               <div class="summary-row">
-                <span class="summary-label">کۆی بە باج:</span>
                 <span class="summary-value">${formatCurrency(subtotal)}</span>
               </div>
               ${tax > 0 ? `
-                <div class="summary-row">
-                  <span class="summary-label">باج:</span>
-                  <span class="summary-value">${formatCurrency(tax)}</span>
-                </div>
+               
               ` : ''}
               ${discount > 0 ? `
                 <div class="summary-row">
@@ -1080,6 +1117,139 @@ export default function SalesPage() {
             >
               کاڵاکان
             </motion.h2>
+
+            {/* Customer Search */}
+            <motion.div
+              className="mb-4 relative customer-search-container"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={customerSearchTerm}
+                    onChange={(e) => {
+                      setCustomerSearchTerm(e.target.value)
+                      setShowCustomerDropdown(true)
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    placeholder="گەڕان بۆ کڕیار (ناو یان ژمارەی تەلەفۆن)"
+                    className="w-full px-6 py-4 pr-12 rounded-2xl border-0 bg-white/60 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{
+                      fontFamily: 'var(--font-uni-salar)',
+                      color: 'var(--theme-primary)'
+                    }}
+                  />
+
+                  {/* Customer Dropdown */}
+                  <AnimatePresence>
+                    {showCustomerDropdown && customerSearchTerm && (
+                      <motion.div
+                        className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 z-50 max-h-64 overflow-y-auto"
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {getFilteredCustomers().length > 0 ? (
+                          getFilteredCustomers().map((customer, index) => (
+                            <motion.button
+                              key={customer.id}
+                              onClick={() => selectCustomer(customer)}
+                              className="w-full px-4 py-3 text-right hover:bg-blue-50/50 transition-colors duration-200 first:rounded-t-2xl last:rounded-b-2xl"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div className="text-left">
+                                  <div className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    {customer.phone1}
+                                  </div>
+                                  {customer.total_debt > 0 && (
+                                    <div className="text-xs text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                      قەرز: {formatCurrency(customer.total_debt)} IQD
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {customer.name}
+                                </div>
+                              </div>
+                            </motion.button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-6 text-center text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            هیچ کڕیارێک نەدۆزرایەوە
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Add New Customer Button */}
+                <motion.button
+                  onClick={createNewCustomer}
+                  className="px-4 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="کڕیاری نوێ زیادبکە"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </motion.button>
+              </div>
+
+              {/* Selected Customer Display */}
+              <AnimatePresence>
+                {selectedCustomerData && (
+                  <motion.div
+                    className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-bold">👤</span>
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {selectedCustomerData.name}
+                          </div>
+                          <div className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {selectedCustomerData.phone1}
+                          </div>
+                        </div>
+                      </div>
+                      {selectedCustomerData.total_debt > 0 && (
+                        <div className="text-right">
+                          <div className="text-sm text-red-600 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            قەرزی ئێستا
+                          </div>
+                          <div className="text-lg font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(selectedCustomerData.total_debt)} IQD
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
 
             {/* Category Filter */}
             <motion.div

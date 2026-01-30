@@ -344,10 +344,10 @@ export function convertUnits(quantity: number, fromUnit: string, toUnit: string)
   // Determine base unit based on fromUnit
   if (['kg', 'g', 'gram', 'کیلۆ', 'گرام'].includes(fromUnitLower)) {
     baseUnit = 'kg'
-    baseQuantity = quantity / (fromConversions[baseUnit] || 1)
+    baseQuantity = quantity * (fromConversions[baseUnit] || 1)
   } else if (['piece', 'pieces', 'box', 'pack', 'package', 'دانە', 'پاکێت', 'قوتو'].includes(fromUnitLower)) {
     baseUnit = 'piece'
-    baseQuantity = quantity / (fromConversions[baseUnit] || 1)
+    baseQuantity = quantity * (fromConversions[baseUnit] || 1)
   } else {
     console.warn(`Unknown unit type: ${fromUnit}`)
     return quantity
@@ -394,4 +394,26 @@ export function calculateUnitPrice(basePrice: number, baseUnit: string, saleUnit
 
   // Calculate total price
   return baseQuantity * basePrice
+}
+
+/**
+ * Smart currency formatter that automatically determines decimal places
+ * Shows 2 decimals for amounts under 1000, 0 decimals for larger amounts
+ * @param value - Number or string to format
+ * @returns Formatted currency string with appropriate decimal places
+ */
+export function formatSmartCurrency(value: any): string {
+  if (value === null || value === undefined) return '0'
+
+  // Convert to number first
+  const num = safeStringToNumber(String(value))
+
+  // Use smart decimal logic: 2 decimals for small amounts, 0 for large amounts
+  const decimals = Math.abs(num) < 1000 ? 2 : 0
+
+  // Use Intl.NumberFormat for proper formatting
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(num)
 }

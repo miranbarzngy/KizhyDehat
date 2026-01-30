@@ -182,6 +182,7 @@ export default function CustomersPage() {
   }
 
   const fetchPaymentHistory = async (customerId: string) => {
+    if (!supabase) return
     try {
       // Get customer payments
       const { data: payments, error: paymentsError } = await supabase
@@ -346,6 +347,11 @@ export default function CustomersPage() {
   const addPayment = async () => {
     if (!selectedCustomer || newPayment.amount <= 0) {
       alert('زانیارییەکان پڕبکەرەوە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت پارەدان زیاد بکرێت')
       return
     }
 

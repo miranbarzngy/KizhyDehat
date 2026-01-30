@@ -1,711 +1,118 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useShopSettings } from '@/app/dashboard/layout'
+import PermissionGuard from '@/components/PermissionGuard'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { sanitizePhoneNumber, formatCurrency } from '@/lib/numberUtils'
-import { motion, AnimatePresence } from 'framer-motion'
-import { FaUser, FaUsers, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaPlus, FaEdit, FaTrash, FaEye, FaShieldAlt, FaArrowUp, FaArrowDown, FaShoppingCart, FaMoneyBillWave, FaChartLine, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { FaMapMarkerAlt, FaPlus, FaSave, FaShieldAlt, FaStore, FaTrash, FaUser, FaUsers } from 'react-icons/fa'
+
+interface ShopSettings {
+  id?: string
+  shop_name: string
+  logo_url: string
+  address: string
+  currency: string
+  tax_rate: number
+}
 
 interface User {
   id: string
+  email: string
   name?: string
-  image?: string
-  phone?: string
-  location?: string
-  email?: string
-  role_id: string
+  role_id?: string
   role?: {
     name: string
-    permissions: Record<string, boolean>
+    description?: string
   }
 }
 
 interface Role {
   id: string
   name: string
+  description?: string
   permissions: Record<string, boolean>
 }
 
-interface ShopSettings {
-  id: string
-  shopname: string
-  icon: string
-  phone: string
-  location: string
-  qrcodeimage: string
-}
-
-interface ChartData {
-  date: string
-  sales: number
-  expenses: number
-  profit: number
-}
-
 export default function AdminPage() {
-  const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'roles' | 'settings'>('analytics')
-  const [users, setUsers] = useState<User[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
-  const [shopSettingsForm, setShopSettingsForm] = useState<Partial<ShopSettings>>({})
+  return (
+    <PermissionGuard permission="admin">
+      <AdminPageContent />
+    </PermissionGuard>
+  )
+}
+
+function AdminPageContent() {
+  const { refreshShopSettings } = useShopSettings()
+  const [activeTab, setActiveTab] = useState<'shop-info' | 'users' | 'roles' | 'system'>('shop-info')
+  const [settings, setSettings] = useState<ShopSettings>({
+    shop_name: 'فرۆشگای کوردستان',
+    logo_url: '',
+    address: 'هەولێر، کوردستان',
+    currency: 'IQD',
+    tax_rate: 0.00
+  })
   const [loading, setLoading] = useState(true)
-  const [showCreateUser, setShowCreateUser] = useState(false)
-  const [showCreateRole, setShowCreateRole] = useState(false)
-  const [newUserName, setNewUserName] = useState('')
-  const [newUserImage, setNewUserImage] = useState('')
-  const [newUserPhone, setNewUserPhone] = useState('')
-  const [newUserLocation, setNewUserLocation] = useState('')
-  const [newUserEmail, setNewUserEmail] = useState('')
-  const [newUserPassword, setNewUserPassword] = useState('')
-  const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [successMessage, setSuccessMessage] = useState('')
+
+  // Role creation state
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [newRole, setNewRole] = useState({
+    name: '',
+    description: '',
+    permissions: {
+      dashboard: true, // Dashboard enabled by default
+      sales: false,
+      inventory: false,
+      customers: false,
+      suppliers: false,
+      invoices: false,
+      expenses: false,
+      profits: false,
+      help: false,
+      admin: false
+    }
+  })
+  const [creatingRole, setCreatingRole] = useState(false)
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
+  // User creation state
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    role_id: ''
+  })
+  const [userImageFile, setUserImageFile] = useState<File | null>(null)
+  const [creatingUser, setCreatingUser] = useState(false)
+
+  // User editing state
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [newRoleName, setNewRoleName] = useState('')
-  const [permissions, setPermissions] = useState<Record<string, boolean>>({
-    sales: false,
-    inventory: false,
-    customers: false,
-    suppliers: false,
-    payroll: false,
-    profits: false,
+  const [showEditUserModal, setShowEditUserModal] = useState(false)
+  const [editUser, setEditUser] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    role_id: ''
   })
-  const [editingRole, setEditingRole] = useState<Role | null>(null)
-
-  // Financial Analytics State
-  const [financialStats, setFinancialStats] = useState({
-    totalSales: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    todaySales: 0,
-    yesterdaySales: 0,
-    salesTrend: 0, // percentage change from yesterday
-  })
-  const [chartData, setChartData] = useState<ChartData[]>([])
-
+  const [editUserImageFile, setEditUserImageFile] = useState<File | null>(null)
+  const [updatingUser, setUpdatingUser] = useState(false)
 
   useEffect(() => {
-    // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
-    const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
-                    profile?.role?.name?.toLowerCase() === 'ئادمین' ||
-                    profile?.role?.name?.toLowerCase() === 'admin' ||
-                    profile?.role?.name?.toLowerCase() === 'administrator'
-
-    if (isAdmin) {
-      fetchUsers()
-      fetchRoles()
-      fetchShopSettings()
-      fetchFinancialStats()
-      setupRealtimeSubscription()
-    }
-  }, [profile])
-
-  // Financial Analytics Functions
-  const fetchFinancialStats = async () => {
-    if (!supabase) {
-      // Demo data
-      setFinancialStats({
-        totalSales: 125000,
-        totalExpenses: 87500,
-        netProfit: 37500,
-        todaySales: 24500,
-        yesterdaySales: 18900,
-        salesTrend: 29.6
-      })
-      return
-    }
-
-    try {
-      // Get today's date and yesterday's date
-      const today = new Date().toISOString().split('T')[0]
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-
-      // Total Sales: Sum of total from sales table
-      const { data: salesData, error: salesError } = await supabase
-        .from('sales')
-        .select('total')
-
-      if (salesError) throw salesError
-
-      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
-
-      // Total Expenses: Include both cost of goods sold AND other expenses
-      // 1. Cost of goods sold from sale_items
-      const { data: saleItemsData, error: itemsError } = await supabase
-        .from('sale_items')
-        .select(`
-          quantity,
-          inventory:item_id(cost_price)
-        `)
-
-      if (itemsError) throw itemsError
-
-      const cogsExpenses = saleItemsData?.reduce((sum, item) => {
-        const costPrice = item.inventory?.cost_price || 0
-        return sum + (costPrice * item.quantity)
-      }, 0) || 0
-
-      // 2. Other expenses from expenses table
-      const { data: otherExpensesData, error: expensesError } = await supabase
-        .from('expenses')
-        .select('amount')
-
-      if (expensesError) throw expensesError
-
-      const otherExpenses = otherExpensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
-
-      // Total expenses = COGS + Other expenses
-      const totalExpenses = cogsExpenses + otherExpenses
-
-      // Net Profit: Total Sales - Total Expenses
-      const netProfit = totalSales - totalExpenses
-
-      // Today's sales - Use date range to avoid timezone issues
-      const startOfToday = new Date(today)
-      startOfToday.setHours(0, 0, 0, 0)
-      const endOfToday = new Date(today)
-      endOfToday.setHours(23, 59, 59, 999)
-
-      console.log('Today date range:', startOfToday.toISOString(), 'to', endOfToday.toISOString())
-
-      // Try a simpler approach - filter by date string
-      const { data: todaySalesData, error: todayError } = await supabase
-        .from('sales')
-        .select('total, date')
-        .eq('date', today)
-
-      console.log('Today Sales Raw Data:', todaySalesData)
-      console.log('Today Sales Error:', todayError)
-
-      const todaySales = todaySalesData?.reduce((sum, sale) => {
-        const saleAmount = Number(sale.total || 0)
-        console.log('Processing sale:', sale.date, 'amount:', saleAmount)
-        return sum + saleAmount
-      }, 0) || 0
-
-      console.log('Today Sales Total:', todaySales)
-
-      // Yesterday's sales - Use date range to avoid timezone issues
-      const startOfYesterday = new Date(yesterday)
-      startOfYesterday.setHours(0, 0, 0, 0)
-      const endOfYesterday = new Date(yesterday)
-      endOfYesterday.setHours(23, 59, 59, 999)
-
-      const { data: yesterdaySalesData, error: yesterdayError } = await supabase
-        .from('sales')
-        .select('total, date')
-        .gte('date', startOfYesterday.toISOString())
-        .lte('date', endOfYesterday.toISOString())
-
-      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0
-
-      // Sales trend percentage
-      const salesTrend = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0
-
-      setFinancialStats({
-        totalSales: Math.round(totalSales),
-        totalExpenses: Math.round(totalExpenses),
-        netProfit: Math.round(netProfit),
-        todaySales: Math.round(todaySales),
-        yesterdaySales: Math.round(yesterdaySales),
-        salesTrend: Math.round(salesTrend * 10) / 10
-      })
-
-      // Fetch chart data for last 7 days
-      await fetchChartData()
-
-    } catch (error) {
-      console.error('Error fetching financial stats:', error)
-      // Fallback to demo data
-      setFinancialStats({
-        totalSales: 125000,
-        totalExpenses: 87500,
-        netProfit: 37500,
-        todaySales: 24500,
-        yesterdaySales: 18900,
-        salesTrend: 29.6
-      })
-    }
-  }
-
-  const fetchChartData = async () => {
-    if (!supabase) {
-      // Demo chart data
-      const demoData: ChartData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        demoData.push({
-          date: dateStr,
-          sales: Math.round(Math.random() * 50000 + 10000),
-          expenses: Math.round(Math.random() * 30000 + 5000),
-          profit: 0 // Will be calculated
-        })
-      }
-      // Calculate profits
-      demoData.forEach(item => {
-        item.profit = item.sales - item.expenses
-      })
-      setChartData(demoData)
-      return
-    }
-
-    try {
-      const chartDataPoints: ChartData[] = []
-
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-
-        // Daily sales
-        const { data: daySales } = await supabase
-          .from('sales')
-          .select('total')
-          .eq('date', dateStr)
-
-        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
-
-        // Daily expenses (from sale_items cost_price * quantity)
-        // First get sales for this date, then get their items
-        const { data: daySalesIds } = await supabase
-          .from('sales')
-          .select('id')
-          .eq('date', dateStr)
-
-        let dayExpensesTotal = 0
-        if (daySalesIds && daySalesIds.length > 0) {
-          const saleIds = daySalesIds.map(sale => sale.id)
-          const { data: dayItems } = await supabase
-            .from('sale_items')
-            .select(`
-              quantity,
-              inventory:item_id(cost_price)
-            `)
-            .in('sale_id', saleIds)
-
-          dayExpensesTotal = dayItems?.reduce((sum, item) => {
-            const costPrice = item.inventory?.cost_price || 0
-            return sum + (costPrice * item.quantity)
-          }, 0) || 0
-        }
-
-        chartDataPoints.push({
-          date: dateStr,
-          sales: Math.round(daySalesTotal),
-          expenses: Math.round(dayExpensesTotal),
-          profit: Math.round(daySalesTotal - dayExpensesTotal)
-        })
-      }
-
-      setChartData(chartDataPoints)
-    } catch (error) {
-      console.error('Error fetching chart data:', error)
-      // Fallback demo data
-      const demoData: ChartData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        demoData.push({
-          date: dateStr,
-          sales: Math.round(Math.random() * 50000 + 10000),
-          expenses: Math.round(Math.random() * 30000 + 5000),
-          profit: 0
-        })
-      }
-      demoData.forEach(item => {
-        item.profit = item.sales - item.expenses
-      })
-      setChartData(demoData)
-    }
-  }
-
-  const setupRealtimeSubscription = () => {
-    if (!supabase) return
-
-    // Subscribe to sales table changes
-    const salesSubscription = supabase
-      .channel('sales_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'sales'
-      }, (payload) => {
-        console.log('Sales table changed:', payload)
-        // Refresh financial stats when sales data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Subscribe to sale_items table changes
-    const itemsSubscription = supabase
-      .channel('sale_items_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'sale_items'
-      }, (payload) => {
-        console.log('Sale items table changed:', payload)
-        // Refresh financial stats when sale items data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Subscribe to expenses table changes
-    const expensesSubscription = supabase
-      .channel('expenses_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'expenses'
-      }, (payload) => {
-        console.log('Expenses table changed:', payload)
-        // Refresh financial stats when expenses data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Cleanup subscriptions on unmount
-    return () => {
-      salesSubscription.unsubscribe()
-      itemsSubscription.unsubscribe()
-      expensesSubscription.unsubscribe()
-    }
-  }
-
-  const fetchUsers = async () => {
-    // Demo mode: show sample users data when Supabase is not configured
-    if (!supabase) {
-      const demoUsers: User[] = [
-        {
-          id: 'demo-user-1',
-          name: 'ئەحمەد محەمەد',
-          image: '',
-          phone: '+964 750 123 4567',
-          location: 'هەولێر',
-          email: 'ahmed@example.com',
-          role_id: 'admin-role',
-          role: {
-            name: 'Admin',
-            permissions: {
-              sales: true,
-              inventory: true,
-              customers: true,
-              suppliers: true,
-              payroll: true,
-              profits: true
-            }
-          }
-        },
-        {
-          id: 'demo-user-2',
-          name: 'فاطمە عەلی',
-          image: '',
-          phone: '+964 751 987 6543',
-          location: 'سلێمانی',
-          email: 'fatima@example.com',
-          role_id: 'manager-role',
-          role: {
-            name: 'Manager',
-            permissions: {
-              sales: true,
-              inventory: true,
-              customers: true,
-              suppliers: false,
-              payroll: false,
-              profits: true
-            }
-          }
-        }
-      ]
-      setUsers(demoUsers)
-      return
-    }
-
-    try {
-      // Fetch users with proper join to roles table
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          name,
-          image,
-          phone,
-          location,
-          email,
-          role_id,
-          roles!inner (
-            id,
-            name,
-            permissions
-          )
-        `)
-
-      if (error) {
-        console.error('Error fetching users with roles:', error)
-        // Fallback: fetch users without role join and manually fetch roles
-        const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, name, image, phone, location, email, role_id')
-
-        if (usersError) throw usersError
-
-        // Fetch all roles
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('roles')
-          .select('id, name, permissions')
-
-        if (rolesError) throw rolesError
-
-        // Map roles to users
-        const usersWithRoles: User[] = usersData?.map(user => ({
-          ...user,
-          role: rolesData?.find(role => role.id === user.role_id) || undefined
-        })) || []
-
-        setUsers(usersWithRoles)
-      } else {
-        // Transform the data to match our interface
-        const transformedData: User[] = data?.map(user => ({
-          id: user.id,
-          name: user.name,
-          image: user.image,
-          phone: user.phone,
-          location: user.location,
-          email: user.email,
-          role_id: user.role_id,
-          role: user.roles && Array.isArray(user.roles) && user.roles.length > 0 ? {
-            name: user.roles[0].name,
-            permissions: user.roles[0].permissions
-          } : undefined
-        })) || []
-
-        setUsers(transformedData)
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      // Final fallback: show empty array
-      setUsers([])
-    }
-  }
-
-  const fetchRoles = async () => {
-    // Demo mode: show sample roles data when Supabase is not configured
-    if (!supabase) {
-      const demoRoles: Role[] = [
-        {
-          id: 'admin-role',
-          name: 'Admin',
-          permissions: {
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: true,
-            payroll: true,
-            profits: true
-          }
-        },
-        {
-          id: 'manager-role',
-          name: 'Manager',
-          permissions: {
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: false,
-            payroll: false,
-            profits: true
-          }
-        },
-        {
-          id: 'cashier-role',
-          name: 'Cashier',
-          permissions: {
-            sales: true,
-            inventory: false,
-            customers: false,
-            suppliers: false,
-            payroll: false,
-            profits: false
-          }
-        }
-      ]
-      setRoles(demoRoles)
-      setLoading(false)
-      return
-    }
-
-    try {
-      console.log('Fetching roles...')
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*')
-
-      console.log('Roles query result:', { data, error })
-
-      if (error) {
-        console.error('Error fetching roles:', error)
-        // If roles table doesn't exist or is empty, create default roles
-        if (error.code === 'PGRST116' || error.message?.includes('relation "roles" does not exist')) {
-          console.log('Roles table not found, using demo data')
-          const demoRoles: Role[] = [
-            {
-              id: 'admin-role',
-              name: 'Admin',
-              permissions: {
-                sales: true,
-                inventory: true,
-                customers: true,
-                suppliers: true,
-                payroll: true,
-                profits: true
-              }
-            },
-            {
-              id: 'manager-role',
-              name: 'Manager',
-              permissions: {
-                sales: true,
-                inventory: true,
-                customers: true,
-                suppliers: false,
-                payroll: false,
-                profits: true
-              }
-            },
-            {
-              id: 'cashier-role',
-              name: 'Cashier',
-              permissions: {
-                sales: true,
-                inventory: false,
-                customers: false,
-                suppliers: false,
-                payroll: false,
-                profits: false
-              }
-            }
-          ]
-          setRoles(demoRoles)
-        } else {
-          throw error
-        }
-      } else {
-        console.log('Roles loaded:', data)
-        setRoles(data || [])
-      }
-    } catch (error) {
-      console.error('Error fetching roles:', error)
-      // Fallback: use demo roles
-      const demoRoles: Role[] = [
-        {
-          id: 'admin-role',
-          name: 'Admin',
-          permissions: {
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: true,
-            payroll: true,
-            profits: true
-          }
-        }
-      ]
-      setRoles(demoRoles)
-    } finally {
-      console.log('Setting loading to false')
-      setLoading(false)
-    }
-  }
-
-  const createUser = async () => {
-    try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newUserName,
-          image: newUserImage,
-          phone: newUserPhone,
-          location: newUserLocation,
-          email: newUserEmail,
-          password: newUserPassword,
-          roleId: selectedRoleId
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create user')
-      }
-
-      setShowCreateUser(false)
-      setNewUserName('')
-      setNewUserImage('')
-      setNewUserPhone('')
-      setNewUserLocation('')
-      setNewUserEmail('')
-      setNewUserPassword('')
-      setSelectedRoleId('')
-      fetchUsers()
-      alert('User created successfully!')
-    } catch (error) {
-      console.error('Error creating user:', error)
-      alert(`Error creating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  const createRole = async () => {
-    try {
-      const { error } = await supabase
-        .from('roles')
-        .insert({
-          name: newRoleName,
-          permissions
-        })
-
-      if (error) throw error
-
-      setShowCreateRole(false)
-      setNewRoleName('')
-      setPermissions({
-        sales: false,
-        inventory: false,
-        customers: false,
-        suppliers: false,
-        payroll: false,
-        profits: false,
-      })
-      fetchRoles()
-    } catch (error) {
-      console.error('Error creating role:', error)
-      alert('Error creating role')
-    }
-  }
-
-  const fetchShopSettings = async () => {
-    // Demo mode: show sample shop settings data when Supabase is not configured
-    if (!supabase) {
-      const demoSettings: ShopSettings = {
-        id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
-        icon: '',
-        phone: '+964 750 123 4567',
-        location: 'هەولێر، کوردستان',
-        qrcodeimage: ''
-      }
-      setShopSettings(demoSettings)
-      setShopSettingsForm(demoSettings)
-      return
-    }
-
+    fetchSettings()
+    fetchRoles()
+    fetchUsers()
+  }, [])
+
+  const fetchSettings = async () => {
     try {
       const { data, error } = await supabase
         .from('shop_settings')
@@ -713,114 +120,82 @@ export default function AdminPage() {
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      const settings = data || null
-      setShopSettings(settings)
-      if (settings) {
-        setShopSettingsForm(settings)
-      }
-    } catch (error) {
-      console.error('Error fetching shop settings:', error)
-    }
-  }
 
-  const updateShopSettings = async (field: string, value: string) => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت ڕێکخستنەکان بگۆڕدرێن')
-      return
-    }
-
-    try {
-      const updateData: any = { [field]: value, updated_at: new Date().toISOString() }
-
-      if (shopSettings) {
-        // Update existing settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .update(updateData)
-          .eq('id', shopSettings.id)
-
-        if (error) throw error
-      } else {
-        // Create new settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .insert(updateData)
-
-        if (error) throw error
-      }
-
-      fetchShopSettings()
-    } catch (error) {
-      console.error('Error updating shop settings:', error)
-      alert('هەڵە لە نوێکردنی ڕێکخستنەکان')
-    }
-  }
-
-  const handleImageUpload = async (file: File, field: string) => {
-    if (!supabase) {
-      alert('Supabase not configured')
-      return
-    }
-
-    // File size validation (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB in bytes
-    if (file.size > maxSize) {
-      alert('وێنەکە زۆر گەورەیە. دەبێت لە 5MB کەمتر بێت.')
-      return
-    }
-
-    // File type validation
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      alert('جۆری وێنە نادروستە. تکایە JPEG، PNG یان WebP بەکاربهێنە.')
-      return
-    }
-
-    try {
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `shop/${fileName}`
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      if (data) {
+        setSettings({
+          id: data.id,
+          shop_name: data.shop_name || 'فرۆشگای کوردستان',
+          logo_url: data.logo_url || '',
+          address: data.address || 'هەولێر، کوردستان',
+          currency: data.currency || 'IQD',
+          tax_rate: data.tax_rate || 0.00
         })
-
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) throw new Error('Failed to get public URL')
-
-      updateShopSettings(field, urlData.publicUrl)
+      }
     } catch (error) {
-      console.error('Image upload failed:', error)
-      alert(`هەڵە لە بارکردنی وێنە: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error fetching settings:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const updateAllShopSettings = async () => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت ڕێکخستنەکان بگۆڕدرێن')
-      return
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setSettings(prev => ({ ...prev, logo_url: e.target?.result as string }))
+      }
+      reader.readAsDataURL(file)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setSuccessMessage('')
 
     try {
+      let logoUrl = settings.logo_url
+
+      // Upload image if there's a new file
+      if (imageFile && supabase) {
+        const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `shop-logos/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, imageFile, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath)
+
+        if (!urlData?.publicUrl) throw new Error('Failed to get public URL')
+        logoUrl = urlData.publicUrl
+      }
+
       const updateData = {
-        ...shopSettingsForm,
+        shop_name: settings.shop_name,
+        logo_url: logoUrl,
+        address: settings.address,
+        currency: settings.currency,
+        tax_rate: settings.tax_rate,
         updated_at: new Date().toISOString()
       }
 
-      if (shopSettings) {
+      if (settings.id) {
         // Update existing settings
         const { error } = await supabase
           .from('shop_settings')
           .update(updateData)
-          .eq('id', shopSettings.id)
+          .eq('id', settings.id)
 
         if (error) throw error
       } else {
@@ -832,50 +207,257 @@ export default function AdminPage() {
         if (error) throw error
       }
 
-      alert('ڕێکخستنەکان بە سەرکەوتوویی نوێکرانەوە')
-      fetchShopSettings()
+      // Refresh shop settings in the layout to update branding immediately
+      await refreshShopSettings()
 
-      // Refresh the page to update browser title and favicon
-      if (typeof window !== 'undefined') {
-        window.location.reload()
-      }
+      setSuccessMessage('زانیاری دوکان بە سەرکەوتوویی نوێکرایەوە!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+
     } catch (error) {
-      console.error('Error updating all shop settings:', error)
-      alert('هەڵە لە نوێکردنی ڕێکخستنەکان')
+      console.error('Error saving settings:', error)
+      alert(`هەڵە لە نوێکردنەوەی زانیاری دوکان: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSaving(false)
     }
   }
 
-  const updateUserRole = async (userId: string, roleId: string) => {
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreatingRole(true)
+
     try {
       const { error } = await supabase
-        .from('profiles')
-        .update({ role_id: roleId })
-        .eq('id', userId)
+        .from('roles')
+        .insert({
+          name: newRole.name,
+          description: newRole.description,
+          permissions: newRole.permissions
+        })
 
       if (error) throw error
-      fetchUsers()
+
+      // Reset form
+      setNewRole({
+        name: '',
+        description: '',
+        permissions: {
+          sales: false,
+          inventory: false,
+          customers: false,
+          suppliers: false,
+          invoices: false,
+          expenses: false,
+          profits: false,
+          help: false,
+          admin: false
+        }
+      })
+      setShowRoleModal(false)
+      alert('ڕۆڵ بە سەرکەوتوویی دروستکرا!')
+
     } catch (error) {
-      console.error('Error updating user role:', error)
-      alert('Error updating user role')
+      console.error('Error creating role:', error)
+      alert(`هەڵە لە دروستکردنی ڕۆڵ: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setCreatingRole(false)
     }
   }
 
-  const editUser = (user: User) => {
-    setEditingUser(user)
-    setNewUserName(user.name || '')
-    setNewUserImage(user.image || '')
-    setNewUserPhone(user.phone || '')
-    setNewUserLocation(user.location || '')
-    setNewUserEmail(user.email || '')
-    setNewUserPassword('') // Don't pre-fill password for security
-    setSelectedRoleId(user.role_id || '')
-    setShowCreateUser(true)
+  const fetchRoles = async () => {
+    setLoadingRoles(true)
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setRoles(data || [])
+    } catch (error) {
+      console.error('Error fetching roles:', error)
+    } finally {
+      setLoadingRoles(false)
+    }
   }
 
-  const updateUser = async () => {
-    if (!editingUser) return
+  const fetchUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      if (!supabase) {
+        console.log('Supabase not configured, using demo data')
+        setUsers([])
+        return
+      }
+
+      // First fetch profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          name,
+          email,
+          phone,
+          image,
+          role_id
+        `)
+        .order('created_at', { ascending: false })
+
+      if (profilesError) throw profilesError
+
+      // Then fetch roles separately
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('roles')
+        .select('id, name, description')
+
+      if (rolesError) throw rolesError
+
+      // Combine the data
+      const usersWithRoles = (profilesData || []).map(profile => ({
+        ...profile,
+        role: rolesData?.find(role => role.id === profile.role_id) || null
+      }))
+
+      setUsers(usersWithRoles)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreatingUser(true)
 
     try {
+      // Validate required fields
+      if (!newUser.email || !newUser.password || !newUser.role_id) {
+        throw new Error('ئیمەیڵ، وشەی نهێنی، و ڕۆڵ پێویستە')
+      }
+
+      // Upload user image if provided
+      let imageUrl = ''
+      if (userImageFile) {
+        const fileExt = userImageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const fileName = `temp-${Date.now()}.${fileExt}`
+        const filePath = `user-images/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, userImageFile, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath)
+
+          if (urlData?.publicUrl) {
+            imageUrl = urlData.publicUrl
+          }
+        }
+      }
+
+      // Create user via API (this creates both auth user and profile)
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          phone: newUser.phone || null,
+          image: imageUrl || null,
+          roleId: newUser.role_id
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user')
+      }
+
+      // Reset form
+      setNewUser({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        role_id: ''
+      })
+      setUserImageFile(null)
+      setShowUserModal(false)
+
+      // Refresh users list
+      fetchUsers()
+
+      alert(`بەکارهێنەر بە سەرکەوتوویی دروستکرا!\n\n✅ بەکارهێنەر ئێستا دەتوانێت بچێتە ژوورەوە بە:\nئیمەیڵ: ${newUser.email}\nوشەی نهێنی: ${newUser.password}`)
+
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert(`هەڵە لە دروستکردنی بەکارهێنەر: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setCreatingUser(false)
+    }
+  }
+
+  const handleUserImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUserImageFile(file)
+    }
+  }
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user)
+    setEditUser({
+      name: user.name || '',
+      email: user.email,
+      phone: user.phone || '',
+      password: '',
+      role_id: user.role_id || ''
+    })
+    setShowEditUserModal(true)
+  }
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+
+    setUpdatingUser(true)
+
+    try {
+      // Upload new image if provided
+      let imageUrl = editingUser.image
+      if (editUserImageFile) {
+        const fileExt = editUserImageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const fileName = `${editingUser.id}-${Date.now()}.${fileExt}`
+        const filePath = `user-images/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, editUserImageFile, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath)
+
+          if (urlData?.publicUrl) {
+            imageUrl = urlData.publicUrl
+          }
+        }
+      }
+
+      // Update user via API
       const response = await fetch('/api/users', {
         method: 'PUT',
         headers: {
@@ -883,227 +465,140 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           id: editingUser.id,
-          name: newUserName,
-          image: newUserImage,
-          phone: newUserPhone,
-          location: newUserLocation,
-          email: newUserEmail,
-          password: newUserPassword || undefined, // Only update if provided
-          roleId: selectedRoleId
-        })
+          name: editUser.name,
+          email: editUser.email, // Allow email update
+          password: editUser.password || null, // Allow password update
+          phone: editUser.phone || null,
+          image: imageUrl,
+          roleId: editUser.role_id || null
+        }),
       })
 
-      const data = await response.json()
+      const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update user')
+        throw new Error(result.error || 'Failed to update user')
       }
 
-      setShowCreateUser(false)
+      // Reset form and close modal
       setEditingUser(null)
-      setNewUserName('')
-      setNewUserImage('')
-      setNewUserPhone('')
-      setNewUserLocation('')
-      setNewUserEmail('')
-      setNewUserPassword('')
-      setSelectedRoleId('')
+      setEditUser({
+        name: '',
+        email: '',
+        phone: '',
+        role_id: ''
+      })
+      setEditUserImageFile(null)
+      setShowEditUserModal(false)
+
+      // Refresh users list
       fetchUsers()
-      alert('User updated successfully!')
+
+      alert('بەکارهێنەر بە سەرکەوتوویی نوێکرایەوە!')
+
     } catch (error) {
       console.error('Error updating user:', error)
-      alert(`Error updating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`هەڵە لە نوێکردنەوەی بەکارهێنەر: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setUpdatingUser(false)
     }
   }
 
-  const resetForm = () => {
-    setEditingUser(null)
-    setNewUserName('')
-    setNewUserImage('')
-    setNewUserPhone('')
-    setNewUserLocation('')
-    setNewUserEmail('')
-    setNewUserPassword('')
-    setSelectedRoleId('')
-  }
-
-  const editRole = (role: Role) => {
-    setEditingRole(role)
-    setNewRoleName(role.name)
-    setPermissions(role.permissions)
-    setShowCreateRole(true)
-  }
-
-  const updateRole = async () => {
-    if (!editingRole) return
+  const handleDeleteUser = async (user: User) => {
+    if (!confirm(`ئایا دڵنیایت لە سڕینەوەی بەکارهێنەر "${user.name || user.email}"؟\n\nئەم کردارە ناتوانرێتەوە پاشگەز بکرێتەوە.`)) {
+      return
+    }
 
     try {
-      const { error } = await supabase
-        .from('roles')
-        .update({
-          name: newRoleName,
-          permissions
-        })
-        .eq('id', editingRole.id)
+      console.log('Attempting to delete user:', user.id)
 
-      if (error) throw error
-
-      setShowCreateRole(false)
-      setEditingRole(null)
-      setNewRoleName('')
-      setPermissions({
-        sales: false,
-        inventory: false,
-        customers: false,
-        suppliers: false,
-        payroll: false,
-        profits: false,
+      // Delete user via API (this deletes both auth user and profile)
+      const response = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: user.id
+        }),
       })
-      fetchRoles()
-      alert('Role updated successfully!')
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user')
+      }
+
+      // Refresh users list
+      await fetchUsers()
+
+      alert('بەکارهێنەر بە سەرکەوتوویی سڕایەوە!')
+
     } catch (error) {
-      console.error('Error updating role:', error)
-      alert('Error updating role')
+      console.error('Error deleting user:', error)
+      alert(`هەڵە لە سڕینەوەی بەکارهێنەر: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  const deleteRole = async (roleId: string, roleName: string) => {
-    // Check if any users are using this role
-    const usersWithRole = users.filter(user => user.role_id === roleId)
-    if (usersWithRole.length > 0) {
-      alert(`ناتوانرێت ڕۆڵ بسڕدرێتەوە چونکە ${usersWithRole.length} بەکارهێنەر ئەم ڕۆڵە بەکاردەهێنن. تکایە یەکەم ڕۆڵی ئەم بەکارهێنەرانە بگۆڕە.`)
-      return
-    }
-
-    if (!confirm(`دڵنیایت لە سڕینەوەی ڕۆڵی "${roleName}"؟`)) {
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', roleId)
-
-      if (error) throw error
-
-      fetchRoles()
-      alert('Role deleted successfully!')
-    } catch (error) {
-      console.error('Error deleting role:', error)
-      alert('Error deleting role')
+  const handleEditUserImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setEditUserImageFile(file)
     }
   }
 
-  const resetRoleForm = () => {
-    setEditingRole(null)
-    setNewRoleName('')
-    setPermissions({
-      sales: false,
-      inventory: false,
-      customers: false,
-      suppliers: false,
-      payroll: false,
-      profits: false,
-    })
-  }
-
-  // Check for admin access - support Kurdish, English role names, and role ID, case-insensitive
-  const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
-                  profile?.role?.name?.toLowerCase() === 'ئادمین' ||
-                  profile?.role?.name?.toLowerCase() === 'admin' ||
-                  profile?.role?.name?.toLowerCase() === 'administrator'
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center p-8 bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-red-200"
-        >
-          <div className="text-6xl mb-4">🚫</div>
-          <h2 className="text-2xl font-bold text-red-600 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            دەستپێڕاگەیشتن نیە
-          </h2>
-          <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            پێویستە مۆڵەتی بەڕێوەبەر هەبێت بۆ بینینی ئەم پەڕەیە
-          </p>
-        </motion.div>
-      </div>
-    )
+  const updatePermission = (permission: string, value: boolean) => {
+    setNewRole(prev => ({
+      ...prev,
+      permissions: {
+        ...prev.permissions,
+        [permission]: value
+      }
+    }))
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center p-8 bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl"
-        >
-          <div className="text-6xl mb-4">⏳</div>
-          <p className="text-xl text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            چاوەڕوانبە...
-          </p>
-        </motion.div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                بەڕێوەبردنی سیستەم
-              </h1>
-              <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                بەڕێوەبردنی بەکارهێنەران، ڕۆڵەکان و ڕێکخستنەکان
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  بەکارهێنەران
-                </p>
-                <p className="text-2xl font-bold text-blue-600">{users.length}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  ڕۆڵەکان
-                </p>
-                <p className="text-2xl font-bold text-purple-600">{roles.length}</p>
-              </div>
-            </div>
+          <div className="flex items-center space-x-3 mb-8">
+            <span className="text-blue-500 text-3xl">⚙️</span>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              بەڕێوەبەرایەتی دوکان
+            </h1>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
+          <div className="flex overflow-x-auto whitespace-nowrap space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg scrollbar-hide">
             <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'analytics'
-                  ? 'bg-emerald-500 text-white shadow-md'
+              onClick={() => setActiveTab('shop-info')}
+              className={`flex-shrink-0 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+                activeTab === 'shop-info'
+                  ? 'bg-blue-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
               }`}
               style={{ fontFamily: 'var(--font-uni-salar)' }}
             >
-              <FaChartLine className="inline ml-2" />
-              شیکارییەکان
+              <FaStore className="inline ml-2" />
+              زانیاری دوکان
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              className={`flex-shrink-0 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'users'
-                  ? 'bg-blue-500 text-white shadow-md'
+                  ? 'bg-green-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
               }`}
               style={{ fontFamily: 'var(--font-uni-salar)' }}
@@ -1113,7 +608,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('roles')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              className={`flex-shrink-0 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'roles'
                   ? 'bg-purple-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
@@ -1124,867 +619,911 @@ export default function AdminPage() {
               ڕۆڵەکان
             </button>
             <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'settings'
-                  ? 'bg-green-500 text-white shadow-md'
+              onClick={() => setActiveTab('system')}
+              className={`flex-shrink-0 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+                activeTab === 'system'
+                  ? 'bg-orange-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
               }`}
               style={{ fontFamily: 'var(--font-uni-salar)' }}
             >
-              <FaCog className="inline ml-2" />
-              ڕێکخستنەکان
+              <FaUser className="inline ml-2" />
+              سیستەم
             </button>
           </div>
 
-          {/* Tab Content */}
-          <AnimatePresence mode="wait">
-            {/* Users Tab */}
-            {activeTab === 'users' && (
-              <motion.div
-                key="users"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Users Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center space-x-3">
-                    <FaUsers className="text-blue-500 text-2xl" />
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      بەڕێوەبردنی بەکارهێنەران
-                    </h2>
-                  </div>
-                  <motion.button
-                    onClick={() => setShowCreateUser(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPlus className="inline ml-2" />
-                    زیادکردنی بەکارهێنەر
-                  </motion.button>
-                </div>
-
-                {/* Users Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {users.map((user, index) => (
-                      <motion.div
-                        key={user.id}
-                        className="group bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{
-                          delay: index * 0.1,
-                          duration: 0.3
-                        }}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        {/* Gradient overlay on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-500 rounded-3xl"></div>
-
-                        <div className="relative z-10">
-                          {/* User Avatar */}
-                          <div className="flex items-center space-x-4 mb-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-400 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg">
-                              {user.image ? (
-                                <img
-                                  src={user.image}
-                                  alt={user.name || 'User'}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <FaUser className="w-8 h-8 text-white" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-xl text-gray-800 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {user.name || 'ناوی نەناسراو'}
-                              </h3>
-                              <div className="flex items-center space-x-2">
-                                <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full text-xs font-medium">
-                                  {user.role?.name || 'ڕۆڵی نەناسراو'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* User Details */}
-                          <div className="space-y-3 mb-6">
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaPhone className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {user.phone || 'نەناسراو'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaMapMarkerAlt className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {user.location || 'نەناسراو'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaEye className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {user.email || 'نەناسراو'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-3">
-                            <motion.button
-                              onClick={() => editUser(user)}
-                              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaEdit className="inline ml-2" />
-                              نوێکردنەوە
-                            </motion.button>
-                            <motion.button
-                              onClick={() => {
-                                if (confirm('دڵنیایت لە سڕینەوەی ئەم بەکارهێنەرە؟')) {
-                                  // Delete user logic would go here
-                                  alert('سڕینەوەی بەکارهێنەر جێبەجێ نەکراوە')
-                                }
-                              }}
-                              className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaTrash />
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Roles Tab */}
-            {activeTab === 'roles' && (
-              <motion.div
-                key="roles"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Roles Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center space-x-3">
-                    <FaShieldAlt className="text-purple-500 text-2xl" />
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      بەڕێوەبردنی ڕۆڵەکان
-                    </h2>
-                  </div>
-                  <motion.button
-                    onClick={() => setShowCreateRole(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPlus className="inline ml-2" />
-                    زیادکردنی ڕۆڵ
-                  </motion.button>
-                </div>
-
-                {/* Roles Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {roles.map((role, index) => (
-                      <motion.div
-                        key={role.id}
-                        className="group bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{
-                          delay: index * 0.1,
-                          duration: 0.3
-                        }}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        {/* Gradient overlay on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 rounded-3xl"></div>
-
-                        <div className="relative z-10">
-                          {/* Role Header */}
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center shadow-lg">
-                                <FaShieldAlt className="w-6 h-6 text-white" />
-                              </div>
-                              <h3 className="font-bold text-xl text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {role.name}
-                              </h3>
-                            </div>
-                          </div>
-
-                          {/* Permissions */}
-                          <div className="mb-6">
-                            <h4 className="font-semibold text-gray-700 mb-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              مۆڵەتەکان:
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {Object.entries(role.permissions).map(([perm, hasAccess]) => (
-                                <div key={perm} className="flex items-center space-x-2">
-                                  <div className={`w-3 h-3 rounded-full ${hasAccess ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                                  <span className="text-sm text-gray-600 capitalize" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                    {perm}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-3">
-                            <motion.button
-                              onClick={() => editRole(role)}
-                              className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaEdit className="inline ml-2" />
-                              نوێکردنەوە
-                            </motion.button>
-                            <motion.button
-                              onClick={() => deleteRole(role.id, role.name)}
-                              className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaTrash />
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Analytics Tab */}
-            {activeTab === 'analytics' && (
-              <motion.div
-                key="analytics"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Analytics Header */}
-                <div className="flex items-center space-x-3 mb-6">
-                  <FaChartLine className="text-emerald-500 text-2xl" />
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    شیکارییە داراییەکان
-                  </h2>
-                </div>
-
-                {/* Financial Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <motion.div
-                    className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-500 rounded-2xl flex items-center justify-center">
-                        <FaShoppingCart className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        {financialStats.salesTrend > 0 ? (
-                          <FaArrowUp className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <FaArrowDown className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={`text-sm font-medium ${financialStats.salesTrend > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {Math.abs(financialStats.salesTrend)}%
-                        </span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      کۆی فرۆشتن
-                    </h3>
-                    <p className="text-3xl font-bold text-blue-600 mb-1" style={{ fontFamily: 'UniSalar_F_007, sans-serif' }}>
-                      {formatCurrency(financialStats.totalSales)}
-                    </p>
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      لەم مانگەدا
-                    </p>
-                  </motion.div>
-
-                  <motion.div
-                    className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-500 rounded-2xl flex items-center justify-center">
-                        <FaMoneyBillWave className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <FaArrowUp className="w-4 h-4 text-red-500" />
-                        <span className="text-sm text-red-500 font-medium">+8%</span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      خەرجییەکان
-                    </h3>
-                    <p className="text-3xl font-bold text-red-600 mb-1" style={{ fontFamily: 'UniSalar_F_007, sans-serif' }}>
-                      {formatCurrency(financialStats.totalExpenses)}
-                    </p>
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      لەم مانگەدا
-                    </p>
-                  </motion.div>
-
-                  <motion.div
-                    className={`bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${financialStats.netProfit >= 0 ? 'bg-gradient-to-br from-green-400 to-green-500' : 'bg-gradient-to-br from-red-400 to-red-500'}`}>
-                        <FaChartLine className={`w-6 h-6 text-white`} />
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        {financialStats.netProfit >= 0 ? (
-                          <FaArrowUp className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <FaArrowDown className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={`text-sm font-medium ${financialStats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {financialStats.netProfit >= 0 ? '+15%' : '-10%'}
-                        </span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      قازانج
-                    </h3>
-                    <p className={`text-3xl font-bold mb-1 ${financialStats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'UniSalar_F_007, sans-serif' }}>
-                      {formatCurrency(Math.abs(financialStats.netProfit))}
-                    </p>
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      {financialStats.netProfit >= 0 ? 'قازانجی پاک' : 'زیان'}
-                    </p>
-                  </motion.div>
-
-                  <motion.div
-                    className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl flex items-center justify-center">
-                        <FaCalendarAlt className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        {financialStats.salesTrend > 0 ? (
-                          <FaArrowUp className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <FaArrowDown className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={`text-sm font-medium ${financialStats.salesTrend > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {Math.abs(financialStats.salesTrend)}%
-                        </span>
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      فرۆشتنی ئەمڕۆ
-                    </h3>
-                    <p className="text-3xl font-bold text-yellow-600 mb-1" style={{ fontFamily: 'UniSalar_F_007, sans-serif' }}>
-                      {formatCurrency(financialStats.todaySales)}
-                    </p>
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      لە بەرامبەر دوێنێ
-                    </p>
-                  </motion.div>
-                </div>
-
-                {/* Chart Section */}
-                <motion.div
-                  className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
+          <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
+            {/* Shop Info Tab */}
+            {activeTab === 'shop-info' && (
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Shop Logo Section */}
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
                   <div className="flex items-center space-x-3 mb-6">
-                    <FaChartLine className="text-emerald-500 text-2xl" />
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      تەوەری دارایی ٧ ڕۆژی ڕابردوو
-                    </h3>
-                  </div>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(date) => new Date(date).toLocaleDateString('ku', { month: 'short', day: 'numeric' })}
-                          stroke="#6b7280"
-                          fontSize={12}
-                          style={{ fontFamily: 'Inter, sans-serif' }}
-                        />
-                        <YAxis stroke="#6b7280" fontSize={12} style={{ fontFamily: 'UniSalar_F_007, sans-serif' }} />
-                        <Tooltip
-                          labelFormatter={(date) => new Date(date).toLocaleDateString('ku')}
-                          formatter={(value: number | undefined, name: string | undefined) => [
-                            `${formatCurrency(Math.abs(value || 0))} IQD`,
-                            (name || '') === 'sales' ? 'فرۆشتن' : (name || '') === 'expenses' ? 'خەرجییەکان' : 'قازانج'
-                          ]}
-                          contentStyle={{
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            border: '1px solid rgba(0, 0, 0, 0.1)',
-                            borderRadius: '12px',
-                            backdropFilter: 'blur(10px)',
-                            fontFamily: 'var(--font-uni-salar)'
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="sales"
-                          stroke="#3b82f6"
-                          strokeWidth={3}
-                          dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-                          name="sales"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="expenses"
-                          stroke="#ef4444"
-                          strokeWidth={3}
-                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
-                          name="expenses"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="profit"
-                          stroke="#10b981"
-                          strokeWidth={3}
-                          dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
-                          name="profit"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <FaStore className="text-blue-500 text-xl" />
+                    <h2 className="text-xl font-semibold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      لۆگۆ و ناو 
+                    </h2>
                   </div>
 
-                  {/* Legend */}
-                  <div className="flex justify-center space-x-6 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>فرۆشتن</span>
+                  {/* Mobile: Stack vertically, Desktop: Side by side */}
+                  <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-6">
+                    {/* Shop Logo */}
+                    <div>
+                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        لۆگۆ
+                      </label>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                        <div className="w-24 h-24 rounded-2xl backdrop-blur-md bg-white/10 border border-white/20 shadow-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {settings.logo_url ? (
+                            <img
+                              src={settings.logo_url}
+                              alt="Shop Logo"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-4xl">🏪</span>
+                          )}
+                        </div>
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                          <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            وێنەیەکی بچووک هەڵبژێرە (PNG, JPG, SVG)
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>خەرجییەکان</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج</span>
-                    </div>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
 
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
-              <motion.div
-                key="settings"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Settings Header */}
-                <div className="flex items-center space-x-3 mb-6">
-                  <FaCog className="text-green-500 text-2xl" />
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    ڕێکخستنەکانی فرۆشگا
-                  </h2>
-                </div>
-
-                {/* Settings Form */}
-                <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Shop Name */}
                     <div>
                       <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ناوی فرۆشگا
+                        ناو
                       </label>
                       <div className="relative">
                         <FaStore className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                           type="text"
-                          value={shopSettingsForm.shopname || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, shopname: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                          value={settings.shop_name}
+                          onChange={(e) => setSettings(prev => ({ ...prev, shop_name: e.target.value }))}
+                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                           style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          placeholder="ناوی فرۆشگاکەت"
+                          placeholder="ناوی دوکانەکەت"
                         />
                       </div>
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ژمارەی تەلەفۆن
-                      </label>
-                      <div className="relative">
-                        <FaPhone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={shopSettingsForm.phone || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
-                          style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
-                          placeholder="+964 XXX XXX XXXX"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Location */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ناونیشان
-                      </label>
-                      <div className="relative">
-                        <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
-                        <textarea
-                          value={shopSettingsForm.location || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, location: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none resize-none"
-                          style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          placeholder="ناونیشانی فرۆشگاکەت"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Shop Icon */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        وێنەی ئایکۆن
-                      </label>
-                      <div className="relative">
-                        <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleImageUpload(file, 'icon')
-                            }
-                          }}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                        />
-                      </div>
-                      {shopSettings?.icon && (
-                        <div className="mt-3">
-                          <img
-                            src={shopSettings.icon}
-                            alt="Shop Icon"
-                            className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* QR Code Image */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        وێنەی QR کۆد
-                      </label>
-                      <div className="relative">
-                        <FaQrcode className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleImageUpload(file, 'qrcodeimage')
-                            }
-                          }}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                        />
-                      </div>
-                      {shopSettings?.qrcodeimage && (
-                        <div className="mt-3">
-                          <img
-                            src={shopSettings.qrcodeimage}
-                            alt="QR Code"
-                            className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
+                </div>
 
-                  {/* Update Button */}
+                {/* Location Section */}
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <FaMapMarkerAlt className="text-green-500 text-xl" />
+                    <h2 className="text-xl font-semibold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      ناونیشان و شوێن
+                    </h2>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      ناونیشانی تەواو
+                    </label>
+                    <div className="relative">
+                      <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
+                      <textarea
+                        value={settings.address}
+                        onChange={(e) => setSettings(prev => ({ ...prev, address: e.target.value }))}
+                        className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        placeholder="ناونیشانی دوکانەکەت"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex space-x-4 pt-6">
                   <motion.button
-                    onClick={updateAllShopSettings}
-                    className="w-full mt-8 py-4 px-6 bg-gradient-to-r from-green-600 via-blue-600 to-green-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500"
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ fontFamily: 'var(--font-uni-salar)' }}
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    animate={{
-                      backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                    }}
-                    transition={{
-                      backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" }
-                    }}
                   >
-                    <span className="flex items-center justify-center space-x-2">
-                      <span>نوێکردنی هەموو ڕێکخستنەکان</span>
-                      <FaCog className="animate-spin" />
-                    </span>
+                    {saving ? (
+                      <>
+                        <span className="animate-spin mr-2">⏳</span>
+                        چاوەڕوانکە...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave className="inline mr-2" />
+                        نوێکردنەوەی زانیاری دوکان
+                      </>
+                    )}
                   </motion.button>
+                </div>
 
-                  {/* Current Settings Display */}
-                  {shopSettings && (
-                    <motion.div
-                      className="mt-8 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl border border-green-200"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <h3 className="font-bold text-gray-800 mb-4 flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        <FaEye className="ml-2 text-green-500" />
-                        ڕێکخستنەکانی ئێستا
+                {successMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 p-4 bg-green-100 border border-green-200 rounded-xl text-green-700 text-center"
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {successMessage}
+                  </motion.div>
+                )}
+              </form>
+            )}
+
+            {/* Users Tab */}
+            {activeTab === 'users' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                    بەڕێوەبەرایەتی بەکارهێنەران
+                  </h2>
+                  <button
+                    onClick={() => setShowUserModal(true)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center space-x-1 text-sm"
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    <FaPlus className="ml-1 text-sm" />
+                    <span>بەکارهێنەری نوێ</span>
+                  </button>
+                </div>
+
+                {/* Mobile Compact List / Desktop Cards */}
+                <div className="lg:hidden space-y-2 max-h-[70vh] overflow-y-auto">
+                  {loadingUsers ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : users.length > 0 ? (
+                    users.map((user, index) => (
+                      <motion.div
+                        key={user.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="w-full h-16 bg-white/60 backdrop-blur-xl rounded-lg shadow-md hover:shadow-lg border border-white/20 flex items-center p-2"
+                      >
+                        {/* Left: Small Profile Image */}
+                        <div className="flex-shrink-0 ml-2">
+                          <div className="relative w-12 h-12 rounded-full border-2 border-[#D4AF37] shadow-lg flex items-center justify-center overflow-hidden bg-gradient-to-br from-black/10 to-gray-900/10">
+                            {user.image ? (
+                              <img
+                                src={user.image}
+                                alt={user.name || 'User'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg">👤</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Center: User Info */}
+                        <div className="flex-1 text-right mr-3 min-w-0">
+                          <h3 className="font-bold text-sm text-gray-800 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {user.name || 'ناوی نەزانراو'}
+                          </h3>
+                          <p className="text-xs text-gray-600 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            🏷️ {user.role?.name || 'ڕۆڵی دیاری نەکراوە'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                            {user.email}
+                          </p>
+                        </div>
+
+                        {/* Right: Actions */}
+                        <div className="flex-shrink-0">
+                          <motion.button
+                            onClick={() => handleEditUser(user)}
+                            className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded text-xs font-medium transition-all duration-200"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            دەستکاری
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-4 opacity-50">👥</div>
+                      <h3 className="text-sm font-semibold mb-2 text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        هیچ بەکارهێنەرێک نییە
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو:</span>
-                          <span className="font-bold text-gray-800">{shopSettings.shopname}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن:</span>
-                          <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>{shopSettings.phone}</span>
-                        </div>
-                        <div className="md:col-span-2 flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان:</span>
-                          <span className="font-bold text-gray-800">{shopSettings.location}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ئایکۆن:</span>
-                          <span className={`font-bold ${shopSettings.icon ? 'text-green-600' : 'text-red-600'}`}>
-                            {shopSettings.icon ? '✅ هەیە' : '❌ نییە'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>QR کۆد:</span>
-                          <span className={`font-bold ${shopSettings.qrcodeimage ? 'text-green-600' : 'text-red-600'}`}>
-                            {shopSettings.qrcodeimage ? '✅ هەیە' : '❌ نییە'}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
+                      <p className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        بەکارهێنەری نوێ زیاد بکە
+                      </p>
+                    </div>
                   )}
                 </div>
-              </motion.div>
+
+                {/* Desktop Cards */}
+                <div className="hidden lg:block">
+                  <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden">
+                    {/* Created Users */}
+                    {loadingUsers ? (
+                      <div className="flex justify-center py-16">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : users.length > 0 ? (
+                      <div className="divide-y divide-white/10">
+                        {users.map((user, index) => (
+                          <motion.div
+                            key={user.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="p-6 hover:bg-white/5 transition-all duration-300 group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-6">
+                                {/* Avatar */}
+                                <div className="relative">
+                                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-lg border-4 border-yellow-500">
+                                    {user.image ? (
+                                      <img
+                                        src={user.image}
+                                        alt={user.name || 'User'}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-2xl">👤</span>
+                                    )}
+                                  </div>
+                                  {/* Online status indicator */}
+                                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-md"></div>
+                                </div>
+
+                                {/* User Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="mb-2">
+                                    <h3 className="text-xl font-bold text-black" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                      {user.name || 'ناوی نەزانراو'}
+                                    </h3>
+                                    {/* Role as text under name - always visible with black color and no background */}
+                                    <p className="text-base font-semibold text-black mb-1" style={{
+                                      fontFamily: 'var(--font-uni-salar)',
+                                      color: '#000000',
+                                      backgroundColor: 'transparent',
+                                      border: 'none',
+                                      padding: '2px 0',
+                                      marginTop: '4px'
+                                    }}>
+                                      🏷️ ڕۆڵ: {user.role?.name || 'ڕۆڵی دیاری نەکراوە'}
+                                    </p>
+                                  </div>
+
+                                  <p className="text-black text-sm mb-1" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr', color: 'black' }}>
+                                    📧 {user.email}
+                                  </p>
+
+                                  {user.phone && (
+                                    <p className="text-black text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr', color: 'black' }}>
+                                      📱 {user.phone}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center space-x-2">
+                                <motion.button
+                                  onClick={() => handleEditUser(user)}
+                                  className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-lg flex items-center justify-center transition-all duration-200 font-medium"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  دەستکاری
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 rounded-lg flex items-center justify-center transition-all duration-200 font-medium"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  سڕینەوە
+                                </motion.button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <div className="text-6xl mb-6 opacity-50">👥</div>
+                        <h3 className="text-xl font-semibold mb-4 text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          هیچ بەکارهێنەرێک نییە
+                        </h3>
+                        <p className="text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          بەکارهێنەری نوێ زیاد بکە بۆ دەستپێکردنی کارکردن
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
-          </AnimatePresence>
+
+            {/* Roles Tab */}
+            {activeTab === 'roles' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
+                    بەڕێوەبەرایەتی ڕۆڵەکان
+                  </h2>
+                  <button
+                    onClick={() => setShowRoleModal(true)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center space-x-1 text-sm"
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    <FaShieldAlt className="ml-1 text-sm" />
+                    <span>ڕۆڵی نوێ</span>
+                  </button>
+                </div>
+
+                {/* Created Roles */}
+                {loadingRoles ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : roles.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {roles.map((role) => (
+                      <div key={role.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {role.name}
+                            </h3>
+                            {role.description && (
+                              <p className="text-sm text-gray-600 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                {role.description}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {Object.entries(role.permissions).map(([perm, hasAccess]) =>
+                                hasAccess ? (
+                                  <span key={perm} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                    {perm === 'dashboard' && 'داشبۆرد'}
+                                    {perm === 'sales' && 'فرۆشتن'}
+                                    {perm === 'inventory' && 'کۆگا'}
+                                    {perm === 'customers' && 'کڕیاران'}
+                                    {perm === 'suppliers' && 'دابینکەران'}
+                                    {perm === 'invoices' && 'فاکتورەکان'}
+                                    {perm === 'expenses' && 'خەرجییەکان'}
+                                    {perm === 'profits' && 'قازانج'}
+                                    {perm === 'help' && 'یارمەتی'}
+                                    {perm === 'admin' && 'بەڕێوەبەران'}
+                                  </span>
+                                ) : null
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🛡️</div>
+                    <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                      هیچ ڕۆڵێک نییە
+                    </h3>
+                    <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      ڕۆڵی نوێ دروست بکە بۆ بەڕێوەبەرایەتی دەستکەوتەکان
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* System Tab */}
+            {activeTab === 'system' && (
+              <div className="space-y-6">
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">⚙️</div>
+                  <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+                    بینینی هەموو کارەکانی سیستەم
+                  </h3>
+                  <p className="text-gray-600 text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    لەم بەشەدا دەتوانیت هەموو کارەکانی سیستەم ببینیت و بەڕێوەیان ببەیت
+                  </p>
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                      <div className="text-3xl mb-3">📊</div>
+                      <h4 className="font-bold text-blue-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        راپۆرتەکان
+                      </h4>
+                      <p className="text-sm text-blue-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        بینینی راپۆرتەکانی فرۆشتن و قازانج
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
+                      <div className="text-3xl mb-3">🔧</div>
+                      <h4 className="font-bold text-green-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        ڕێکخستنەکان
+                      </h4>
+                      <p className="text-sm text-green-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        ڕێکخستنی سیستەم و پەیڕەوەکان
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                      <div className="text-3xl mb-3">📋</div>
+                      <h4 className="font-bold text-purple-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        لۆگەکان
+                      </h4>
+                      <p className="text-sm text-purple-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        بینینی لۆگەکانی سیستەم و چالاکییەکان
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
 
-      {/* Create/Edit User Modal */}
-      {showCreateUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</label>
-                <input
-                  type="text"
-                  placeholder="ناوی بەکارهێنەر"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
+      {/* Role Creation Modal */}
+      {showRoleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                دروستکردنی ڕۆڵی نوێ
+              </h2>
+              <button
+                onClick={() => setShowRoleModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTrash className="text-xl" />
+              </button>
+            </div>
 
+            <form onSubmit={handleCreateRole} className="space-y-6">
+              {/* Role Name */}
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</label>
-                {editingUser?.image && (
-                  <div className="mb-2">
-                    <img
-                      src={editingUser.image}
-                      alt="Current user image"
-                      className="w-16 h-16 object-cover rounded border"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">وێنەی ئێستا (بۆ گۆڕین وێنە نوێ هەڵبژێرە)</p>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      // Handle image upload here
-                      const reader = new FileReader()
-                      reader.onload = (e) => {
-                        setNewUserImage(e.target?.result as string)
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</label>
-                <input
-                  type="text"
-                  placeholder="+964 XXX XXX XXXX"
-                  value={newUserPhone}
-                  onChange={(e) => setNewUserPhone(sanitizePhoneNumber(e.target.value))}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</label>
-                <input
-                  type="text"
-                  placeholder="ناونیشانی بەکارهێنەر"
-                  value={newUserLocation}
-                  onChange={(e) => setNewUserLocation(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ئیمەیڵ</label>
-                <input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  وشەی نهێنی {editingUser && '(بەتاڵ بهێڵە بۆ نەگۆڕین)'}
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ناوی ڕۆڵ
                 </label>
                 <input
-                  type="password"
-                  placeholder={editingUser ? "وشەی نهێنی نوێ (ئارەزوومەندانە)" : "وشەی نهێنی"}
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  type="text"
+                  value={newRole.name}
+                  onChange={(e) => setNewRole(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  placeholder="ناوی ڕۆڵەکە"
+                  required
                 />
               </div>
 
+              {/* Role Description */}
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕۆڵ</label>
-                <select
-                  value={selectedRoleId}
-                  onChange={(e) => setSelectedRoleId(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">هەڵبژاردنی ڕۆڵ</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وەسف
+                </label>
+                <textarea
+                  value={newRole.description}
+                  onChange={(e) => setNewRole(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  placeholder="وەسفی ڕۆڵەکە"
+                  rows={3}
+                />
               </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateUser(false)
-                  resetForm()
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                پاشگەزبوونەوە
-              </button>
-              <button
-                onClick={editingUser ? updateUser : createUser}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
-              </button>
-            </div>
+
+              {/* Permissions */}
+              <div>
+                <label className="block text-sm font-semibold mb-4 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  دەستکەوتەکان
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(newRole.permissions).map(([permission, value]) => (
+                    <div key={permission} className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={permission}
+                        checked={value}
+                        onChange={(e) => updatePermission(permission, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label
+                        htmlFor={permission}
+                        className="text-sm font-medium text-gray-700 cursor-pointer"
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        {permission === 'dashboard' && 'داشبۆرد'}
+                        {permission === 'sales' && 'فرۆشتن'}
+                        {permission === 'inventory' && 'کۆگا'}
+                        {permission === 'customers' && 'کڕیاران'}
+                        {permission === 'suppliers' && 'دابینکەران'}
+                        {permission === 'invoices' && 'فاکتورەکان'}
+                        {permission === 'expenses' && 'خەرجییەکان'}
+                        {permission === 'profits' && 'قازانج'}
+                        {permission === 'help' && 'یارمەتی'}
+                        {permission === 'admin' && 'بەڕێوەبەران'}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex space-x-4 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowRoleModal(false)}
+                  className="flex-1 py-3 px-6 bg-gray-500 text-white font-bold rounded-xl hover:bg-gray-600 transition-colors"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingRole}
+                  className="flex-1 py-3 px-6 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  {creatingRole ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      دروستدەکرێت...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="inline mr-2" />
+                      دروستکردن
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Create/Edit Role Modal */}
-      {showCreateRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
-            </h3>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="ناوی ڕۆڵ"
-                value={newRoleName}
-                onChange={(e) => setNewRoleName(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
+      {/* User Creation Modal */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                زیادکردنی بەکارهێنەری نوێ
+              </h2>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTrash className="text-xl" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-6">
+              {/* User Image */}
               <div>
-                <h4 className="font-medium mb-2">مۆڵەتەکان</h4>
-                {Object.keys(permissions).map((perm) => (
-                  <label key={perm} className="flex items-center space-x-2">
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وێنەی بەکارهێنەر
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-lg flex items-center justify-center overflow-hidden">
+                    <span className="text-3xl">👤</span>
+                  </div>
+                  <div className="flex-1">
                     <input
-                      type="checkbox"
-                      checked={permissions[perm]}
-                      onChange={(e) => setPermissions(prev => ({ ...prev, [perm]: e.target.checked }))}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUserImageChange}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
-                    <span>{perm}</span>
-                  </label>
-                ))}
+                    <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      وێنەیەکی بچووک هەڵبژێرە (ئارەزوومەندانە)
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-4">
+
+              {/* User Name */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ناوی بەکارهێنەر
+                </label>
+                <div className="relative">
+                  <FaUser className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full pr-10 pl-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="ناوی بەکارهێنەر"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ئیمەیڵ
+                </label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="user@example.com"
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وشەی نهێنی
+                </label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="وشەی نهێنی"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ژمارەی تەلەفۆن
+                </label>
+                <input
+                  type="tel"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="+964 750 123 4567"
+                />
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ڕۆڵ
+                </label>
+                <select
+                  value={newUser.role_id}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, role_id: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  <option value="">ڕۆڵ هەڵبژێرە (ئارەزوومەندانە)</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex space-x-4 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="flex-1 py-3 px-6 bg-gray-500 text-white font-bold rounded-xl hover:bg-gray-600 transition-colors"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="flex-1 py-3 px-6 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  {creatingUser ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      دروستدەکرێت...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="inline mr-2" />
+                      دروستکردنی بەکارهێنەر
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Edit Modal */}
+      {showEditUserModal && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                دەستکاریکردنی بەکارهێنەر
+              </h2>
               <button
-                onClick={() => {
-                  setShowCreateRole(false)
-                  resetRoleForm()
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                onClick={() => setShowEditUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
               >
-                پاشگەزبوونەوە
-              </button>
-              <button
-                onClick={editingRole ? updateRole : createRole}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                {editingRole ? 'نوێکردنەوە' : 'زیادکردن'}
+                <FaTrash className="text-xl" />
               </button>
             </div>
+
+            <form onSubmit={handleUpdateUser} className="space-y-6">
+              {/* User Image */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وێنەی بەکارهێنەر
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-lg flex items-center justify-center overflow-hidden">
+                    {editingUser.image ? (
+                      <img
+                        src={editingUser.image}
+                        alt={editingUser.name || 'User'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl">👤</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditUserImageChange}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      وێنەی نوێ هەڵبژێرە (ئارەزوومەندانە)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* User Name */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ناوی بەکارهێنەر
+                </label>
+                <div className="relative">
+                  <FaUser className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={editUser.name}
+                    onChange={(e) => setEditUser(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full pr-10 pl-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="ناوی بەکارهێنەر"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ئیمەیڵ
+                </label>
+                <input
+                  type="email"
+                  value={editUser.email}
+                  onChange={(e) => setEditUser(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="user@example.com"
+                  required
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  وشەی نهێنی نوێ (بەتاڵ بهێڵە بۆ نەگۆڕین)
+                </label>
+                <input
+                  type="password"
+                  value={editUser.password}
+                  onChange={(e) => setEditUser(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="وشەی نهێنی نوێ"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  بەتاڵ بهێڵە ئەگەر نەتەوێت وشەی نهێنی بگۆڕیت
+                </p>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ژمارەی تەلەفۆن
+                </label>
+                <input
+                  type="tel"
+                  value={editUser.phone}
+                  onChange={(e) => setEditUser(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                  placeholder="+964 750 123 4567"
+                />
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  ڕۆڵ
+                </label>
+                <select
+                  value={editUser.role_id}
+                  onChange={(e) => setEditUser(prev => ({ ...prev, role_id: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  <option value="">ڕۆڵ هەڵبژێرە (ئارەزوومەندانە)</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex space-x-4 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditUserModal(false)}
+                  className="flex-1 py-3 px-6 bg-gray-500 text-white font-bold rounded-xl hover:bg-gray-600 transition-colors"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingUser}
+                  className="flex-1 py-3 px-6 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  {updatingUser ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      نوێدەکرێتەوە...
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="inline mr-2" />
+                      نوێکردنەوە
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

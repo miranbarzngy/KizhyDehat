@@ -1,20 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import InvoiceTemplate from '@/components/InvoiceTemplate'
 import { useAuth } from '@/contexts/AuthContext'
-import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
-import { Package, ShoppingBag } from 'lucide-react'
 import {
-  sanitizeNumericInput,
-  safeStringToNumber,
-  toEnglishDigits,
-  formatCurrency,
+  calculateUnitPrice,
   convertUnits,
-  getAvailableSaleUnits,
-  calculateUnitPrice
+  formatCurrency,
+  safeStringToNumber,
+  sanitizeNumericInput,
+  toEnglishDigits
 } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import html2canvas from 'html2canvas'
+import { Package } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface InventoryItem {
   id: string
@@ -76,7 +76,7 @@ interface CategoryGroup {
 const ProductImage = ({ item, className = "" }: { item: InventoryItem, className?: string }) => {
   return (
     <motion.div
-      className={`bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-inner ${className}`}
+      className={`bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-inner border border-white/30 ${className}`}
       whileHover={{ rotate: 5, scale: 1.1 }}
       transition={{ type: "spring", stiffness: 300 }}
     >
@@ -107,6 +107,7 @@ const ProductSkeleton = () => (
 
 export default function SalesPage() {
   const { user, profile } = useAuth()
+  const invoiceRef = useRef<HTMLDivElement>(null)
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -124,6 +125,11 @@ export default function SalesPage() {
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [addedItemId, setAddedItemId] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null)
+  const [showInvoice, setShowInvoice] = useState(false)
+  const [completedSaleData, setCompletedSaleData] = useState<any>(null)
 
   // Group inventory by categories
   const getGroupedInventory = (): CategoryGroup[] => {
@@ -151,11 +157,77 @@ export default function SalesPage() {
     return inventory.filter(item => item.category === selectedCategory)
   }
 
+  // Get filtered customers based on search term
+  const getFilteredCustomers = (): Customer[] => {
+    if (!customerSearchTerm.trim()) {
+      return customers.slice(0, 5) // Show first 5 customers when no search
+    }
+
+    const searchLower = customerSearchTerm.toLowerCase()
+    return customers.filter(customer =>
+      customer.name.toLowerCase().includes(searchLower) ||
+      customer.phone1?.toLowerCase().includes(searchLower) ||
+      customer.phone2?.toLowerCase().includes(searchLower)
+    ).slice(0, 10) // Limit to 10 results
+  }
+
+  // Handle customer selection
+  const selectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer.id)
+    setSelectedCustomerData(customer)
+    setCustomerSearchTerm('')
+    setShowCustomerDropdown(false)
+    setCustomerRequired(false)
+  }
+
+  // Handle new customer creation
+  const createNewCustomer = () => {
+    // For now, just show an alert - in a real implementation, this would open a modal
+    alert('زیادکردنی کڕیاری نوێ لە بەشی کڕیاران بکە')
+  }
+
   useEffect(() => {
+    // Test Supabase connection on component mount
+    const testSupabaseConnection = async () => {
+      try {
+        console.log('🧪 Testing Supabase connection...')
+        if (!supabase) {
+          console.error('❌ Supabase client is not available')
+          alert('Supabase client is not configured. Please check your environment variables.')
+          return
+        }
+
+        // Try a simple query to test connection
+        const { data, error } = await supabase.from('inventory').select('count').limit(1).single()
+
+        if (error) {
+          console.error('❌ Supabase connection test failed:', error)
+          alert(`Database connection failed: ${error.message}`)
+        } else {
+          console.log('✅ Supabase connection test passed')
+        }
+      } catch (err) {
+        console.error('❌ Supabase test error:', err)
+        alert(`Supabase test failed: ${err.message || 'Unknown error'}`)
+      }
+    }
+
+    testSupabaseConnection()
     fetchInventory()
     fetchCustomers()
     fetchShopSettings()
     fetchInvoiceSettings()
+
+    // Add click outside handler
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.customer-search-container')) {
+        setShowCustomerDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   // Fetch user name from profile
@@ -438,18 +510,66 @@ export default function SalesPage() {
         userId: user?.id
       })
 
-      // Insert sale with payment method - invoice_number will be auto-assigned by database sequence
+      // Insert sale with comprehensive metadata for reporting
       const saleInsertData = {
         customer_id: selectedCustomer, // Always link to customer
         total,
         payment_method: paymentMethod,
         user_id: user?.id,
-        sold_by: userName
+        sold_by: userName,
+        discount_amount: discount,
+        subtotal: total + discount, // Store original subtotal before discount
+        items_count: cart.length,
+        created_at: new Date().toISOString(),
+        notes: paymentMethod === 'debt' ? 'Sale on credit' : null
       }
 
       console.log('Attempting to insert sale with data:', saleInsertData)
+      console.log('Supabase client available:', !!supabase)
 
-      const { data: saleData, error: saleError } = await supabase!
+      // Check if Supabase is available
+      if (!supabase) {
+        const errorMsg = 'Supabase client not configured'
+        console.error(errorMsg)
+        alert(`هەڵە: ${errorMsg}`)
+        throw new Error(errorMsg)
+      }
+
+      // Check Supabase configuration
+      try {
+        console.log('Supabase URL:', supabase.supabaseUrl ? 'Set' : 'Not set')
+        console.log('Supabase Key:', supabase.supabaseKey ? 'Set (length: ' + supabase.supabaseKey.length + ')' : 'Not set')
+      } catch (configError) {
+        console.error('Error checking Supabase config:', configError)
+      }
+
+      // Test database connection first
+      try {
+        console.log('Testing database connection...')
+        const { data: testData, error: testError } = await supabase
+          .from('sales')
+          .select('id')
+          .limit(1)
+
+        if (testError) {
+          console.error('Database connection test failed:', {
+            message: testError.message,
+            details: testError.details,
+            hint: testError.hint,
+            code: testError.code,
+            fullError: JSON.stringify(testError, null, 2)
+          })
+          alert(`هەڵە لە پەیوەندیی داتابەیس: ${testError.message || 'Unknown database error'}`)
+          throw testError
+        }
+        console.log('Database connection test passed, found', testData?.length || 0, 'existing sales')
+      } catch (connError) {
+        console.error('Connection test error:', connError)
+        alert(`هەڵە لە پەیوەندیی داتابەیس: ${connError.message || 'Unknown connection error'}`)
+        throw connError
+      }
+
+      const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .insert(saleInsertData)
         .select('id, invoice_number, total, payment_method, date, user_id, sold_by, customers(name, phone1)') // Explicitly select invoice_number and sold_by
@@ -461,22 +581,41 @@ export default function SalesPage() {
           details: saleError.details,
           hint: saleError.hint,
           code: saleError.code,
-          fullError: JSON.stringify(saleError, null, 2)
+          fullError: JSON.stringify(saleError, null, 2),
+          saleInsertData: saleInsertData
         })
+
+        // Provide more specific error messages
+        let errorMessage = 'هەڵە لە تۆمارکردنی فرۆشتن'
+        if (saleError.code === '23503') {
+          errorMessage += ': کڕیارەکە بوونی نیە'
+        } else if (saleError.code === '23505') {
+          errorMessage += ': فاکتورەکە پێشتر تۆمارکراوە'
+        } else if (saleError.message) {
+          errorMessage += `: ${saleError.message}`
+        } else {
+          errorMessage += ': هەڵەیەکی نەناسراو'
+        }
+
+        alert(errorMessage)
         throw saleError
       }
 
       console.log('Sale created:', saleData)
       console.log('Invoice number from database:', saleData.invoice_number)
 
-      // Insert sale items with converted quantities for inventory tracking
+      // Insert sale items with comprehensive data for reporting and retrieval
       const saleItems = cart.map(item => ({
         sale_id: saleData.id,
         item_id: item.item.id,
+        item_name: item.item.item_name, // Store item name for easy retrieval
+        category: item.item.category, // Store category for filtering
         quantity: item.baseQuantity, // Use converted quantity for inventory
         unit: item.item.unit, // Store in base unit
         price: item.price,
-        cost_price: item.item.cost_price || 0
+        cost_price: item.item.cost_price || 0,
+        total: item.total, // Store line total
+        date: new Date().toISOString().split('T')[0] // Store sale date
       }))
 
       console.log('Inserting sale items:', saleItems)
@@ -563,11 +702,39 @@ export default function SalesPage() {
         }
       }
 
-      // Print receipt with customer name and actual invoice number for ALL sales
+      // Show invoice with customer data
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
+      const customerPhone = customers.find(c => c.id === selectedCustomer)?.phone1
       const actualInvoiceNumber = saleData.invoice_number
-      console.log('Printing receipt for customer:', customerName, 'with invoice number:', actualInvoiceNumber, 'sold by:', userName)
-      printReceipt(cart, total, customerName, paymentMethod, actualInvoiceNumber, userName)
+
+      const invoiceData = {
+        invoiceNumber: actualInvoiceNumber,
+        customerName: customerName || 'نەناسراو',
+        customerPhone: customerPhone,
+        sellerName: userName,
+        date: new Date().toLocaleDateString('ku'),
+        time: new Date().toLocaleTimeString('ku'),
+        paymentMethod: paymentMethod,
+        items: cart.map(item => ({
+          name: item.item.item_name,
+          unit: item.unit,
+          quantity: item.quantity,
+          price: item.price, // Unit price per item
+          total: item.total // Line total (price × quantity)
+        })),
+        subtotal: total + discount,
+        discount: discount,
+        total: total,
+        shopName: invoiceSettings?.shop_name || 'فرۆشگای کوردستان',
+        shopPhone: invoiceSettings?.shop_phone,
+        shopAddress: invoiceSettings?.shop_address,
+        shopLogo: invoiceSettings?.shop_logo,
+        qrCodeUrl: invoiceSettings?.qr_code_url,
+        thankYouNote: invoiceSettings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+      }
+
+      setCompletedSaleData(invoiceData)
+      setShowInvoice(true)
 
       // Reset cart
       setCart([])
@@ -582,6 +749,44 @@ export default function SalesPage() {
     } catch (error) {
       console.error('Error completing sale:', error)
       alert(`هەڵە لە تەواوبوونی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+
+
+  const downloadInvoice = async () => {
+    if (!invoiceRef.current || !completedSaleData) return
+
+    try {
+      // Wait 800ms for QR image and UniSalar fonts to fully render
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2, // Higher resolution
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        backgroundColor: '#ffffff',
+        width: invoiceRef.current.offsetWidth,
+        height: invoiceRef.current.offsetHeight
+      })
+
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `Invoice_${completedSaleData.invoiceNumber}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png', 1.0)
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      alert('هەڵە لە داگرتنی وێنەی فاکتور')
     }
   }
 
@@ -634,35 +839,35 @@ export default function SalesPage() {
 
             body {
               font-family: 'UniSalar_F_007', sans-serif;
-              font-size: 11px;
-              line-height: 1.4;
+              font-size: 10px;
+              line-height: 1.3;
               margin: 0;
-              padding: 5px;
+              padding: 3px;
               direction: rtl;
               background: white;
               color: #000;
               font-weight: bold !important;
-              letter-spacing: 0.5px;
+              letter-spacing: 0.3px;
             }
 
             .receipt {
-              width: 80mm;
-              max-width: 300px;
+              max-width: 320px;
+              width: 100%;
               margin: 0 auto;
-              padding: 5px;
+              padding: 3px;
             }
 
             /* 1. Header Section (Visual Brand) */
             .header {
               text-align: center;
-              margin-bottom: 10px;
+              margin-bottom: 8px;
             }
 
             .logo {
-              width: 70px;
-              height: 70px;
-              margin: 0 auto 8px;
-              border-radius: 6px;
+              width: 60px;
+              height: 60px;
+              margin: 0 auto 6px;
+              border-radius: 4px;
               overflow: hidden;
               background: #f8f9fa;
               border: 2px solid #e9ecef;
@@ -674,91 +879,87 @@ export default function SalesPage() {
             .logo img {
               max-width: 100%;
               max-height: 100%;
-              object-fit: contain;
+              object-fit: cover;
             }
 
             .shop-name {
-              font-size: 15px;
+              font-size: 14px;
               font-weight: bold;
-              margin: 6px 0 4px;
+              margin: 4px 0 3px;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              letter-spacing: 0.5px;
             }
 
             .shop-info {
-              font-size: 9px;
-              margin: 3px 0;
+              font-size: 8px;
+              margin: 2px 0;
               color: #495057;
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: 4px;
+              gap: 3px;
             }
 
             .separator {
               text-align: center;
-              margin: 8px 0;
-              font-size: 8px;
+              margin: 6px 0;
+              font-size: 6px;
               color: #6c757d;
               letter-spacing: -1px;
             }
 
-            /* 2. Invoice Meta Details */
+            /* 2. Invoice Meta Details - Strict Vertical Stacking */
             .metadata {
-              margin: 8px 0;
-              font-size: 9px;
-            }
-
-            .meta-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 4px 8px;
-              margin-bottom: 6px;
+              margin: 6px 0;
+              font-size: 8px;
+              text-align: center;
             }
 
             .meta-item {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
+              margin: 4px 0;
+              text-align: center;
             }
 
             .meta-label {
               font-weight: bold;
               color: #495057;
+              display: block;
+              margin-bottom: 2px;
             }
 
             .meta-value {
               font-family: 'JetBrains Mono', monospace;
               font-weight: 600;
-              text-align: left;
+              text-align: center;
               direction: ltr;
+              display: block;
             }
 
-            /* 3. Itemized List (The Grid) */
+            /* 3. Itemized List (The Grid) - Optimized for 80mm */
             .items-table {
-              margin: 10px 0;
-              border-collapse: collapse;
+              margin: 8px 0;
               width: 100%;
-              font-size: 9px;
+              font-size: 8px;
             }
 
-            .items-table th {
-              border-bottom: 2px solid #000;
-              padding: 4px 2px;
-              text-align: right;
+            .table-header {
+              display: flex;
+              border-bottom: 1px solid #000;
+              padding: 3px 1px;
               font-weight: bold;
-              font-size: 8px;
+              font-size: 7px;
               background: #f8f9fa;
             }
 
-            .items-table td {
-              padding: 4px 2px;
+            .table-row {
+              display: flex;
+              padding: 3px 1px;
               border-bottom: 1px dotted #adb5bd;
             }
 
             .item-name {
+              flex: 1;
               text-align: right;
-              max-width: 70px;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -766,41 +967,41 @@ export default function SalesPage() {
             }
 
             .item-unit {
+              width: 25px;
               text-align: center;
-              min-width: 25px;
               font-weight: 500;
             }
 
             .item-qty {
+              width: 20px;
               text-align: right;
-              min-width: 25px;
               font-family: 'JetBrains Mono', monospace;
               font-weight: bold;
               direction: ltr;
             }
 
             .item-price {
+              width: 35px;
               text-align: right;
-              min-width: 40px;
               font-family: 'JetBrains Mono', monospace;
               font-weight: bold;
               direction: ltr;
-              padding-left: 5px;
+              padding-left: 3px;
             }
 
             /* 4. Financial Summary (The Totals) */
             .financial-summary {
-              margin: 10px 0;
-              border-top: 2px solid #000;
-              padding-top: 6px;
+              margin: 8px 0;
+              border-top: 1px solid #000;
+              padding-top: 4px;
             }
 
             .summary-row {
               display: flex;
               justify-content: space-between;
               align-items: center;
-              margin: 4px 0;
-              font-size: 10px;
+              margin: 3px 0;
+              font-size: 9px;
             }
 
             .summary-label {
@@ -818,25 +1019,25 @@ export default function SalesPage() {
             .total-highlight {
               background: #000;
               color: #fff;
-              padding: 10px 15px;
+              padding: 8px 12px;
               text-align: center;
-              font-size: 15px;
+              font-size: 13px;
               font-weight: 900;
-              margin: 12px 0;
+              margin: 10px 0;
               font-family: 'JetBrains Mono', monospace;
-              border-radius: 6px;
-              letter-spacing: 1px;
+              border-radius: 4px;
+              letter-spacing: 0.5px;
             }
 
             /* 5. Footer & Social */
             .footer {
               text-align: center;
-              margin-top: 10px;
+              margin-top: 8px;
             }
 
             .thank-you {
-              font-size: 9px;
-              margin: 8px 0;
+              font-size: 8px;
+              margin: 6px 0;
               font-style: italic;
               text-align: center;
               color: #6c757d;
@@ -844,38 +1045,38 @@ export default function SalesPage() {
 
             .qr-code {
               text-align: center;
-              margin: 10px 0;
+              margin: 8px 0;
             }
 
             .qr-code img {
-              width: 55px;
-              height: 55px;
-              border: 2px solid #000;
-              border-radius: 4px;
+              width: 50px;
+              height: 50px;
+              border: 1px solid #000;
+              border-radius: 3px;
             }
 
             .footer-text {
-              font-size: 7px;
+              font-size: 6px;
               color: #adb5bd;
-              margin-top: 6px;
+              margin-top: 4px;
               border-top: 1px solid #dee2e6;
-              padding-top: 4px;
+              padding-top: 3px;
             }
 
-            /* Unistellar Font Override for Print */
+            /* Print CSS for 80mm Thermal */
             @media print {
               * {
-                font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+                font-family: 'UniSalar_F_007', sans-serif !important;
               }
 
               body {
                 margin: 0;
-                padding: 2px;
+                padding: 0;
               }
 
               .receipt {
                 width: 80mm;
-                padding: 3px;
+                padding: 0;
               }
 
               .separator {
@@ -902,80 +1103,68 @@ export default function SalesPage() {
 
             <div class="separator">--------------------------</div>
 
-            <!-- 2. Invoice Meta Details -->
+            <!-- 2. Invoice Meta Details - Vertical Stacking -->
             <div class="metadata">
-              <div class="meta-grid">
-                <div class="meta-item">
-                  <span class="meta-label">ژمارەی فاکتور:</span>
-                  <span class="meta-value">#${invoiceNumber}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">بەروار/کات:</span>
-                  <span class="meta-value">${new Date().toLocaleString('ku')}</span>
-                </div>
-                ${customerName ? `
-                  <div class="meta-item">
-                    <span class="meta-label">کڕیار:</span>
-                    <span class="meta-value">${customerName}</span>
-                  </div>
-                ` : ''}
-                ${customerPhone ? `
-                  <div class="meta-item">
-                    <span class="meta-label">تەلەفۆن:</span>
-                    <span class="meta-value">${customerPhone}</span>
-                  </div>
-                ` : ''}
-                <div class="meta-item" style="grid-column: span 2;">
-                  <span class="meta-label">شێوازی پارەدان:</span>
-                  <span class="meta-value">${getPaymentStatus()}</span>
-                </div>
-                ${soldBy ? `
-                  <div class="meta-item" style="grid-column: span 2;">
-                    <span class="meta-label">فرۆشیار:</span>
-                    <span class="meta-value">${soldBy}</span>
-                  </div>
-                ` : ''}
+              <div class="meta-item">
+                <span class="meta-label">ژمارەی فاکتور:</span>
+                <span class="meta-value">#${invoiceNumber}</span>
               </div>
+              <div class="meta-item">
+                <span class="meta-label">بەروار/کات:</span>
+                <span class="meta-value">${new Date().toLocaleString('ku')}</span>
+              </div>
+              ${customerName ? `
+                <div class="meta-item">
+                  <span class="meta-label">کڕیار:</span>
+                  <span class="meta-value">${customerName}</span>
+                </div>
+              ` : ''}
+              ${customerPhone ? `
+                <div class="meta-item">
+                  <span class="meta-label">تەلەفۆن:</span>
+                  <span class="meta-value">${customerPhone}</span>
+                </div>
+              ` : ''}
+              <div class="meta-item">
+                <span class="meta-label">شێوازی پارەدان:</span>
+                <span class="meta-value">${getPaymentStatus()}</span>
+              </div>
+              ${soldBy ? `
+                <div class="meta-item">
+                  <span class="meta-label">فرۆشیار:</span>
+                  <span class="meta-value">${soldBy}</span>
+                </div>
+              ` : ''}
             </div>
 
             <div class="separator"></div>
 
-            <!-- 3. Itemized List (The Grid) -->
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th class="item-name">ناوی کاڵا</th>
-                  <th class="item-unit">یەکە</th>
-                  <th class="item-qty">بڕ</th>
-                  <th class="item-price">نرخ</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items.map(item => `
-                  <tr>
-                    <td class="item-name">${item.item.item_name}</td>
-                    <td class="item-unit">${item.unit}</td>
-                    <td class="item-qty">${item.quantity}</td>
-                    <td class="item-price">${formatCurrency(item.total)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+            <!-- 3. Itemized List (The Grid) - Optimized for 80mm -->
+            <div class="items-table">
+              <div class="table-header">
+                <div class="item-name">ناوی کاڵا</div>
+                <div class="item-unit">یەکە</div>
+                <div class="item-qty">بڕ</div>
+                <div class="item-price">نرخ</div>
+              </div>
+              ${items.map(item => `
+                <div class="table-row">
+                  <div class="item-name">${item.item.item_name}</div>
+                  <div class="item-unit">${item.unit}</div>
+                  <div class="item-qty">${item.quantity}</div>
+                  <div class="item-price">${formatCurrency(item.total)}</div>
+                </div>
+              `).join('')}
+            </div>
 
             <div class="separator"></div>
 
             <!-- 4. Financial Summary (The Totals) -->
             <div class="financial-summary">
               <div class="summary-row">
-                <span class="summary-label">کۆی بە باج:</span>
+                <span class="summary-label">کۆی بەشی:</span>
                 <span class="summary-value">${formatCurrency(subtotal)}</span>
               </div>
-              ${tax > 0 ? `
-                <div class="summary-row">
-                  <span class="summary-label">باج:</span>
-                  <span class="summary-value">${formatCurrency(tax)}</span>
-                </div>
-              ` : ''}
               ${discount > 0 ? `
                 <div class="summary-row">
                   <span class="summary-label">داشکاندن:</span>
@@ -1060,9 +1249,9 @@ export default function SalesPage() {
   const filteredInventory = getFilteredInventory()
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Left Side - Products */}
-      <div className="w-2/3 p-6 overflow-hidden">
+    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 gap-4 lg:gap-6 lg:flex-row">
+      {/* Top Section - Products (Mobile) / Left Side (Desktop) */}
+      <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1070,9 +1259,9 @@ export default function SalesPage() {
           className="h-full flex flex-col"
         >
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-3">
             <motion.h2
-              className="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
               style={{ fontFamily: 'var(--font-uni-salar)' }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1081,9 +1270,142 @@ export default function SalesPage() {
               کاڵاکان
             </motion.h2>
 
+            {/* Customer Search */}
+            <motion.div
+              className="mb-2 relative customer-search-container"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={customerSearchTerm}
+                    onChange={(e) => {
+                      setCustomerSearchTerm(e.target.value)
+                      setShowCustomerDropdown(true)
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    placeholder="گەڕان بۆ کڕیار"
+                    className="w-full px-4 py-2 pr-10 rounded-xl border-0 bg-white/60 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                    style={{
+                      fontFamily: 'var(--font-uni-salar)',
+                      color: 'var(--theme-primary)'
+                    }}
+                  />
+
+                  {/* Customer Dropdown */}
+                  <AnimatePresence>
+                    {showCustomerDropdown && customerSearchTerm && (
+                      <motion.div
+                        className="absolute top-full left-0 right-0 mt-1 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 z-50 max-h-48 overflow-y-auto"
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {getFilteredCustomers().length > 0 ? (
+                          getFilteredCustomers().map((customer, index) => (
+                            <motion.button
+                              key={customer.id}
+                              onClick={() => selectCustomer(customer)}
+                              className="w-full px-3 py-2 text-right hover:bg-blue-50/50 transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl text-sm"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div className="text-left">
+                                  <div className="text-xs text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    {customer.phone1}
+                                  </div>
+                                  {customer.total_debt > 0 && (
+                                    <div className="text-xs text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                      قەرز: {formatCurrency(customer.total_debt)} IQD
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="font-bold text-gray-800 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {customer.name}
+                                </div>
+                              </div>
+                            </motion.button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-4 text-center text-gray-500 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            هیچ کڕیارێک نەدۆزرایەوە
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Add New Customer Button */}
+                <motion.button
+                  onClick={createNewCustomer}
+                  className="px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="کڕیاری نوێ زیادبکە"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </motion.button>
+              </div>
+
+              {/* Selected Customer Display */}
+              <AnimatePresence>
+                {selectedCustomerData && (
+                  <motion.div
+                    className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-bold">👤</span>
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {selectedCustomerData.name}
+                          </div>
+                          <div className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {selectedCustomerData.phone1}
+                          </div>
+                        </div>
+                      </div>
+                      {selectedCustomerData.total_debt > 0 && (
+                        <div className="text-right">
+                          <div className="text-sm text-red-600 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            قەرزی ئێستا
+                          </div>
+                          <div className="text-lg font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(selectedCustomerData.total_debt)} IQD
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
             {/* Category Filter */}
             <motion.div
-              className="mb-4"
+              className="mb-2"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
@@ -1091,7 +1413,7 @@ export default function SalesPage() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-6 py-4 rounded-2xl border-0 bg-white/60 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full px-4 py-2 rounded-xl border-0 bg-white/60 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
                 style={{
                   fontFamily: 'var(--font-uni-salar)',
                   color: 'var(--theme-primary)'
@@ -1105,20 +1427,67 @@ export default function SalesPage() {
             </motion.div>
           </div>
 
-          {/* Products Grid */}
+          {/* Products List/Grid */}
           <motion.div
             className="flex-1 overflow-y-auto pr-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <div className="grid grid-cols-3 gap-6">
+            {/* Mobile List View */}
+            <div className="lg:hidden space-y-2">
               <AnimatePresence>
                 {filteredInventory.map((item, index) => (
                   <motion.button
                     key={item.id}
                     onClick={() => addToCart(item)}
-                    className="group relative bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-lg hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2 overflow-hidden"
+                    className="w-full h-16 bg-white/60 backdrop-blur-xl rounded-lg shadow-md hover:shadow-lg border border-white/20 transition-all duration-300 hover:scale-[1.02] flex items-center p-2"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{
+                      delay: index * 0.03,
+                      duration: 0.2
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {/* Left: Small Image */}
+                    <div className="flex-shrink-0 ml-2">
+                      <ProductImage item={item} className="w-12 h-12" />
+                    </div>
+
+                    {/* Center: Name & Category */}
+                    <div className="flex-1 text-right mr-3">
+                      <h3 className="font-bold text-sm text-gray-800 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {item.item_name}
+                      </h3>
+                      <p className="text-xs text-gray-600 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {item.category}
+                      </p>
+                    </div>
+
+                    {/* Right: Price */}
+                    <div className="flex-shrink-0 text-left">
+                      <p className="text-sm font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {formatCurrency(item.selling_price)}
+                      </p>
+                      <p className="text-xs text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        IQD
+                      </p>
+                    </div>
+                  </motion.button>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Desktop Grid View */}
+            <div className="hidden lg:grid lg:grid-cols-4 gap-4">
+              <AnimatePresence>
+                {filteredInventory.map((item, index) => (
+                  <motion.button
+                    key={item.id}
+                    onClick={() => addToCart(item)}
+                    className="group relative bg-white/60 backdrop-blur-xl rounded-xl p-2 shadow-lg hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-0.5 overflow-hidden"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8 }}
@@ -1130,22 +1499,22 @@ export default function SalesPage() {
                     whileTap={{ scale: 0.95 }}
                   >
                     {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-500 rounded-3xl"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-500 rounded-xl"></div>
 
                     <div className="relative z-10 text-center">
                       {/* Product Image */}
-                      <div className="mb-4">
-                        <ProductImage item={item} className="w-20 h-20" />
+                      <div className="mb-1.5 flex justify-center">
+                        <ProductImage item={item} className="w-12 h-12" />
                       </div>
 
                       {/* Product Name */}
-                      <h3 className="font-bold text-lg mb-2 text-gray-800 group-hover:text-blue-600 transition-colors duration-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      <h3 className="font-bold text-sm mb-0.5 text-gray-800 group-hover:text-blue-600 transition-colors duration-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                         {item.item_name}
                       </h3>
 
                       {/* Price */}
                       <motion.p
-                        className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3"
+                        className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1"
                         style={{ fontFamily: 'Inter, sans-serif' }}
                         whileHover={{ scale: 1.05 }}
                       >
@@ -1153,15 +1522,15 @@ export default function SalesPage() {
                       </motion.p>
 
                       {/* Stock Level */}
-                      <div className="flex items-center justify-center space-x-2 mb-2">
-                        <div className={`w-2 h-2 rounded-full ${item.quantity > 10 ? 'bg-green-400' : item.quantity > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                        <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <div className="flex items-center justify-center space-x-0.5 mb-0.5">
+                        <div className={`w-1 h-1 rounded-full ${item.quantity > 10 ? 'bg-green-400' : item.quantity > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                        <p className="text-xs text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                           {toEnglishDigits(item.quantity.toString())} {item.unit}
                         </p>
                       </div>
 
                       {/* Category Badge */}
-                      <div className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      <div className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full text-xs font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                         {item.category}
                       </div>
                     </div>
@@ -1173,17 +1542,17 @@ export default function SalesPage() {
         </motion.div>
       </div>
 
-      {/* Right Side - Glassmorphism Cart */}
+      {/* Bottom Section - Cart (Mobile) / Right Side (Desktop) */}
       <motion.div
-        className="w-1/3 bg-white/60 backdrop-blur-xl border-r border-white/20 shadow-2xl flex flex-col"
+        className="h-[30vh] lg:h-full w-80 lg:w-96 bg-white/60 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-white/20 shadow-2xl flex flex-col"
         initial={{ x: 300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
         {/* Cart Header */}
-        <div className="p-6 border-b border-white/20">
+        <div className="p-3 border-b border-white/20 bg-white/80">
           <motion.h2
-            className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+            className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
             style={{ fontFamily: 'var(--font-uni-salar)' }}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1191,27 +1560,27 @@ export default function SalesPage() {
           >
             سەبەتە
           </motion.h2>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
               {cart.length} کاڵا
             </span>
             <motion.div
-              className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
+              className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
               animate={{ scale: cart.length > 0 ? [1, 1.1, 1] : 1 }}
               transition={{ duration: 0.3 }}
             >
-              <span className="text-white text-sm font-bold">{cart.length}</span>
+              <span className="text-white text-xs font-bold">{cart.length}</span>
             </motion.div>
           </div>
         </div>
 
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Cart Items - Compact */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-60">
           <AnimatePresence>
             {cart.map((item, index) => (
               <motion.div
                 key={item.id}
-                className="bg-white/40 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300"
+                className="bg-white/40 backdrop-blur-sm rounded-lg p-2 shadow-sm border border-white/20 hover:shadow-md transition-all duration-300"
                 initial={{ opacity: 0, x: 50 }}
                 animate={{
                   opacity: 1,
@@ -1220,48 +1589,43 @@ export default function SalesPage() {
                 }}
                 exit={{ opacity: 0, x: -50, scale: 0.8 }}
                 transition={{
-                  delay: index * 0.1,
+                  delay: index * 0.05,
                   scale: { duration: 0.6, ease: "easeInOut" }
                 }}
-                whileHover={{ scale: 1.02, y: -2 }}
+                whileHover={{ scale: 1.01, y: -0.5 }}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <div className="flex justify-between items-center">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-gray-800 text-xs truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                       {item.item.item_name}
                     </h4>
-                    <p className="text-sm text-gray-600 mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {toEnglishDigits(item.quantity.toString())} {item.unit} × {formatCurrency(item.price)} IQD
+                    <p className="text-xs text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {toEnglishDigits(item.quantity.toString())} {item.unit} × {formatCurrency(item.price)}
                     </p>
-                    <div className="flex items-center space-x-2">
-                      <motion.button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        -
-                      </motion.button>
-                      <span className="font-bold text-lg min-w-[2rem] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {toEnglishDigits(item.quantity.toString())}
-                      </span>
-                      <motion.button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 bg-green-100 hover:bg-green-200 text-green-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        +
-                      </motion.button>
-                    </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="font-bold text-lg text-gray-800 mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {formatCurrency(item.total)} IQD
-                    </p>
+                  <div className="flex items-center space-x-1 ml-2">
+                    <motion.button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="w-5 h-5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200 text-xs"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      -
+                    </motion.button>
+                    <span className="font-bold text-xs min-w-[1rem] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {toEnglishDigits(item.quantity.toString())}
+                    </span>
+                    <motion.button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="w-5 h-5 bg-green-100 hover:bg-green-200 text-green-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200 text-xs"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      +
+                    </motion.button>
                     <motion.button
                       onClick={() => removeFromCart(item.id)}
-                      className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200"
+                      className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 text-xs ml-1"
                       whileHover={{ scale: 1.1, rotate: 90 }}
                       whileTap={{ scale: 0.9 }}
                     >
@@ -1269,227 +1633,176 @@ export default function SalesPage() {
                     </motion.button>
                   </div>
                 </div>
+                <div className="text-right mt-1">
+                  <span className="font-bold text-sm text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {formatCurrency(item.total)}
+                  </span>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
 
           {cart.length === 0 && (
             <motion.div
-              className="text-center py-12"
+              className="text-center py-6"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
             >
-              <div className="text-6xl mb-4">🛒</div>
-              <p className="text-gray-500 text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                سەبەتە بەتاڵە
-              </p>
-              <p className="text-gray-400 text-sm mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-                کاڵایەک هەڵبژێرە بۆ زیادکردن
+              <div className="text-3xl mb-2">🛒</div>
+              <p className="text-gray-500 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                سەبەتەکە بەتاڵە
               </p>
             </motion.div>
           )}
         </div>
 
-        {/* Fixed Bottom Section - FAB */}
-        <motion.div
-          className="sticky bottom-0 bg-white/80 backdrop-blur-xl border-t border-white/20 p-6 shadow-2xl"
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.4 }}
-        >
-          <div className="space-y-4">
-            {/* Mandatory Customer Selection */}
-            <motion.div
-              className={`space-y-2 ${customerRequired ? 'animate-pulse' : ''}`}
-              animate={customerRequired ? {
-                boxShadow: ['0 0 0 0 rgba(239, 68, 68, 0.7)', '0 0 0 4px rgba(239, 68, 68, 0)', '0 0 0 0 rgba(239, 68, 68, 0.7)']
-              } : {}}
-              transition={{ duration: 1.5, repeat: customerRequired ? Infinity : 0 }}
-            >
-              <label className="block text-sm font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                هەڵبژاردنی کڕیار <span className="text-red-500">*</span>
-                {customerRequired && (
-                  <span className="text-red-500 text-xs mr-2">(پێویستە)</span>
-                )}
-              </label>
-              <select
-                value={selectedCustomer}
-                onChange={(e) => {
-                  setSelectedCustomer(e.target.value)
-                  setCustomerRequired(false)
-                }}
-                className={`w-full px-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:outline-none transition-all duration-300 ${
-                  customerRequired
-                    ? 'ring-2 ring-red-500 border-red-300 bg-red-50/50'
-                    : 'focus:ring-blue-500'
-                }`}
-                style={{ fontFamily: 'var(--font-uni-salar)' }}
-              >
-                <option value="">هەڵبژاردنی کڕیار</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name} (قەرزی ئێستا: {formatCurrency(customer.total_debt)} IQD)
-                  </option>
-                ))}
-              </select>
-              {customerRequired && (
-                <p className="text-red-600 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  تکایە کڕیارێک هەڵبژێرە بۆ تەواوبوونی فرۆشتن
-                </p>
-              )}
-            </motion.div>
-
-            {/* Triple Payment System */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                شێوازی پارەدان
-              </h4>
-              <div className="grid grid-cols-3 gap-3">
-                {/* Cash Payment */}
-                <motion.button
-                  onClick={() => {
-                    setPaymentMethod('cash')
-                    if (!selectedCustomer) {
-                      setCustomerRequired(true)
-                    }
-                  }}
-                  className={`group p-4 rounded-2xl backdrop-blur-xl border-2 transition-all duration-300 ${
-                    paymentMethod === 'cash'
-                      ? 'bg-green-500/20 border-green-500 shadow-lg shadow-green-500/25'
-                      : 'bg-white/60 border-white/30 hover:bg-green-50/50 hover:border-green-300'
-                  }`}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="text-center">
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">💵</div>
-                    <div className={`text-sm font-bold ${paymentMethod === 'cash' ? 'text-green-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      نەختینە
-                    </div>
-                    <div className={`text-xs ${paymentMethod === 'cash' ? 'text-green-600' : 'text-gray-500'}`}>Cash</div>
-                  </div>
-                </motion.button>
-
-                {/* FIB Payment */}
-                <motion.button
-                  onClick={() => {
-                    setPaymentMethod('fib')
-                    if (!selectedCustomer) {
-                      setCustomerRequired(true)
-                    }
-                  }}
-                  className={`group p-4 rounded-2xl backdrop-blur-xl border-2 transition-all duration-300 ${
-                    paymentMethod === 'fib'
-                      ? 'bg-blue-500/20 border-blue-500 shadow-lg shadow-blue-500/25'
-                      : 'bg-white/60 border-white/30 hover:bg-blue-50/50 hover:border-blue-300'
-                  }`}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="text-center">
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">💳</div>
-                    <div className={`text-sm font-bold ${paymentMethod === 'fib' ? 'text-blue-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      ئۆنلاین
-                    </div>
-                    <div className={`text-xs ${paymentMethod === 'fib' ? 'text-blue-600' : 'text-gray-500'}`}>FIB</div>
-                  </div>
-                </motion.button>
-
-                {/* Pay Later Payment */}
-                <motion.button
-                  onClick={() => {
-                    setPaymentMethod('debt')
-                    if (!selectedCustomer) {
-                      setCustomerRequired(true)
-                    }
-                  }}
-                  className={`group p-4 rounded-2xl backdrop-blur-xl border-2 transition-all duration-300 ${
-                    paymentMethod === 'debt'
-                      ? 'bg-orange-500/20 border-orange-500 shadow-lg shadow-orange-500/25'
-                      : 'bg-white/60 border-white/30 hover:bg-orange-50/50 hover:border-orange-300'
-                  }`}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="text-center">
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform duration-300">📝</div>
-                    <div className={`text-sm font-bold ${paymentMethod === 'debt' ? 'text-orange-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      قەرز
-                    </div>
-                    <div className={`text-xs ${paymentMethod === 'debt' ? 'text-orange-600' : 'text-gray-500'}`}>Pay Later</div>
-                  </div>
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Discount Input */}
-            <motion.div whileHover={{ scale: 1.02 }}>
-              <label className="block text-sm font-medium mb-2 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                داشکاندن
-              </label>
-              <input
-                type="text"
-                value={toEnglishDigits(discount.toString())}
-                onChange={(e) => {
-                  const sanitized = sanitizeNumericInput(e.target.value)
-                  setDiscount(safeStringToNumber(sanitized))
-                }}
-                className="w-full px-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                style={{ fontFamily: 'Inter, sans-serif' }}
-                placeholder="0.00"
-              />
-            </motion.div>
-
-            {/* Total Display */}
-            <motion.div
-              className="text-center p-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl shadow-xl"
-              whileHover={{ scale: 1.02 }}
-              animate={{
-                scale: cart.length > 0 ? [1, 1.02, 1] : 1
+        {/* Checkout Section - Always Visible */}
+        <div className="bg-white/80 backdrop-blur-xl border-t border-white/20 p-3 space-y-2">
+          {/* Customer Selection */}
+          <motion.div
+            className={`space-y-1 ${customerRequired ? 'animate-pulse' : ''}`}
+            animate={customerRequired ? {
+              boxShadow: ['0 0 0 0 rgba(239, 68, 68, 0.7)', '0 0 0 4px rgba(239, 68, 68, 0)', '0 0 0 0 rgba(239, 68, 68, 0.7)']
+            } : {}}
+            transition={{ duration: 1.5, repeat: customerRequired ? Infinity : 0 }}
+          >
+            <select
+              value={selectedCustomer}
+              onChange={(e) => {
+                setSelectedCustomer(e.target.value)
+                setCustomerRequired(false)
               }}
-              transition={{ duration: 0.5 }}
-            >
-              <p className="text-white/80 text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                کۆی گشتی
-              </p>
-              <p className="text-white text-3xl font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
-                {formatCurrency(getTotal())} IQD
-              </p>
-            </motion.div>
-
-            {/* Complete Sale Button */}
-            <motion.button
-              onClick={completeSale}
-              disabled={cart.length === 0 || !selectedCustomer}
-              className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-2 py-1 rounded border-0 bg-white/60 backdrop-blur-sm shadow-sm focus:ring-1 focus:outline-none transition-all duration-300 text-xs ${
+                customerRequired
+                  ? 'ring-1 ring-red-500 border-red-300 bg-red-50/50'
+                  : 'focus:ring-blue-500'
+              }`}
               style={{ fontFamily: 'var(--font-uni-salar)' }}
-              whileHover={{ scale: cart.length > 0 && selectedCustomer ? 1.02 : 1, y: cart.length > 0 && selectedCustomer ? -2 : 0 }}
-              whileTap={{ scale: cart.length > 0 && selectedCustomer ? 0.98 : 1 }}
-              animate={{
-                backgroundPosition: (cart.length > 0 && selectedCustomer) ? ['0% 50%', '100% 50%', '0% 50%'] : '0% 50%'
-              }}
-              transition={{
-                backgroundPosition: { duration: 3, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0, ease: "linear" }
-              }}
             >
-              <span className="flex items-center justify-center space-x-2">
-                <span>
-                  {!selectedCustomer
-                    ? 'تکایە کڕیارێک هەڵبژێرە بۆ تەواوبوونی فرۆشتن'
-                    : 'تەواوبوونی فرۆشتن'
-                  }
-                </span>
-                <motion.span
-                  animate={{ x: (cart.length > 0 && selectedCustomer) ? [0, 5, 0] : 0 }}
-                  transition={{ duration: 1.5, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0 }}
-                >
-                  💰
-                </motion.span>
-              </span>
+              <option value="">کڕیار</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+          </motion.div>
+
+          {/* Payment Method - Compact */}
+          <div className="grid grid-cols-3 gap-1">
+            <motion.button
+              onClick={() => {
+                setPaymentMethod('cash')
+                if (!selectedCustomer) setCustomerRequired(true)
+              }}
+              className={`p-1 rounded-lg backdrop-blur-xl border transition-all duration-300 text-xs ${
+                paymentMethod === 'cash'
+                  ? 'bg-green-500/20 border-green-500 shadow-sm'
+                  : 'bg-white/60 border-white/30 hover:bg-green-50/50'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="text-center">
+                <div className="text-sm mb-0.5">💵</div>
+                <div className={`text-xs font-bold ${paymentMethod === 'cash' ? 'text-green-700' : 'text-gray-700'}`}>
+                  نەختینە
+                </div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              onClick={() => {
+                setPaymentMethod('fib')
+                if (!selectedCustomer) setCustomerRequired(true)
+              }}
+              className={`p-1 rounded-lg backdrop-blur-xl border transition-all duration-300 text-xs ${
+                paymentMethod === 'fib'
+                  ? 'bg-blue-500/20 border-blue-500 shadow-sm'
+                  : 'bg-white/60 border-white/30 hover:bg-blue-50/50'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="text-center">
+                <div className="text-sm mb-0.5">💳</div>
+                <div className={`text-xs font-bold ${paymentMethod === 'fib' ? 'text-blue-700' : 'text-gray-700'}`}>
+                  ئۆنلاین
+                </div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              onClick={() => {
+                setPaymentMethod('debt')
+                if (!selectedCustomer) setCustomerRequired(true)
+              }}
+              className={`p-1 rounded-lg backdrop-blur-xl border transition-all duration-300 text-xs ${
+                paymentMethod === 'debt'
+                  ? 'bg-orange-500/20 border-orange-500 shadow-sm'
+                  : 'bg-white/60 border-white/30 hover:bg-orange-50/50'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="text-center">
+                <div className="text-sm mb-0.5">📝</div>
+                <div className={`text-xs font-bold ${paymentMethod === 'debt' ? 'text-orange-700' : 'text-gray-700'}`}>
+                  قەرز
+                </div>
+              </div>
             </motion.button>
           </div>
-        </motion.div>
+
+          {/* Total Display */}
+          <motion.div
+            className="text-center p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg shadow-md"
+            whileHover={{ scale: 1.01 }}
+            animate={{
+              scale: cart.length > 0 ? [1, 1.01, 1] : 1
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            <p className="text-white/80 text-xs font-medium mb-0.5" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              کۆی گشتی
+            </p>
+            <p className="text-white text-lg font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {formatCurrency(getTotal())} IQD
+            </p>
+          </motion.div>
+
+          {/* Complete Sale Button */}
+          <motion.button
+            onClick={completeSale}
+            disabled={cart.length === 0 || !selectedCustomer}
+            className="w-full py-2 px-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+            style={{ fontFamily: 'var(--font-uni-salar)' }}
+            whileHover={{ scale: cart.length > 0 && selectedCustomer ? 1.01 : 1, y: cart.length > 0 && selectedCustomer ? -0.5 : 0 }}
+            whileTap={{ scale: cart.length > 0 && selectedCustomer ? 0.99 : 1 }}
+            animate={{
+              backgroundPosition: (cart.length > 0 && selectedCustomer) ? ['0% 50%', '100% 50%', '0% 50%'] : '0% 50%'
+            }}
+            transition={{
+              backgroundPosition: { duration: 3, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0, ease: "linear" }
+            }}
+          >
+            <span className="flex items-center justify-center space-x-1">
+              <span>
+                {!selectedCustomer
+                  ? 'کڕیار'
+                  : 'فرۆشتن'
+                }
+              </span>
+              <motion.span
+                animate={{ x: (cart.length > 0 && selectedCustomer) ? [0, 3, 0] : 0 }}
+                transition={{ duration: 1.5, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0 }}
+              >
+                💰
+              </motion.span>
+            </span>
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Unit Selection Modal */}
@@ -1626,6 +1939,117 @@ export default function SalesPage() {
                     زیادکردن
                   </motion.button>
                 </motion.div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Invoice Modal */}
+      <AnimatePresence>
+        {showInvoice && completedSaleData && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowInvoice(false)}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">🧾</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      فاکتور #{completedSaleData.invoiceNumber}
+                    </h3>
+                    <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {completedSaleData.date} - {completedSaleData.customerName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowInvoice(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <span className="text-gray-400 text-xl">×</span>
+                </button>
+              </div>
+
+              {/* Invoice Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <div ref={invoiceRef}>
+                  <InvoiceTemplate data={completedSaleData} />
+                </div>
+              </div>
+
+              {/* Sticky Modal Footer */}
+              <div className="sticky bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-lg p-4 print:hidden">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Total Amount Display */}
+                  <div className="text-center sm:text-right">
+                    <div className="text-sm text-gray-600 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      کۆی گشتی
+                    </div>
+                    <div className="text-xl font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                      {formatCurrency(completedSaleData.total)} IQD
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <motion.button
+                      onClick={() => {
+                        window.print()
+                        setShowInvoice(false)
+                      }}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      <span>چاپکردن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={downloadInvoice}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>داگرتن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => setShowInvoice(false)}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>داخستن</span>
+                    </motion.button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

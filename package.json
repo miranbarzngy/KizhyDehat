@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
     "framer-motion": "^12.27.2",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.562.0",
     "next": "15.1.6",
     "next-pwa": "^5.6.0",
@@ -21,11 +22,12 @@
     "tailwindcss-rtl": "^0.9.0"
   },
   "devDependencies": {
+    "@types/next-pwa": "^5.6.9",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.23",
-    "eslint": "^8",
+    "eslint": "^9.39.2",
     "eslint-config-next": "15.1.6",
     "postcss": "^8",
     "tailwindcss": "^3.4.16",

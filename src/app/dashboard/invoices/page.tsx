@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion, AnimatePresence } from 'framer-motion'
+import InvoiceTemplate from '@/components/InvoiceTemplate'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
-import { FaSearch, FaEye, FaPrint, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaFileInvoice } from 'react-icons/fa'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import html2canvas from 'html2canvas'
+import { useEffect, useRef, useState } from 'react'
+import { FaCog, FaEye, FaFileInvoice, FaImage, FaMapMarkerAlt, FaPhone, FaPrint, FaQrcode, FaSearch, FaStore } from 'react-icons/fa'
 
 interface InvoiceSettings {
   id: string
@@ -29,6 +31,7 @@ interface Invoice {
 }
 
 export default function InvoicesPage() {
+  const invoiceRef = useRef<HTMLDivElement>(null)
   const [activeTab, setActiveTab] = useState<'settings' | 'invoices'>('settings')
   const [settings, setSettings] = useState<InvoiceSettings | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -315,6 +318,7 @@ export default function InvoicesPage() {
           id,
           quantity,
           price,
+          total,
           unit,
           item_id
         `)
@@ -367,6 +371,42 @@ export default function InvoicesPage() {
     }
   }
 
+  const downloadInvoice = async () => {
+    if (!invoiceRef.current || !selectedInvoice) return
+
+    try {
+      // Wait 800ms for QR image and UniSalar fonts to fully render
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2, // Higher resolution
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        backgroundColor: '#ffffff',
+        width: invoiceRef.current.offsetWidth,
+        height: invoiceRef.current.offsetHeight
+      })
+
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `Invoice_${selectedInvoice.invoice_number}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png', 1.0)
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      alert('هەڵە لە داگرتنی وێنەی فاکتور')
+    }
+  }
+
   const generateReceiptPreview = () => {
     // Use current form data for real-time preview
     const shopName = formData.shop_name || 'فرۆشگای کوردستان'
@@ -390,7 +430,7 @@ export default function InvoicesPage() {
       <!-- 1. Header Section (Visual Brand) -->
       <div style="text-align: center; margin-bottom: 10px;">
         ${shopLogo ? `
-          <div style="width: 70px; height: 70px; margin: 0 auto 8px; border-radius: 6px; overflow: hidden; background: #f8f9fa; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100%; height: 70px; margin: 0 auto 8px;     display: flex; align-items: center; justify-content: center;">
             <img src="${shopLogo}" alt="${shopName}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
           </div>
         ` : ''}
@@ -456,7 +496,6 @@ export default function InvoicesPage() {
       <!-- 4. Financial Summary (The Totals) -->
       <div style="margin: 10px 0; border-top: 2px solid #000; padding-top: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
-          <span style="font-weight: bold; color: #495057;">کۆی بە باج:</span>
           <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${mockTotal.toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
@@ -575,7 +614,7 @@ export default function InvoicesPage() {
                       <div className="flex items-center mb-6">
                         <FaStore className="text-blue-500 text-2xl ml-3" />
                         <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          براندی فاکتور
+                          زانیاری فاکتور
                         </h2>
                       </div>
 
@@ -740,30 +779,41 @@ export default function InvoicesPage() {
                         </h2>
                       </div>
 
-                      {/* Receipt Preview Container */}
-                      <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/30 max-w-sm mx-auto">
+                      {/* Invoice Preview Container */}
+                      <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/30 max-w-2xl mx-auto">
                         <div className="text-center mb-4">
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            80mm Thermal Receipt Preview
+                            پێشبینینی فاکتور
                           </span>
                         </div>
 
-                        {/* Receipt Preview */}
-                        <div
-                          className="bg-white border border-gray-200 rounded-lg p-3 text-xs"
-                          style={{
-                            fontFamily: 'UniSalar_F_007, sans-serif',
-                            fontWeight: 'bold',
-                            letterSpacing: '0.5px',
-                            lineHeight: '1.4',
-                            direction: 'rtl',
-                            width: '300px',
-                            margin: '0 auto'
-                          }}
-                          dangerouslySetInnerHTML={{
-                            __html: generateReceiptPreview()
-                          }}
-                        />
+                        {/* Invoice Preview */}
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                          <InvoiceTemplate
+                            data={{
+                              invoiceNumber: 2066,
+                              customerName: 'نموونەی کڕیار',
+                              customerPhone: '07501234567',
+                              sellerName: 'کارمەند',
+                              date: new Date().toLocaleDateString('ku'),
+                              time: new Date().toLocaleTimeString('ku'),
+                              paymentMethod: 'cash',
+                              items: [
+                                { name: 'هەنگوین', unit: 'کیلۆ', quantity: 2, price: 12.50, total: 25.00 },
+                                { name: 'سەرکە', unit: 'دانە', quantity: 1, price: 8.00, total: 8.00 }
+                              ],
+                              subtotal: 33.00,
+                              discount: 0,
+                              total: 33.00,
+                              shopName: formData.shop_name || 'فرۆشگای کوردستان',
+                              shopPhone: formData.shop_phone,
+                              shopAddress: formData.shop_address,
+                              shopLogo: settings?.shop_logo,
+                              qrCodeUrl: formData.qr_code_url || settings?.qr_code_url,
+                              thankYouNote: formData.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -946,45 +996,93 @@ export default function InvoicesPage() {
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {/* Invoice Preview */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div
-                    className="text-xs"
-                    style={{
-                      fontFamily: 'UniSalar_F_007, sans-serif',
-                      fontWeight: 'bold',
-                      letterSpacing: '0.5px',
-                      lineHeight: '1.4',
-                      direction: 'rtl'
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: generateInvoiceHTML(invoiceDetails, selectedInvoice)
-                    }}
-                  />
+                  <div ref={invoiceRef}>
+                    <InvoiceTemplate
+                      data={{
+                        invoiceNumber: selectedInvoice.invoice_number,
+                        customerName: invoiceDetails.customers?.name || 'نەناسراو',
+                        customerPhone: invoiceDetails.customers?.phone1,
+                        sellerName: invoiceDetails.sold_by,
+                        date: new Date(selectedInvoice.date).toLocaleDateString('ku'),
+                        time: new Date(selectedInvoice.date).toLocaleTimeString('ku'),
+                        paymentMethod: selectedInvoice.payment_method,
+                        items: invoiceDetails.sale_items?.map((item: any) => ({
+                          name: item.products?.name || 'نەناسراو',
+                          unit: item.products?.unit || item.unit,
+                          quantity: item.quantity,
+                          price: item.price || 0,
+                          total: (item.price || 0) * item.quantity
+                        })) || [],
+                        subtotal: selectedInvoice.total,
+                        discount: invoiceDetails.discount_amount || 0,
+                        total: selectedInvoice.total,
+                        shopName: settings?.shop_name || 'فرۆشگای کوردستان',
+                        shopPhone: settings?.shop_phone,
+                        shopAddress: settings?.shop_address,
+                        shopLogo: settings?.shop_logo,
+                        qrCodeUrl: settings?.qr_code_url,
+                        thankYouNote: settings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+                      }}
+                      isPrint={true}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-                <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  کۆی گشتی: {formatCurrency(selectedInvoice.total)} IQD
-                </div>
-                <div className="flex space-x-3">
-                  <motion.button
-                    onClick={() => window.print()}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPrint className="inline ml-2" />
-                    چاپکردن
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setShowInvoiceModal(false)}
-                    className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    داخستن
-                  </motion.button>
+              {/* Sticky Modal Footer */}
+              <div className="sticky bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-lg p-4 print:hidden">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Total Amount Display */}
+                  <div className="text-center sm:text-right">
+                    <div className="text-sm text-gray-600 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      کۆی گشتی
+                    </div>
+                    <div className="text-xl font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                      {formatCurrency(selectedInvoice.total)} IQD
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <motion.button
+                      onClick={() => window.print()}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      <span>چاپکردن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={downloadInvoice}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>داگرتن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => setShowInvoiceModal(false)}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>داخستن</span>
+                    </motion.button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1007,7 +1105,7 @@ function generateInvoiceHTML(saleData: any, invoice: Invoice) {
     <!-- 1. Header Section (Visual Brand) -->
     <div style="text-align: center; margin-bottom: 10px;">
       ${shopLogo ? `
-        <div style="width: 70px; height: 70px; margin: 0 auto 8px; border-radius: 6px; overflow: hidden; background: #f8f9fa; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center;">
+        <div style="width: 100%; height: 70px; margin: 0 auto 8px;     display: flex; align-items: center; justify-content: center;">
           <img src="${shopLogo}" alt="${shopName}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
         </div>
       ` : ''}
@@ -1079,7 +1177,7 @@ function generateInvoiceHTML(saleData: any, invoice: Invoice) {
     </div>
 
     <!-- Grand Total Highlight -->
-    <div style="background: #000; color: #fff; padding: 10px 15px; text-align: center; font-size: 15px; font-weight: 900; margin: 12px 0; font-family: 'JetBrains Mono', monospace; border-radius: 6px; letter-spacing: 1px;">
+    <div style="color: #000000; padding: 10px 15px; text-align: center; font-size: 15px; font-weight: 900; margin: 12px 0; font-family: 'JetBrains Mono', monospace; border-radius: 6px; letter-spacing: 1px;">
       کۆی گشتی: ${formatCurrency(invoice.total)} IQD
     </div>
 

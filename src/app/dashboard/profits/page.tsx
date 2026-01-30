@@ -106,12 +106,12 @@ export default function ProfitsPage() {
 
       const profitData: ProfitItem[] = (data || []).map((item: any) => ({
         id: item.id,
-        item_name: item.inventory[0].item_name,
+        item_name: item.inventory && item.inventory[0] ? item.inventory[0].item_name : 'ناوی کاڵا نیە',
         quantity: item.quantity,
         price: item.price,
         cost_price: item.cost_price,
         profit: (item.price - item.cost_price) * item.quantity,
-        date: item.sales[0].date
+        date: item.sales && item.sales[0] ? item.sales[0].date : new Date().toISOString().split('T')[0]
       }))
 
       setProfits(profitData)

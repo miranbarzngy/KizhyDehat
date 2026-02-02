@@ -1,7 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { formatSmartCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { FaCalculator, FaCamera, FaEdit, FaImage, FaMoneyBillWave, FaPlus, FaTrash, FaUpload } from 'react-icons/fa'
 
 interface Expense {
   id: string
@@ -11,6 +14,7 @@ interface Expense {
   image: string
   note: string
   date: string
+  category?: string
 }
 
 export default function ExpensesPage() {
@@ -19,6 +23,13 @@ export default function ExpensesPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [showCamera, setShowCamera] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [activeTab, setActiveTab] = useState<'all' | 'filter'>('all')
+  const [dateFilters, setDateFilters] = useState({
+    fromDate: '',
+    toDate: ''
+  })
   const [newExpense, setNewExpense] = useState({
     name: '',
     unit: 'دانە',
@@ -26,11 +37,70 @@ export default function ExpensesPage() {
     image: '',
     note: ''
   })
+
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' } // Use back camera on mobile
+      })
+      setCameraStream(stream)
+      setShowCamera(true)
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+      alert('ناتوانرێت کامێرا بکرێتەوە')
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    setShowCamera(false)
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
+
+      if (context) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        context.drawImage(video, 0, 0)
+
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const file = new File([blob], `expense-${Date.now()}.jpg`, { type: 'image/jpeg' })
+            await handleImageUpload(file)
+            stopCamera()
+          }
+        }, 'image/jpeg', 0.8)
+      }
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleImageUpload(file)
+    }
+  }
 
   useEffect(() => {
     fetchExpenses()
-  }, [])
+  }, [activeTab, dateFilters])
 
   const fetchExpenses = async () => {
     if (!supabase) {
@@ -40,10 +110,22 @@ export default function ExpensesPage() {
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('expenses')
         .select('*')
         .order('date', { ascending: false })
+
+      // Apply date filters if in filter tab and dates are provided
+      if (activeTab === 'filter') {
+        if (dateFilters.fromDate) {
+          query = query.gte('date', dateFilters.fromDate)
+        }
+        if (dateFilters.toDate) {
+          query = query.lte('date', dateFilters.toDate)
+        }
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setExpenses(data || [])
@@ -97,7 +179,11 @@ export default function ExpensesPage() {
       const { error } = await supabase
         .from('expenses')
         .insert({
-          ...newExpense,
+          description: newExpense.name, // Use description field for backward compatibility
+          name: newExpense.name, // Also set name field
+          amount: newExpense.amount,
+          image: newExpense.image,
+          note: newExpense.note,
           date: new Date().toISOString().split('T')[0]
         })
 
@@ -224,364 +310,599 @@ export default function ExpensesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-        بەڕێوەبردنی خەرجییەکان
-      </h1>
-
-      {/* Total Expenses Summary Card */}
-      <div className="mb-8">
-        <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
-          background: 'var(--theme-card-bg)',
-          border: '1px solid var(--theme-border)'
-        }}>
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-7xl mx-auto p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-                کۆی خەرجییەکان
-              </h2>
-              <p className="text-sm accessible-secondary">لەم مانگەدا</p>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-red-600 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                بەڕێوەبردنی خەرجییەکان
+              </h1>
+              <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                تۆمارکردن و بەڕێوەبردنی هەموو خەرجییەکان
+              </p>
             </div>
-            <div className="text-right">
-              <p className="numerical-value text-red-600" style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>{Math.round(getTotalExpenses())}</p>
-              <p className="text-sm accessible-secondary">د.ع</p>
+            <div className="flex items-center space-x-3">
+              <FaCalculator className="text-red-500 text-3xl" />
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Expense Form */}
-        <div className="lg:col-span-1">
-          <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
-            background: 'var(--theme-card-bg)',
-            border: '1px solid var(--theme-border)'
-          }}>
-            <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-              {editingExpense ? 'دەستکاری خەرجی' : 'زیادکردنی خەرجی'}
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  ناو
-                </label>
-                <input
-                  type="text"
-                  value={newExpense.name}
-                  onChange={(e) => setNewExpense(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border transition-colors"
-                  style={{
-                    background: 'var(--theme-muted)',
-                    borderColor: 'var(--theme-border)',
-                    color: 'var(--theme-primary)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                  placeholder="ناوی کاڵا"
-                />
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <motion.div
+              className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 border border-red-200"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <FaMoneyBillWave className="text-red-600 text-2xl" />
+                <span className="text-sm text-red-600 font-medium">کۆی خەرجییەکان</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  یەکە
-                </label>
-                <select
-                  value={newExpense.unit}
-                  onChange={(e) => setNewExpense(prev => ({ ...prev, unit: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border transition-colors"
-                  style={{
-                    background: 'var(--theme-muted)',
-                    borderColor: 'var(--theme-border)',
-                    color: 'var(--theme-primary)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                >
-                  <option value="دانە">دانە</option>
-                  <option value="کیلۆ">کیلۆ</option>
-                  <option value="گرام">گرام</option>
-                  <option value="لیتر">لیتر</option>
-                </select>
+              <div className="text-3xl font-bold text-red-700 mb-1">
+                {formatSmartCurrency(getTotalExpenses())}
               </div>
+              <p className="text-sm text-red-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                لەم مانگەدا
+              </p>
+            </motion.div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  بڕ
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newExpense.amount}
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0
-                    if (value >= 0) {
-                      setNewExpense(prev => ({ ...prev, amount: value }))
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg border transition-colors"
-                  style={{
-                    background: 'var(--theme-muted)',
-                    borderColor: 'var(--theme-border)',
-                    color: 'var(--theme-primary)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                  placeholder="0.00"
-                  required
-                />
+            <motion.div
+              className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <FaPlus className="text-blue-600 text-2xl" />
+                <span className="text-sm text-blue-600 font-medium">ژمارەی خەرجییەکان</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  وێنە
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      handleImageUpload(file)
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg border transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium"
-                  style={{
-                    background: 'var(--theme-muted)',
-                    borderColor: 'var(--theme-border)',
-                    color: 'var(--theme-primary)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                />
-                {newExpense.image && (
-                  <img
-                    src={newExpense.image}
-                    alt="Preview"
-                    className="mt-2 w-20 h-20 object-cover rounded-lg border"
-                    style={{ borderColor: 'var(--theme-border)' }}
-                  />
-                )}
+              <div className="text-3xl font-bold text-blue-700 mb-1">
+                {expenses.length}
               </div>
+              <p className="text-sm text-blue-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                تۆمارکراوە
+              </p>
+            </motion.div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  تێبینی
-                </label>
-                <textarea
-                  value={newExpense.note}
-                  onChange={(e) => setNewExpense(prev => ({ ...prev, note: e.target.value }))}
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg border transition-colors resize-none"
-                  style={{
-                    background: 'var(--theme-muted)',
-                    borderColor: 'var(--theme-border)',
-                    color: 'var(--theme-primary)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                  placeholder="تێبینی زیادە"
-                />
+            <motion.div
+              className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200"
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <FaImage className="text-green-600 text-2xl" />
+                <span className="text-sm text-green-600 font-medium">خەرجییەکان بە وێنە</span>
               </div>
+              <div className="text-3xl font-bold text-green-700 mb-1">
+                {expenses.filter(e => e.image).length}
+              </div>
+              <p className="text-sm text-green-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                وێنەیان هەیە
+              </p>
+            </motion.div>
+          </div>
 
-              {editingExpense ? (
-                <div className="flex gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Expense Form */}
+            <div className="lg:col-span-1">
+              <motion.div
+                className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="flex items-center space-x-3 mb-6">
+                  <FaPlus className="text-red-500 text-xl" />
+                  <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    {editingExpense ? 'دەستکاری خەرجی' : 'زیادکردنی خەرجی'}
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      ناوی خەرجی
+                    </label>
+                    <input
+                      type="text"
+                      value={newExpense.name}
+                      onChange={(e) => setNewExpense(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      placeholder="بۆ نموونە: کڕینی قەڵەم"
+                    />
+                  </div>
+
+                  {/* Amount */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      بڕ (د.ع)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newExpense.amount}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0
+                        if (value >= 0) {
+                          setNewExpense(prev => ({ ...prev, amount: value }))
+                        }
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                      style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+
+
+                  {/* Image Upload with Camera Option */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      وێنە (داخستن یان کامێرا)
+                    </label>
+
+                    {/* Image Preview */}
+                    {newExpense.image && (
+                      <div className="mb-4 relative">
+                        <img
+                          src={newExpense.image}
+                          alt="Preview"
+                          className="w-full h-32 object-cover rounded-xl border-2 border-red-200"
+                        />
+                        <button
+                          onClick={() => setNewExpense(prev => ({ ...prev, image: '' }))}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <FaTrash className="text-sm" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Upload Options */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <motion.button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <FaUpload />
+                        <span style={{ fontFamily: 'var(--font-uni-salar)' }}>داخستن</span>
+                      </motion.button>
+
+                      <motion.button
+                        onClick={startCamera}
+                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl border-2 border-green-200 hover:border-green-300 transition-all duration-200"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <FaCamera />
+                        <span style={{ fontFamily: 'var(--font-uni-salar)' }}>کامێرا</span>
+                      </motion.button>
+                    </div>
+
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {/* Note */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      تێبینی
+                    </label>
+                    <textarea
+                      value={newExpense.note}
+                      onChange={(e) => setNewExpense(prev => ({ ...prev, note: e.target.value }))}
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500 focus:outline-none resize-none"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      placeholder="تێبینی زیادە دەربارەی خەرجییەکە..."
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  {editingExpense ? (
+                    <div className="flex gap-3">
+                      <motion.button
+                        onClick={updateExpense}
+                        disabled={!newExpense.name || newExpense.amount <= 0}
+                        className="flex-1 py-4 px-6 bg-gradient-to-r from-blue-600 to-blue-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        نوێکردنەوە
+                      </motion.button>
+                      <motion.button
+                        onClick={cancelEdit}
+                        className="flex-1 py-4 px-6 bg-gray-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        پاشگەزبوونەوە
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <motion.button
+                      onClick={addExpense}
+                      disabled={!newExpense.name || newExpense.amount <= 0}
+                      className="w-full py-4 px-6 bg-gradient-to-r from-red-600 to-red-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <span className="flex items-center justify-center space-x-2">
+                        <FaPlus />
+                        <span>زیادکردنی خەرجی</span>
+                      </span>
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Expenses List */}
+            <div className="lg:col-span-2">
+              <motion.div
+                className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                {/* Tabs */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <FaMoneyBillWave className="text-red-500 text-2xl" />
+                    <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      لیستی خەرجییەکان
+                    </h2>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {expenses.length} خەرجی
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-xl">
                   <button
-                    onClick={updateExpense}
-                    className="flex-1 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      backgroundColor: 'var(--theme-accent)',
-                      color: '#ffffff',
-                      fontFamily: 'var(--font-uni-salar)'
-                    }}
+                    onClick={() => setActiveTab('all')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 ${
+                      activeTab === 'all'
+                        ? 'bg-white text-red-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
                   >
-                    نوێکردنەوە
+                    هەموو خەرجییەکان
                   </button>
                   <button
-                    onClick={cancelEdit}
-                    className="flex-1 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      backgroundColor: '#6b7280',
-                      color: '#ffffff',
-                      fontFamily: 'var(--font-uni-salar)'
-                    }}
+                    onClick={() => setActiveTab('filter')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 ${
+                      activeTab === 'filter'
+                        ? 'bg-white text-red-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
                   >
-                    پاشگەزبوونەوە
+                    گەڕان بەپێی بەروار
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={addExpense}
-                  className="w-full py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    backgroundColor: 'var(--theme-accent)',
-                    color: '#ffffff',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                >
-                  زیادکردنی خەرجی
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Expenses Table */}
-        <div className="lg:col-span-2">
-          <div className="p-6 rounded-2xl shadow-lg backdrop-blur-sm" style={{
-            background: 'var(--theme-card-bg)',
-            border: '1px solid var(--theme-border)'
-          }}>
-            <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-              لیستی خەرجییەکان
-            </h2>
+                {/* Date Filters */}
+                {activeTab === 'filter' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-red-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          لە ڕێکەوتی
+                        </label>
+                        <input
+                          type="date"
+                          value={dateFilters.fromDate}
+                          onChange={(e) => setDateFilters(prev => ({ ...prev, fromDate: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg border border-red-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-red-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          بۆ ڕێکەوتی
+                        </label>
+                        <input
+                          type="date"
+                          value={dateFilters.toDate}
+                          onChange={(e) => setDateFilters(prev => ({ ...prev, toDate: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg border border-red-300 focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 text-sm text-red-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      تکایە ڕێکەوتەکان هەڵبژێرە بۆ پاراستنی خەرجییەکان
+                    </div>
+                  </motion.div>
+                )}
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--theme-border)' }}>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</th>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</th>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                    <th className="px-4 py-3 text-right font-semibold accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((expense) => (
-                    <tr key={expense.id} style={{ borderBottom: '1px solid var(--theme-border)' }}>
-                      <td className="px-4 py-3">
-                        {expense.image ? (
-                          <img
-                            src={expense.image}
-                            alt={expense.name}
-                            className="w-12 h-12 object-cover rounded-lg cursor-pointer border hover:scale-110 transition-transform"
-                            style={{ borderColor: 'var(--theme-border)' }}
-                            onClick={() => openImageModal(expense.image)}
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-400">📷</span>
+                {/* Expenses Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AnimatePresence>
+                    {expenses.map((expense, index) => (
+                      <motion.div
+                        key={expense.id}
+                        className="bg-white/40 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{
+                          delay: index * 0.1,
+                          duration: 0.3
+                        }}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex-1">
+                            <div className="flex flex-col items-center space-y-3 mb-2">
+                              {expense.image ? (
+                                <img
+                                  src={expense.image}
+                                  alt={expense.name}
+                                  className="w-72 h-32 object-cover rounded-lg border-2 border-red-200 cursor-pointer hover:scale-110 transition-transform"
+                                  onClick={() => openImageModal(expense.image)}
+                                />
+                              ) : (
+                                <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
+                                  <FaImage className="text-gray-400 text-2xl" />
+                                </div>
+                              )}
+                              <div className="text-center">
+                                <h3 className="font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {expense.name}
+                                </h3>
+                              </div>
+                            </div>
+
+                            {expense.note && (
+                              <p className="text-sm text-gray-700 mb-3 leading-relaxed" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                {expense.note}
+                              </p>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                  {formatSmartCurrency(expense.amount)}
+                                </div>
+                                <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {expense.date}
+                                </div>
+                              </div>
+
+                              <div className="flex space-x-2">
+                                <motion.button
+                                  onClick={() => startEdit(expense)}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <FaEdit />
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => setShowDeleteConfirm(expense.id)}
+                                  className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                >
+                                  <FaTrash />
+                                </motion.button>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-                        {expense.name}
-                      </td>
-                      <td className="px-4 py-3 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {expense.unit}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="numerical-value" style={{ color: 'var(--theme-accent)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.15em' }}>
-                          {Math.round(expense.amount)} د.ع
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {expense.date}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEdit(expense)}
-                            className="px-3 py-1 text-xs rounded transition-colors hover:scale-105"
-                            style={{
-                              backgroundColor: 'var(--theme-accent)',
-                              color: '#ffffff',
-                              fontFamily: 'var(--font-uni-salar)'
-                            }}
-                          >
-                            دەستکاری
-                          </button>
-                          <button
-                            onClick={() => setShowDeleteConfirm(expense.id)}
-                            className="px-3 py-1 text-xs rounded transition-colors hover:scale-105"
-                            style={{
-                              backgroundColor: '#ef4444',
-                              color: '#ffffff',
-                              fontFamily: 'var(--font-uni-salar)'
-                            }}
-                          >
-                            سڕینەوە
-                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {expenses.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        هیچ خەرجییەک نیە
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                {expenses.length === 0 && (
+                  <motion.div
+                    className="text-center py-16"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="text-6xl mb-4">💸</div>
+                    <h3 className="text-xl font-semibold mb-4 text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {activeTab === 'filter' ? 'هیچ خەرجییەک بەپێی ڕێکەوتی هەڵبژێردراو نیە' : 'هیچ خەرجییەک نیە'}
+                    </h3>
+                    <p className="text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {activeTab === 'filter'
+                        ? 'تکایە ڕێکەوتەکان بگۆڕە یان بگەڕێوە بۆ تابەی هەموو خەرجییەکان'
+                        : 'خەرجییەکانت لێرە زیاد بکە بۆ بەڕێوەبردنی باشتر'
+                      }
+                    </p>
+                  </motion.div>
+                )}
+              </motion.div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
+      {/* Camera Modal */}
+      <AnimatePresence>
+        {showCamera && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    وێنەگرتن
+                  </h3>
+                  <button
+                    onClick={stopCamera}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <FaTrash className="text-xl" />
+                  </button>
+                </div>
+
+                <div className="relative mb-6">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-64 object-cover rounded-2xl bg-black"
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                </div>
+
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={capturePhoto}
+                    className="flex-1 py-4 px-6 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    <span className="flex items-center justify-center space-x-2">
+                      <FaCamera />
+                      <span>وێنەگرتن</span>
+                    </span>
+                  </motion.button>
+                  <motion.button
+                    onClick={stopCamera}
+                    className="flex-1 py-4 px-6 bg-gray-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    پاشگەزبوونەوە
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Image Modal */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-          onClick={closeImageModal}
-        >
-          <div className="max-w-2xl max-h-screen p-4">
-            <img
-              src={selectedImage}
-              alt="Expense receipt"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeImageModal}
+          >
+            <motion.div
+              className="max-w-2xl max-h-screen"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+            >
+              <img
+                src={selectedImage}
+                alt="Expense receipt"
+                className="max-w-full max-h-full object-contain rounded-2xl"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="p-6 rounded-2xl shadow-2xl max-w-md" style={{
-            background: 'var(--theme-card-bg)',
-            border: '1px solid var(--theme-border)'
-          }}>
-            <h3 className="text-lg font-semibold mb-4 text-center" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-              دڵنیای لە سڕینەوە؟
-            </h3>
-            <p className="text-sm mb-6 text-center accessible-secondary" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              ئەم کردارە پاشگەزبوونەوەی نیە. دەتەوێت بیسڕیتەوە؟
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
-                style={{
-                  backgroundColor: '#6b7280',
-                  color: '#ffffff',
-                  fontFamily: 'var(--font-uni-salar)'
-                }}
-              >
-                پاشگەزبوونەوە
-              </button>
-              <button
-                onClick={() => deleteExpense(showDeleteConfirm)}
-                className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
-                style={{
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  fontFamily: 'var(--font-uni-salar)'
-                }}
-              >
-                سڕینەوە
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  دڵنیای لە سڕینەوە؟
+                </h3>
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FaTrash className="text-xl" />
+                </button>
+              </div>
+
+              <p className="text-gray-600 mb-8 leading-relaxed" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                ئەم کردارە پاشگەزبوونەوەی نیە. دەتەوێت خەرجییەکە بسڕیتەوە؟
+              </p>
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 py-3 px-6 bg-gray-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  پاشگەزبوونەوە
+                </motion.button>
+                <motion.button
+                  onClick={() => deleteExpense(showDeleteConfirm)}
+                  className="flex-1 py-3 px-6 bg-red-500 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  سڕینەوە
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

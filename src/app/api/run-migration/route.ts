@@ -5,6 +5,13 @@ import path from 'path'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database connection not available',
+        details: 'Supabase client is not initialized. Please check your environment variables.'
+      }, { status: 500 })
+    }
+
     console.log('Running database migration...')
 
     // Read the migration SQL file

@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database connection not available',
+        details: 'Supabase client is not initialized. Please check your environment variables.'
+      }, { status: 500 })
+    }
+
     // Add sale statistics columns to inventory table
     const { error: alterError } = await supabase.rpc('exec_sql', {
       sql: `
@@ -129,7 +136,7 @@ export async function POST(request: NextRequest) {
     const updatePromises = Object.entries(itemStats).map(async ([itemId, stats]) => {
       console.log(`💾 Updating ${stats.item_name}: sold=${stats.total_sold}, revenue=${stats.total_revenue}, profit=${stats.total_profit}`)
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabase!
         .from('inventory')
         .update({
           total_sold: stats.total_sold,

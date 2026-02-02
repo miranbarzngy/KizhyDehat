@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database connection not available',
+        details: 'Supabase client is not initialized. Please check your environment variables.'
+      }, { status: 500 })
+    }
+
     console.log('Starting invoice number migration...')
 
     // First, ensure invoice settings exist
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
     let invoiceNumber = startingNumber
     const updatePromises = (salesData || []).map(async (sale: any) => {
       try {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabase!
           .from('sales')
           .update({ invoice_number: invoiceNumber })
           .eq('id', sale.id)

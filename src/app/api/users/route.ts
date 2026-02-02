@@ -160,6 +160,57 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { id } = await request.json()
+
+    // Validate required fields
+    if (!id) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // First delete the profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (profileError) {
+      console.error('Profile deletion error:', profileError)
+      return NextResponse.json(
+        { error: 'Failed to delete user profile' },
+        { status: 400 }
+      )
+    }
+
+    // Then delete the auth user
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id)
+
+    if (authError) {
+      console.error('Auth user deletion error:', authError)
+      return NextResponse.json(
+        { error: 'Failed to delete user account' },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'User deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('User deletion error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function GET() {
   try {
     // Get all users with their profiles and roles

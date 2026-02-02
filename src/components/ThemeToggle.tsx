@@ -1,7 +1,7 @@
 'use client'
 
-import { useTheme, Theme } from '@/contexts/ThemeContext'
-import { useState, useEffect, useRef } from 'react'
+import { Theme, useTheme } from '@/contexts/ThemeContext'
+import { useEffect, useRef, useState } from 'react'
 
 const themeIcons = {
   white: '☀️',
@@ -54,15 +54,7 @@ export default function ThemeToggle() {
   return (
     <div className="fixed top-4 left-4 z-50" ref={menuRef}>
       {/* Main Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-xl transition-all duration-300 hover:scale-110 shadow-lg"
-        style={{
-          boxShadow: '0 0 20px rgba(255, 255, 255, 0.1)',
-        }}
-      >
-        ✨
-      </button>
+  
 
       {/* Slide-out Menu */}
       <div

@@ -5,14 +5,6 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function HelpPage() {
   const { profile } = useAuth()
 
-  if (profile?.role?.name !== 'Admin') {
-    return (
-      <div className="text-center text-red-600 text-xl">
-        دەستپێڕاگەیشتن نیە - تەنها بەڕێوەبەران دەتوانن یارمەتی ببینن
-      </div>
-    )
-  }
-
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">ڕێنمای بەکارهێنان</h1>

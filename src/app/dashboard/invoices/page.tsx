@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
-import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
+import { formatCurrency, formatCurrencyWithDecimals, toEnglishDigits } from '@/lib/numberUtils'
 import { FaSearch, FaEye, FaPrint, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaFileInvoice } from 'react-icons/fa'
 
 interface InvoiceSettings {
@@ -26,6 +26,38 @@ interface Invoice {
   payment_method: string
   date: string
   items_count: number
+}
+
+function InvoicePreview({ saleData, invoice }: { saleData: any, invoice: Invoice }) {
+  const [html, setHtml] = useState<string>('')
+
+  useEffect(() => {
+    const loadInvoice = async () => {
+      const invoiceHtml = await generateInvoiceHTML(saleData, invoice)
+      setHtml(invoiceHtml)
+    }
+    loadInvoice()
+  }, [saleData, invoice])
+
+  if (!html) {
+    return <div className="text-center p-4">چاوەڕوانبە...</div>
+  }
+
+  return (
+    <div
+      className="text-xs"
+      style={{
+        fontFamily: 'var(--font-uni-salar)',
+        fontWeight: 'bold',
+        letterSpacing: '0.5px',
+        lineHeight: '1.4',
+        direction: 'rtl'
+      }}
+      dangerouslySetInnerHTML={{
+        __html: html
+      }}
+    />
+  )
 }
 
 export default function InvoicesPage() {
@@ -374,7 +406,8 @@ export default function InvoicesPage() {
     const shopAddress = formData.shop_address || ''
     const shopLogo = settings?.shop_logo || ''
     const thankYouNote = formData.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
-    const qrCodeUrl = formData.qr_code_url || ''
+    const qrCodeUrl = formData.qr_code_url || settings?.qr_code_url || ''
+    const currentInvoiceNumber = settings?.current_invoice_number || 1000
 
     // Mock data for preview
     const mockItems = [
@@ -382,109 +415,106 @@ export default function InvoicesPage() {
       { name: 'سەرکە', unit: 'دانە', quantity: 1, price: 8.00 }
     ]
     const mockTotal = 32.50
-    const mockInvoiceNumber = 2066
     const mockCustomerName = 'نموونەی کڕیار'
-    const mockCustomerPhone = '07501234567'
+    const mockSellerName = 'فرۆشیار'
 
     return `
-      <!-- 1. Header Section (Visual Brand) -->
-      <div style="text-align: center; margin-bottom: 10px;">
+      <!-- Header Layout: Place the shop logo at the very top center. Use a larger, bolder UniSalar font for the shop name directly under the logo. Add the phone and location icons next to the shop info. -->
+      <div style="text-align: center; margin-bottom: 15px; margin-top: 10px; direction: rtl;">
         ${shopLogo ? `
-          <div style="width: 70px; height: 70px; margin: 0 auto 8px; border-radius: 6px; overflow: hidden; background: #f8f9fa; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center;">
-            <img src="${shopLogo}" alt="${shopName}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+          <div style="display: flex; justify-content: center; margin-bottom: 8px; margin-top: 5px;">
+            <img src="${shopLogo}" alt="${shopName}" style="width: 55px; height: 55px; object-fit: contain;" />
           </div>
         ` : ''}
-        <div style="font-size: 15px; font-weight: bold; margin: 6px 0 4px; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
-        ${shopPhone ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📞 ${shopPhone}</div>` : ''}
-        ${shopAddress ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📍 ${shopAddress}</div>` : ''}
+        <div style="font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; margin: 4px 0; color: #000; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
+        ${shopPhone ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📞 ${shopPhone}</div>` : ''}
+        ${shopAddress ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📍 ${shopAddress}</div>` : ''}
       </div>
 
-      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-      <!-- 2. Invoice Meta Details -->
-      <div style="margin: 8px 0; font-size: 9px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-bottom: 6px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: bold; color: #495057;">ژمارەی فاکتور:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">#${mockInvoiceNumber}</span>
+      <!-- Information Grid: Use a two-column grid where labels and values are clearly separated with proper padding. -->
+      <div style="margin: 10px 0; font-size: 9px; direction: rtl;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px;">
+          <!-- Left Column -->
+          <div style="text-align: right;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ڕێکەوت/کات:</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${new Date().toLocaleString('ku')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">تەلەفۆن:</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">07501234567</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">فرۆشیار:</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${mockSellerName}</span>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: bold; color: #495057;">بەروار/کات:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${new Date().toLocaleString('ku')}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: bold; color: #495057;">کڕیار:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${mockCustomerName}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: bold; color: #495057;">تەلەفۆن:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${mockCustomerPhone}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; grid-column: span 2;">
-            <span style="font-weight: bold; color: #495057;">شێوازی پارەدان:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">نەختینە</span>
+          <!-- Right Column -->
+          <div style="text-align: right;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ژمارەی فاکتور:</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">#${currentInvoiceNumber}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">کڕیار:</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${mockCustomerName}</span>
+            </div>
           </div>
         </div>
+        <!-- Payment Method centered and bolded with dashed lines above and below -->
+        <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
+        <div style="text-align: center; margin: 6px 0; padding: 6px; background: #f8f9fa; border-radius: 3px;">
+          <span style="font-family: var(--font-uni-salar); font-weight: 900; color: #000; font-size: 10px;">شێوازی پارەدان: نەختینە</span>
+        </div>
+        <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
       </div>
 
-      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-      <!-- 3. Itemized List (The Grid) -->
-      <table style="margin: 10px 0; border-collapse: collapse; width: 100%; font-size: 9px;">
+      <!-- Table Refinement: The table headers should have a very light gray background or a simple border-bottom. Increase the row height in the table for better readability on thermal paper. -->
+      <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
         <thead>
-          <tr>
-            <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">ناوی کاڵا</th>
-            <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; font-size: 8px; background: #f8f9fa;">یەکە</th>
-            <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">بڕ</th>
-            <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">نرخ</th>
+          <tr style="border-bottom: 2px solid #000;">
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">ناوی کاڵا</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">یەکە</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">بڕ</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">نرخ</th>
           </tr>
         </thead>
         <tbody>
           ${mockItems.map(item => `
-            <tr>
-              <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">${item.name}</td>
-              <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: center; min-width: 25px; font-weight: 500;">${item.unit}</td>
-              <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 25px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr;">${item.quantity}</td>
-              <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 40px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr; padding-left: 5px;">${item.price.toFixed(2)}</td>
+            <tr style="height: 24px;">
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.name}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.unit}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.quantity}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.price.toFixed(2)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
-      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-      <!-- 4. Financial Summary (The Totals) -->
-      <div style="margin: 10px 0; border-top: 2px solid #000; padding-top: 6px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
-          <span style="font-weight: bold; color: #495057;">کۆی بە باج:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${mockTotal.toFixed(2)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
-          <span style="font-weight: bold; color: #495057;">کۆی گشتی:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${mockTotal.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <!-- Grand Total Highlight -->
-      <div style="background: #000; color: #fff; padding: 10px 15px; text-align: center; font-size: 15px; font-weight: 900; margin: 12px 0; font-family: 'JetBrains Mono', monospace; border-radius: 6px; letter-spacing: 1px;">
+      <!-- The Black Total Bar: The black bar for کۆی گشتی must span the full width of the receipt. Center the text inside this bar and ensure it's white and bold. -->
+      <div style="margin: 15px 0; background: #000; color: #fff; padding: 18px 25px; text-align: center; font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; border: 3px solid #000; width: 100%; box-sizing: border-box;">
         کۆی گشتی: ${mockTotal.toFixed(2)} IQD
       </div>
 
-      <!-- 5. Footer & Social -->
-      <div style="text-align: center; margin-top: 10px;">
-        <div style="font-size: 9px; margin: 8px 0; font-style: italic; text-align: center; color: #6c757d;">
+      <!-- QR Code & Footer: Add more vertical space (margin) above the QR code. Make the 'Click Group' branding text at the bottom smaller and lighter in color. -->
+      ${qrCodeUrl ? `
+        <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0 12px 0;">
+          <img src="${qrCodeUrl}" alt="QR Code" style="width: 60px; height: 60px; border: 1px solid #000;" />
+        </div>
+      ` : ''}
+
+      <div style="text-align: center; margin: 10px 0; direction: rtl;">
+        <div style="font-family: var(--font-uni-salar); font-size: 10px; margin: 8px 0; color: #555;">
           ${thankYouNote}
         </div>
-
-        ${qrCodeUrl ? `
-          <div style="display: flex; justify-content: center; align-items: center; margin: 12px 0;">
-            <img src="${qrCodeUrl}" alt="QR Code" style="width: 55px; height: 55px; border: 2px solid #000; border-radius: 4px;" />
-          </div>
-        ` : ''}
-
-        <div style="font-size: 7px; color: #adb5bd; margin-top: 6px; border-top: 1px solid #dee2e6; padding-top: 4px; text-align: center;">
-          گەشەپێدانی سیستم لە لایەن Click Group<br>
-          07701466787
+        <div style="font-family: var(--font-uni-salar); font-size: 7px; color: #999; margin-top: 8px; text-align: center; font-weight: 300;">
+          گەشەپێدانی سیستم لەلایەن Click Group
         </div>
       </div>
     `
@@ -752,7 +782,7 @@ export default function InvoicesPage() {
                         <div
                           className="bg-white border border-gray-200 rounded-lg p-3 text-xs"
                           style={{
-                            fontFamily: 'UniSalar_F_007, sans-serif',
+                            fontFamily: 'var(--font-uni-salar)',
                             fontWeight: 'bold',
                             letterSpacing: '0.5px',
                             lineHeight: '1.4',
@@ -840,7 +870,7 @@ export default function InvoicesPage() {
                               {new Date(invoice.date).toLocaleDateString('ku')}
                             </td>
                             <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(invoice.total)} IQD
+                              {formatCurrencyWithDecimals(invoice.total)} IQD
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -946,26 +976,14 @@ export default function InvoicesPage() {
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
                 {/* Invoice Preview */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div
-                    className="text-xs"
-                    style={{
-                      fontFamily: 'UniSalar_F_007, sans-serif',
-                      fontWeight: 'bold',
-                      letterSpacing: '0.5px',
-                      lineHeight: '1.4',
-                      direction: 'rtl'
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: generateInvoiceHTML(invoiceDetails, selectedInvoice)
-                    }}
-                  />
+                  <InvoicePreview saleData={invoiceDetails} invoice={selectedInvoice} />
                 </div>
               </div>
 
               {/* Modal Footer */}
               <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
                 <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  کۆی گشتی: {formatCurrency(selectedInvoice.total)} IQD
+                  کۆی گشتی: {formatCurrencyWithDecimals(selectedInvoice.total)} IQD
                 </div>
                 <div className="flex space-x-3">
                   <motion.button
@@ -995,109 +1013,133 @@ export default function InvoicesPage() {
   )
 }
 
-function generateInvoiceHTML(saleData: any, invoice: Invoice) {
-  const shopName = 'فرۆشگای کوردستان' // This should come from settings
-  const shopPhone = '' // This should come from settings
-  const shopAddress = '' // This should come from settings
-  const shopLogo = '' // This should come from settings
-  const thankYouNote = 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.' // This should come from settings
-  const qrCodeUrl = '' // This should come from settings
+async function generateInvoiceHTML(saleData: any, invoice: Invoice) {
+  // Fetch settings from database
+  let settings = null
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('invoice_settings')
+        .select('*')
+        .single()
+
+      if (!error && data) {
+        settings = data
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching invoice settings:', error)
+  }
+
+  // Use settings data or defaults
+  const shopName = settings?.shop_name || 'فرۆشگای کوردستان'
+  const shopPhone = settings?.shop_phone || ''
+  const shopAddress = settings?.shop_address || ''
+  const shopLogo = settings?.shop_logo || ''
+  const thankYouNote = settings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+  const qrCodeUrl = settings?.qr_code_url || ''
+  const currentInvoiceNumber = settings?.current_invoice_number || invoice.invoice_number
+
+  // Get seller information (this would need to be added to the sales data)
+  const sellerName = saleData.sold_by || 'فرۆشیار'
 
   return `
-    <!-- 1. Header Section (Visual Brand) -->
-    <div style="text-align: center; margin-bottom: 10px;">
+    <!-- Header Layout: Place the shop logo at the very top center. Use a larger, bolder UniSalar font for the shop name directly under the logo. Add the phone and location icons next to the shop info. -->
+    <div style="text-align: center; margin-bottom: 15px; margin-top: 10px; direction: rtl;">
       ${shopLogo ? `
-        <div style="width: 70px; height: 70px; margin: 0 auto 8px; border-radius: 6px; overflow: hidden; background: #f8f9fa; border: 2px solid #e9ecef; display: flex; align-items: center; justify-content: center;">
-          <img src="${shopLogo}" alt="${shopName}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+        <div style="display: flex; justify-content: center; margin-bottom: 8px; margin-top: 5px;">
+          <img src="${shopLogo}" alt="${shopName}" style="width: 55px; height: 55px; object-fit: contain;" />
         </div>
       ` : ''}
-      <div style="font-size: 15px; font-weight: bold; margin: 6px 0 4px; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
-      ${shopPhone ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📞 ${shopPhone}</div>` : ''}
-      ${shopAddress ? `<div style="font-size: 9px; margin: 3px 0; color: #495057; display: flex; align-items: center; justify-content: center; gap: 4px;">📍 ${shopAddress}</div>` : ''}
+      <div style="font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; margin: 4px 0; color: #000; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
+      ${shopPhone ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📞 ${shopPhone}</div>` : ''}
+      ${shopAddress ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📍 ${shopAddress}</div>` : ''}
     </div>
 
-    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-    <!-- 2. Invoice Meta Details -->
-    <div style="margin: 8px 0; font-size: 9px;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-bottom: 6px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: bold; color: #495057;">ژمارەی فاکتور:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">#${invoice.invoice_number}</span>
+    <!-- Information Grid: Use a two-column grid where labels and values are clearly separated with proper padding. -->
+    <div style="margin: 10px 0; font-size: 9px; direction: rtl;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px;">
+        <!-- Left Column -->
+        <div style="text-align: right;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ڕێکەوت/کات:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${new Date(invoice.date).toLocaleString('ku')}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">تەلەفۆن:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${saleData.customers?.phone1 || ''}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">فرۆشیار:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${sellerName}</span>
+          </div>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: bold; color: #495057;">بەروار/کات:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${new Date(invoice.date).toLocaleString('ku')}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: bold; color: #495057;">کڕیار:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${saleData.customers?.name || 'نەناسراو'}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: bold; color: #495057;">تەلەفۆن:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${saleData.customers?.phone || ''}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; grid-column: span 2;">
-          <span style="font-weight: bold; color: #495057;">شێوازی پارەدان:</span>
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: left; direction: ltr;">${invoice.payment_method === 'cash' ? 'نەختینە' : invoice.payment_method === 'fib' ? 'ئۆنلاین' : 'قەرز'}</span>
+        <!-- Right Column -->
+        <div style="text-align: right;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
+            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ژمارەی فاکتور:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">#${currentInvoiceNumber}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">کڕیار:</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${saleData.customers?.name || 'نەناسراو'}</span>
+          </div>
         </div>
       </div>
+      <!-- Payment Method centered and bolded with dashed lines above and below -->
+      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
+      <div style="text-align: center; margin: 6px 0; padding: 6px; background: #f8f9fa; border-radius: 3px;">
+        <span style="font-family: var(--font-uni-salar); font-weight: 900; color: #000; font-size: 10px;">شێوازی پارەدان: ${invoice.payment_method === 'cash' ? 'نەختینە' : invoice.payment_method === 'fib' ? 'ئۆنلاین' : 'قەرز'}</span>
+      </div>
+      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
     </div>
 
-    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-    <!-- 3. Itemized List (The Grid) -->
-    <table style="margin: 10px 0; border-collapse: collapse; width: 100%; font-size: 9px;">
+    <!-- Table Refinement: The table headers should have a very light gray background or a simple border-bottom. Increase the row height in the table for better readability on thermal paper. -->
+    <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
       <thead>
-        <tr>
-          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">ناوی کاڵا</th>
-          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; font-size: 8px; background: #f8f9fa;">یەکە</th>
-          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">بڕ</th>
-          <th style="border-bottom: 2px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; font-size: 8px; background: #f8f9fa;">نرخ</th>
+        <tr style="border-bottom: 2px solid #000;">
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">ناوی کاڵا</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">یەکە</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">بڕ</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">نرخ</th>
         </tr>
       </thead>
       <tbody>
         ${saleData.sale_items?.map((item: any) => `
-          <tr>
-            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">${item.products?.name || 'نەناسراو'}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: center; min-width: 25px; font-weight: 500;">${item.products?.unit || ''}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 25px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr;">${item.quantity}</td>
-            <td style="padding: 4px 2px; border-bottom: 1px dotted #adb5bd; text-align: right; min-width: 40px; font-family: 'JetBrains Mono', monospace; font-weight: bold; direction: ltr; padding-left: 5px;">${item.price.toFixed(2)}</td>
+          <tr style="height: 24px;">
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.products?.name || 'نەناسراو'}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.products?.unit || ''}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.quantity}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.price.toFixed(2)}</td>
           </tr>
         `).join('') || ''}
       </tbody>
     </table>
 
-    <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d; letter-spacing: -1px;">--------------------------</div>
+    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-    <!-- 4. Financial Summary (The Totals) -->
-    <div style="margin: 10px 0; border-top: 2px solid #000; padding-top: 6px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin: 4px 0; font-size: 10px;">
-        <span style="font-weight: bold; color: #495057;">کۆی گشتی:</span>
-        <span style="font-family: 'JetBrains Mono', monospace; font-weight: bold; text-align: right; direction: ltr;">${formatCurrency(invoice.total)} IQD</span>
+    <!-- The Black Total Bar: The black bar for کۆی گشتی must span the full width of the receipt. Center the text inside this bar and ensure it's white and bold. -->
+    <div style="margin: 15px 0; background: #000; color: #fff; padding: 18px 25px; text-align: center; font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; border: 3px solid #000; width: 100%; box-sizing: border-box;">
+      کۆی گشتی: ${formatCurrencyWithDecimals(invoice.total)} IQD
+    </div>
+
+    <!-- QR Code & Footer: Add more vertical space (margin) above the QR code. Make the 'Click Group' branding text at the bottom smaller and lighter in color. -->
+    ${qrCodeUrl ? `
+      <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0 12px 0;">
+        <img src="${qrCodeUrl}" alt="QR Code" style="width: 60px; height: 60px; border: 1px solid #000;" />
       </div>
-    </div>
+    ` : ''}
 
-    <!-- Grand Total Highlight -->
-    <div style="background: #000; color: #fff; padding: 10px 15px; text-align: center; font-size: 15px; font-weight: 900; margin: 12px 0; font-family: 'JetBrains Mono', monospace; border-radius: 6px; letter-spacing: 1px;">
-      کۆی گشتی: ${formatCurrency(invoice.total)} IQD
-    </div>
-
-    <!-- 5. Footer & Social -->
-    <div style="text-align: center; margin-top: 10px;">
-      <div style="font-size: 9px; margin: 8px 0; font-style: italic; text-align: center; color: #6c757d;">
+    <div style="text-align: center; margin: 10px 0; direction: rtl;">
+      <div style="font-family: var(--font-uni-salar); font-size: 10px; margin: 8px 0; color: #555;">
         ${thankYouNote}
       </div>
-
-      ${qrCodeUrl ? `
-        <div style="display: flex; justify-content: center; align-items: center; margin: 12px 0;">
-          <img src="${qrCodeUrl}" alt="QR Code" style="width: 55px; height: 55px; border: 2px solid #000; border-radius: 4px;" />
-        </div>
-      ` : ''}
-
-      <div style="font-size: 7px; color: #adb5bd; margin-top: 6px; border-top: 1px solid #dee2e6; padding-top: 4px; text-align: center;">
-        گەشەپێدانی سیستم لە لایەن Click Group<br>
-        07701466787
+      <div style="font-family: var(--font-uni-salar); font-size: 7px; color: #999; margin-top: 8px; text-align: center; font-weight: 300;">
+        گەشەپێدانی سیستم لەلایەن Click Group
       </div>
     </div>
   `

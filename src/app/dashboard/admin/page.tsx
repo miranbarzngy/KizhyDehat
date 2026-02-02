@@ -65,12 +65,15 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newRoleName, setNewRoleName] = useState('')
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
+    dashboard: false,
     sales: false,
     inventory: false,
     customers: false,
     suppliers: false,
-    payroll: false,
+    expenses: false,
     profits: false,
+    help: false,
+    admin: false,
   })
   const [editingRole, setEditingRole] = useState<Role | null>(null)
 
@@ -87,20 +90,12 @@ export default function AdminPage() {
 
 
   useEffect(() => {
-    // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
-    const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
-                    profile?.role?.name?.toLowerCase() === 'ئادمین' ||
-                    profile?.role?.name?.toLowerCase() === 'admin' ||
-                    profile?.role?.name?.toLowerCase() === 'administrator'
-
-    if (isAdmin) {
-      fetchUsers()
-      fetchRoles()
-      fetchShopSettings()
-      fetchFinancialStats()
-      setupRealtimeSubscription()
-    }
-  }, [profile])
+    fetchUsers()
+    fetchRoles()
+    fetchShopSettings()
+    fetchFinancialStats()
+    setupRealtimeSubscription()
+  }, [])
 
   // Financial Analytics Functions
   const fetchFinancialStats = async () => {
@@ -427,65 +422,35 @@ export default function AdminPage() {
     }
 
     try {
-      // Fetch users with proper join to roles table
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          name,
-          image,
-          phone,
-          location,
-          email,
-          role_id,
-          roles!inner (
-            id,
-            name,
-            permissions
-          )
-        `)
+      // First, fetch all roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('roles')
+        .select('id, name, permissions')
 
-      if (error) {
-        console.error('Error fetching users with roles:', error)
-        // Fallback: fetch users without role join and manually fetch roles
-        const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, name, image, phone, location, email, role_id')
-
-        if (usersError) throw usersError
-
-        // Fetch all roles
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('roles')
-          .select('id, name, permissions')
-
-        if (rolesError) throw rolesError
-
-        // Map roles to users
-        const usersWithRoles: User[] = usersData?.map(user => ({
-          ...user,
-          role: rolesData?.find(role => role.id === user.role_id) || undefined
-        })) || []
-
-        setUsers(usersWithRoles)
-      } else {
-        // Transform the data to match our interface
-        const transformedData: User[] = data?.map(user => ({
-          id: user.id,
-          name: user.name,
-          image: user.image,
-          phone: user.phone,
-          location: user.location,
-          email: user.email,
-          role_id: user.role_id,
-          role: user.roles && Array.isArray(user.roles) && user.roles.length > 0 ? {
-            name: user.roles[0].name,
-            permissions: user.roles[0].permissions
-          } : undefined
-        })) || []
-
-        setUsers(transformedData)
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError)
+        setUsers([])
+        return
       }
+
+      // Then fetch users
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, name, image, phone, location, email, role_id')
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError)
+        setUsers([])
+        return
+      }
+
+      // Map roles to users
+      const usersWithRoles: User[] = usersData?.map(user => ({
+        ...user,
+        role: rolesData?.find(role => role.id === user.role_id) || undefined
+      })) || []
+
+      setUsers(usersWithRoles)
     } catch (error) {
       console.error('Error fetching users:', error)
       // Final fallback: show empty array
@@ -676,12 +641,15 @@ export default function AdminPage() {
       setShowCreateRole(false)
       setNewRoleName('')
       setPermissions({
+        dashboard: false,
         sales: false,
         inventory: false,
         customers: false,
         suppliers: false,
-        payroll: false,
+        expenses: false,
         profits: false,
+        help: false,
+        admin: false,
       })
       fetchRoles()
     } catch (error) {
@@ -952,12 +920,15 @@ export default function AdminPage() {
       setEditingRole(null)
       setNewRoleName('')
       setPermissions({
+        dashboard: false,
         sales: false,
         inventory: false,
         customers: false,
         suppliers: false,
-        payroll: false,
+        expenses: false,
         profits: false,
+        help: false,
+        admin: false,
       })
       fetchRoles()
       alert('Role updated successfully!')
@@ -995,44 +966,51 @@ export default function AdminPage() {
     }
   }
 
+  const deleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`دڵنیایت لە سڕینەوەی بەکارهێنەر "${userName}"؟`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: userId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user')
+      }
+
+      fetchUsers()
+      alert('بەکارهێنەر بە سەرکەوتوویی سڕدرایەوە')
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert(`هەڵە لە سڕینەوەی بەکارهێنەر: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const resetRoleForm = () => {
     setEditingRole(null)
     setNewRoleName('')
     setPermissions({
+      dashboard: false,
       sales: false,
       inventory: false,
       customers: false,
       suppliers: false,
-      payroll: false,
+      expenses: false,
       profits: false,
+      help: false,
+      admin: false,
     })
   }
 
-  // Check for admin access - support Kurdish, English role names, and role ID, case-insensitive
-  const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
-                  profile?.role?.name?.toLowerCase() === 'ئادمین' ||
-                  profile?.role?.name?.toLowerCase() === 'admin' ||
-                  profile?.role?.name?.toLowerCase() === 'administrator'
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center p-8 bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-red-200"
-        >
-          <div className="text-6xl mb-4">🚫</div>
-          <h2 className="text-2xl font-bold text-red-600 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            دەستپێڕاگەیشتن نیە
-          </h2>
-          <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            پێویستە مۆڵەتی بەڕێوەبەر هەبێت بۆ بینینی ئەم پەڕەیە
-          </p>
-        </motion.div>
-      </div>
-    )
-  }
 
   if (loading) {
     return (
@@ -1248,12 +1226,7 @@ export default function AdminPage() {
                               نوێکردنەوە
                             </motion.button>
                             <motion.button
-                              onClick={() => {
-                                if (confirm('دڵنیایت لە سڕینەوەی ئەم بەکارهێنەرە؟')) {
-                                  // Delete user logic would go here
-                                  alert('سڕینەوەی بەکارهێنەر جێبەجێ نەکراوە')
-                                }
-                              }}
+                              onClick={() => deleteUser(user.id, user.name || 'ئەم بەکارهێنەرە')}
                               className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
                               whileHover={{ scale: 1.05, y: -2 }}
                               whileTap={{ scale: 0.95 }}
@@ -1956,16 +1929,30 @@ export default function AdminPage() {
               />
               <div>
                 <h4 className="font-medium mb-2">مۆڵەتەکان</h4>
-                {Object.keys(permissions).map((perm) => (
-                  <label key={perm} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={permissions[perm]}
-                      onChange={(e) => setPermissions(prev => ({ ...prev, [perm]: e.target.checked }))}
-                    />
-                    <span>{perm}</span>
-                  </label>
-                ))}
+                <div className="space-y-3">
+                  {[
+                    { key: 'dashboard', name: 'داشبۆرد', icon: '📊' },
+                    { key: 'sales', name: 'فرۆشتن', icon: '💰' },
+                    { key: 'inventory', name: 'کۆگا', icon: '📦' },
+                    { key: 'customers', name: 'کڕیاران', icon: '👥' },
+                    { key: 'suppliers', name: 'دابینکەران', icon: '🏭' },
+                    { key: 'expenses', name: 'خەرجییەکان', icon: '💸' },
+                    { key: 'profits', name: 'قازانج', icon: '📈' },
+                    { key: 'help', name: 'یارمەتی', icon: '❓' },
+                    { key: 'admin', name: 'بەڕێوەبەران', icon: '⚙️' }
+                  ].map((perm) => (
+                    <label key={perm.key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={permissions[perm.key]}
+                        onChange={(e) => setPermissions(prev => ({ ...prev, [perm.key]: e.target.checked }))}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-lg">{perm.icon}</span>
+                      <span className="font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>{perm.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex justify-end space-x-2 mt-4">

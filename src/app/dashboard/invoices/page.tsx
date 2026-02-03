@@ -425,19 +425,37 @@ export default function InvoicesPage() {
         console.log(`Reduced customer debt by ${saleData.total} IQD (new total: ${newDebt})`)
       }
 
-      // 3. Mark sale as refunded
-      const { error: refundError } = await supabase
-        .from('sales')
-        .update({
-          refunded_at: new Date().toISOString(),
-          refund_amount: saleData.total,
-          refund_reason: 'Customer refund'
-        })
-        .eq('id', saleData.id)
+      // 3. Try to mark sale as refunded (optional - skip if columns don't exist)
+      try {
+        // First check if refund columns exist by trying to select them
+        const { data: testData, error: testError } = await supabase
+          .from('sales')
+          .select('refunded_at, refund_amount, refund_reason')
+          .eq('id', saleData.id)
+          .single()
 
-      if (refundError) {
-        console.error('Error marking sale as refunded:', refundError)
-        throw new Error('Failed to mark sale as refunded')
+        if (!testError) {
+          // Columns exist, update them
+          const { error: refundError } = await supabase
+            .from('sales')
+            .update({
+              refunded_at: new Date().toISOString(),
+              refund_amount: saleData.total,
+              refund_reason: 'Customer refund'
+            })
+            .eq('id', saleData.id)
+
+          if (refundError) {
+            console.warn('Could not update refund fields in sales table:', refundError)
+          } else {
+            console.log('Sale marked as refunded successfully')
+          }
+        } else {
+          console.log('Refund columns not found in sales table, skipping refund marking')
+        }
+      } catch (refundUpdateError) {
+        console.warn('Refund update check failed, but refund will continue:', refundUpdateError)
+        // Continue with refund process even if marking fails
       }
 
       // 4. Create refund record (optional - for tracking)

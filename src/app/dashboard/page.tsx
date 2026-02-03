@@ -66,19 +66,12 @@ export default function DashboardPage() {
     }
 
     try {
-      // Total Sales: Sum of total_price from orders table where status is 'delivered' OR 'paid'
-      const { data: salesOrders } = await supabase
-        .from('orders')
-        .select('total_price')
-        .in('status', ['delivered', 'paid'])
+      // Total Sales: Sum of total from sales table (all completed sales)
+      const { data: salesData } = await supabase
+        .from('sales')
+        .select('total')
 
-      const totalSales = salesOrders?.reduce((sum, order) => sum + order.total_price, 0) || 0
-
-      // Pending Orders: Count rows in orders table where status is 'pending'
-      const { count: pendingOrders } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
+      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Total Expenses: Sum of amount from the expenses table (includes all categories)
       const { data: expensesData } = await supabase
@@ -93,12 +86,11 @@ export default function DashboardPage() {
       // Today's sales (for additional stats)
       const today = new Date().toISOString().split('T')[0]
       const { data: todaySalesData } = await supabase
-        .from('orders')
-        .select('total_price')
-        .in('status', ['delivered', 'paid'])
+        .from('sales')
+        .select('total, date')
         .eq('date', today)
 
-      const todaySales = todaySalesData?.reduce((sum, order) => sum + order.total_price, 0) || 0
+      const todaySales = todaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Total customers
       const { count: totalCustomers } = await supabase
@@ -116,7 +108,7 @@ export default function DashboardPage() {
 
       setStats({
         totalSales: Math.round(totalSales),
-        pendingOrders: pendingOrders || 0,
+        pendingOrders: 0, // No longer used since we removed the requests card
         totalExpenses: Math.round(totalExpenses),
         netProfit: Math.round(netProfit),
         todaySales: Math.round(todaySales),
@@ -131,14 +123,13 @@ export default function DashboardPage() {
         date.setDate(date.getDate() - i)
         const dateStr = date.toISOString().split('T')[0]
 
-        // Daily sales (delivered or paid orders)
+        // Daily sales from sales table
         const { data: daySales } = await supabase
-          .from('orders')
-          .select('total_price')
-          .in('status', ['delivered', 'paid'])
+          .from('sales')
+          .select('total')
           .eq('date', dateStr)
 
-        const daySalesTotal = daySales?.reduce((sum, order) => sum + order.total_price, 0) || 0
+        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
         // Daily expenses
         const { data: dayExpenses } = await supabase
@@ -159,14 +150,29 @@ export default function DashboardPage() {
         })
       }
 
-      // Recent Orders: Fetch the top 5 most recent rows from the orders table, sorted by created_at DESC
-      const { data: recentOrdersData } = await supabase
-        .from('orders')
-        .select('id, customer_name, total_price, status')
+      // Recent Sales: Fetch the top 5 most recent rows from the sales table, sorted by created_at DESC
+      const { data: recentSalesData } = await supabase
+        .from('sales')
+        .select(`
+          id,
+          total,
+          payment_method,
+          date,
+          customers(name)
+        `)
         .order('created_at', { ascending: false })
         .limit(5)
 
-      setRecentOrders(recentOrdersData || [])
+      // Transform sales data to match the expected format
+      const transformedRecentSales = recentSalesData?.map(sale => ({
+        id: sale.id,
+        customer_name: sale.customers?.name || 'نەناسراو',
+        total_price: sale.total,
+        status: sale.payment_method === 'cash' ? 'paid' :
+                sale.payment_method === 'fib' ? 'paid' : 'debt'
+      })) || []
+
+      setRecentOrders(transformedRecentSales)
       setChartData(chartDataPoints)
 
     } catch (error) {
@@ -222,16 +228,16 @@ export default function DashboardPage() {
   const setupRealtimeSubscription = () => {
     if (!supabase) return
 
-    // Subscribe to orders table changes
-    const ordersSubscription = supabase
-      .channel('orders_changes')
+    // Subscribe to sales table changes
+    const salesSubscription = supabase
+      .channel('sales_changes')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'orders'
+        table: 'sales'
       }, (payload) => {
-        console.log('Orders table changed:', payload)
-        // Refresh financial stats when orders data changes
+        console.log('Sales table changed:', payload)
+        // Refresh financial stats when sales data changes
         fetchStats()
       })
       .subscribe()
@@ -280,7 +286,7 @@ export default function DashboardPage() {
 
     // Cleanup subscriptions on unmount
     return () => {
-      ordersSubscription.unsubscribe()
+      salesSubscription.unsubscribe()
       expensesSubscription.unsubscribe()
       customersSubscription.unsubscribe()
       inventorySubscription.unsubscribe()
@@ -438,7 +444,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Main Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <motion.div
               className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -472,32 +478,6 @@ export default function DashboardPage() {
               transition={{ delay: 0.6 }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl flex items-center justify-center">
-                  <FaCalendarAlt className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center space-x-1">
-                  <FaArrowDown className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500 font-medium">-5%</span>
-                </div>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                داواکارییەکان
-              </h3>
-              <p className="text-3xl font-bold text-yellow-600 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                {stats.pendingOrders}
-              </p>
-              <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                چاوەڕوانکراو
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.7 }}
-            >
-              <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-500 rounded-2xl flex items-center justify-center">
                   <FaMoneyBillWave className="w-6 h-6 text-white" />
                 </div>
@@ -521,7 +501,7 @@ export default function DashboardPage() {
               className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.7 }}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stats.netProfit >= 0 ? 'bg-gradient-to-br from-green-400 to-green-500' : 'bg-gradient-to-br from-red-400 to-red-500'}`}>

@@ -2,8 +2,18 @@ import withPWA from 'next-pwa'
 
 const nextConfig = {
   images: {
-    domains: ['ulsjciplzhkdmgotawux.supabase.co', '*.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https' as const,
+        hostname: 'ulsjciplzhkdmgotawux.supabase.co',
+      },
+      {
+        protocol: 'https' as const,
+        hostname: '**supabase.co',
+      },
+    ],
   },
+  webpack: (config: any) => config, // Explicitly force webpack mode
 }
 
 export default withPWA({

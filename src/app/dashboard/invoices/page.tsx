@@ -361,6 +361,16 @@ export default function InvoicesPage() {
       const saleItemsWithNames = await Promise.all(
         (saleItemsData || []).map(async (item: any) => {
           try {
+            if (!supabase) {
+              return {
+                ...item,
+                products: {
+                  name: 'نەناسراو',
+                  unit: item.unit
+                }
+              }
+            }
+
             const { data: inventoryData, error: inventoryError } = await supabase
               .from('inventory')
               .select('item_name')
@@ -1017,15 +1027,15 @@ async function generateInvoiceHTML(saleData: any, invoice: Invoice) {
   // Fetch settings from database
   let settings = null
   try {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .single()
+    if (!supabase) return ''
 
-      if (!error && data) {
-        settings = data
-      }
+    const { data, error } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .single()
+
+    if (!error && data) {
+      settings = data
     }
   } catch (error) {
     console.error('Error fetching invoice settings:', error)

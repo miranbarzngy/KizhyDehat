@@ -839,6 +839,8 @@ export default function AdminPage() {
   }
 
   const updateUserRole = async (userId: string, roleId: string) => {
+    if (!supabase) return
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -929,6 +931,7 @@ export default function AdminPage() {
 
   const updateRole = async () => {
     if (!editingRole) return
+    if (!supabase) return
 
     try {
       const { error } = await supabase
@@ -974,6 +977,8 @@ export default function AdminPage() {
     if (!confirm(`دڵنیایت لە سڕینەوەی ڕۆڵی "${roleName}"؟`)) {
       return
     }
+
+    if (!supabase) return
 
     try {
       const { error } = await supabase

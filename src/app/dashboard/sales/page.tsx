@@ -26,6 +26,9 @@ interface InventoryItem {
   category: string
   image?: string
   image_url?: string
+  total_sold?: number
+  total_revenue?: number
+  total_profit?: number
 }
 
 interface Customer {
@@ -208,7 +211,7 @@ export default function SalesPage() {
         }
       } catch (err) {
         console.error('❌ Supabase test error:', err)
-        alert(`Supabase test failed: ${err.message || 'Unknown error'}`)
+        alert(`Supabase test failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
     }
 
@@ -235,8 +238,8 @@ export default function SalesPage() {
     console.log('🔍 Profile data:', profile)
     console.log('🔍 User metadata:', user?.user_metadata)
 
-    // Priority: profile.name -> profile.full_name -> profile.display_name -> user.user_metadata.full_name -> user.user_metadata.name -> 'کارمەند'
-    const userNameFromProfile = profile?.name || profile?.full_name || profile?.display_name
+    // Priority: profile.name -> user.user_metadata.full_name -> user.user_metadata.name -> 'کارمەند'
+    const userNameFromProfile = profile?.name
     const userNameFromMetadata = user?.user_metadata?.full_name || user?.user_metadata?.name
 
     let finalUserName = 'کارمەند' // Default fallback
@@ -342,10 +345,10 @@ export default function SalesPage() {
     // Demo mode: show sample customers data when Supabase is not configured
     if (!supabase) {
       const demoCustomers: Customer[] = [
-        { id: '1', name: 'ئەحمەد محەمەد', total_debt: 125.50 },
-        { id: '2', name: 'فاطمە عەلی', total_debt: 0 },
-        { id: '3', name: 'محەمەد کەریم', total_debt: 89.25 },
-        { id: '4', name: 'سارا ئەحمەد', total_debt: 234.75 }
+        { id: '1', name: 'ئەحمەد محەمەد', phone1: '+964 750 123 4567', total_debt: 125.50 },
+        { id: '2', name: 'فاطمە عەلی', phone1: '+964 751 987 6543', total_debt: 0 },
+        { id: '3', name: 'محەمەد کەریم', phone1: '+964 752 456 7890', total_debt: 89.25 },
+        { id: '4', name: 'سارا ئەحمەد', phone1: '+964 753 321 0987', total_debt: 234.75 }
       ]
       setCustomers(demoCustomers)
       return
@@ -535,13 +538,7 @@ export default function SalesPage() {
         throw new Error(errorMsg)
       }
 
-      // Check Supabase configuration
-      try {
-        console.log('Supabase URL:', supabase.supabaseUrl ? 'Set' : 'Not set')
-        console.log('Supabase Key:', supabase.supabaseKey ? 'Set (length: ' + supabase.supabaseKey.length + ')' : 'Not set')
-      } catch (configError) {
-        console.error('Error checking Supabase config:', configError)
-      }
+
 
       // Test database connection first
       try {
@@ -565,7 +562,7 @@ export default function SalesPage() {
         console.log('Database connection test passed, found', testData?.length || 0, 'existing sales')
       } catch (connError) {
         console.error('Connection test error:', connError)
-        alert(`هەڵە لە پەیوەندیی داتابەیس: ${connError.message || 'Unknown connection error'}`)
+        alert(`هەڵە لە پەیوەندیی داتابەیس: ${connError instanceof Error ? connError.message : 'Unknown connection error'}`)
         throw connError
       }
 

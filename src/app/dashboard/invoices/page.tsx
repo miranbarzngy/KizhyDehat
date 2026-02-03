@@ -318,6 +318,140 @@ export default function InvoicesPage() {
     alert(`دووبارە چاپکردنی فاکتور ${invoice.invoice_number}`)
   }
 
+  const processRefund = async (invoice: Invoice) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    // Confirm refund
+    const confirmRefund = confirm(`دڵنیایت لە گەڕاندنەوەی پارەی فاکتور #${invoice.invoice_number}؟\n\nبڕ: ${formatCurrencyWithDecimals(invoice.total)} IQD\nکڕیار: ${invoice.customer_name}`)
+    if (!confirmRefund) return
+
+    try {
+      // First, get the full sale details including items
+      const { data: saleData, error: saleError } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          customers(name, phone1),
+          sale_items(
+            id,
+            item_id,
+            quantity,
+            price,
+            unit,
+            inventory(item_name, cost_price)
+          )
+        `)
+        .eq('id', invoice.id)
+        .single()
+
+      if (saleError) {
+        console.error('Error fetching sale for refund:', saleError)
+        throw new Error('Sale record not found')
+      }
+
+      // Check if already refunded
+      if (saleData.refunded_at) {
+        alert('ئەم فاکتورە پێشتر گەڕاوەتەوە')
+        return
+      }
+
+      // Start refund process
+      console.log('Processing refund for sale:', saleData.id)
+
+      // 1. Restore inventory quantities
+      for (const item of saleData.sale_items) {
+        const restoreQuantity = item.quantity // Restore the full quantity
+
+        const { error: inventoryError } = await supabase
+          .from('inventory')
+          .update({
+            quantity: supabase.raw('quantity + ?', [restoreQuantity])
+          })
+          .eq('id', item.item_id)
+
+        if (inventoryError) {
+          console.error('Error restoring inventory:', inventoryError)
+          throw new Error('Failed to restore inventory')
+        }
+
+        console.log(`Restored ${restoreQuantity} ${item.unit} of ${item.inventory?.item_name}`)
+      }
+
+      // 2. Handle customer debt adjustment
+      if (saleData.payment_method === 'debt' && saleData.customers) {
+        const { error: debtError } = await supabase
+          .from('customers')
+          .update({
+            total_debt: supabase.raw('total_debt - ?', [saleData.total])
+          })
+          .eq('id', saleData.customer_id)
+
+        if (debtError) {
+          console.error('Error adjusting customer debt:', debtError)
+          throw new Error('Failed to adjust customer debt')
+        }
+
+        console.log(`Reduced customer debt by ${saleData.total} IQD`)
+      }
+
+      // 3. Mark sale as refunded
+      const { error: refundError } = await supabase
+        .from('sales')
+        .update({
+          refunded_at: new Date().toISOString(),
+          refund_amount: saleData.total,
+          refund_reason: 'Customer refund'
+        })
+        .eq('id', saleData.id)
+
+      if (refundError) {
+        console.error('Error marking sale as refunded:', refundError)
+        throw new Error('Failed to mark sale as refunded')
+      }
+
+      // 4. Create refund record (optional - for tracking)
+      const { error: refundRecordError } = await supabase
+        .from('refunds')
+        .insert({
+          sale_id: saleData.id,
+          invoice_number: invoice.invoice_number,
+          customer_id: saleData.customer_id,
+          total_amount: saleData.total,
+          refund_reason: 'Customer refund',
+          processed_by: 'System', // You might want to get current user
+          processed_at: new Date().toISOString()
+        })
+
+      if (refundRecordError) {
+        console.warn('Could not create refund record (table might not exist):', refundRecordError)
+        // Don't fail the refund if refund record creation fails
+      }
+
+      // 5. Show refund receipt
+      const refundReceipt = generateRefundReceipt(saleData, invoice)
+      const refundWindow = window.open('', '_blank', 'width=400,height=800')
+      if (refundWindow) {
+        refundWindow.document.write(refundReceipt)
+        refundWindow.document.close()
+        setTimeout(() => {
+          refundWindow.print()
+        }, 500)
+      }
+
+      // Refresh the invoices list
+      fetchInvoices()
+
+      alert(`گەڕاندنەوەی پارە بە سەرکەوتوویی تەواوبوو!\n\nفاکتور: #${invoice.invoice_number}\nبڕ: ${formatCurrencyWithDecimals(invoice.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error processing refund:', error)
+      alert(`هەڵە لە گەڕاندنەوەی پارە: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const viewInvoiceDetails = async (invoice: Invoice) => {
     if (!supabase) {
       alert('Supabase not configured')
@@ -913,6 +1047,15 @@ export default function InvoicesPage() {
                                 >
                                   <FaPrint />
                                 </motion.button>
+                                <motion.button
+                                  onClick={() => processRefund(invoice)}
+                                  className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="گەڕاندنەوەی پارە"
+                                >
+                                  ↩️
+                                </motion.button>
                               </div>
                             </td>
                           </motion.tr>
@@ -1021,6 +1164,299 @@ export default function InvoicesPage() {
       </AnimatePresence>
     </div>
   )
+}
+
+function generateRefundReceipt(saleData: any, invoice: Invoice) {
+  // Use settings data or defaults
+  const shopName = 'فرۆشگای کوردستان' // You might want to get this from settings
+  const shopPhone = ''
+  const shopAddress = ''
+  const shopLogo = ''
+  const qrCodeUrl = ''
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>گەڕاندنەوەی پارە - فاکتور #${invoice.invoice_number}</title>
+      <meta charset="UTF-8">
+      <style>
+        @font-face {
+          font-family: 'UniSalar_F_007';
+          src: url('/fonts/UniSalar_F_007.otf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+
+        body {
+          font-family: 'UniSalar_F_007', sans-serif;
+          font-size: 10px;
+          line-height: 1.3;
+          margin: 0;
+          padding: 3px;
+          direction: rtl;
+          background: white;
+          color: #000;
+          font-weight: bold !important;
+          letter-spacing: 0.3px;
+        }
+
+        .receipt {
+          max-width: 320px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 3px;
+        }
+
+        .header {
+          text-align: center;
+          margin-bottom: 8px;
+        }
+
+        .shop-name {
+          font-size: 16px;
+          font-weight: 900;
+          margin: 4px 0 3px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #d32f2f;
+        }
+
+        .refund-title {
+          font-size: 14px;
+          font-weight: 900;
+          color: #d32f2f;
+          text-align: center;
+          margin: 8px 0;
+          text-transform: uppercase;
+        }
+
+        .separator {
+          text-align: center;
+          margin: 6px 0;
+          font-size: 6px;
+          color: #6c757d;
+          letter-spacing: -1px;
+        }
+
+        .metadata {
+          margin: 6px 0;
+          font-size: 8px;
+          text-align: center;
+        }
+
+        .meta-item {
+          margin: 4px 0;
+          text-align: center;
+        }
+
+        .meta-label {
+          font-weight: bold;
+          color: #495057;
+          display: block;
+          margin-bottom: 2px;
+        }
+
+        .meta-value {
+          font-family: 'JetBrains Mono', monospace;
+          font-weight: 600;
+          text-align: center;
+          direction: ltr;
+          display: block;
+        }
+
+        .items-table {
+          margin: 8px 0;
+          width: 100%;
+          font-size: 8px;
+        }
+
+        .table-header {
+          display: flex;
+          border-bottom: 1px solid #000;
+          padding: 3px 1px;
+          font-weight: bold;
+          font-size: 7px;
+        }
+
+        .table-row {
+          display: flex;
+          padding: 3px 1px;
+          border-bottom: 1px dotted #adb5bd;
+        }
+
+        .item-name {
+          flex: 1;
+          text-align: right;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-weight: 500;
+        }
+
+        .item-unit {
+          width: 25px;
+          text-align: center;
+          font-weight: 500;
+        }
+
+        .item-qty {
+          width: 20px;
+          text-align: right;
+          font-family: 'JetBrains Mono', monospace;
+          font-weight: bold;
+          direction: ltr;
+        }
+
+        .financial-summary {
+          margin: 8px 0;
+          border-top: 1px solid #000;
+          padding-top: 4px;
+        }
+
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin: 3px 0;
+          font-size: 9px;
+        }
+
+        .summary-label {
+          font-weight: bold;
+          color: #495057;
+        }
+
+        .summary-value {
+          font-family: 'JetBrains Mono', monospace;
+          font-weight: bold;
+          text-align: right;
+          direction: ltr;
+        }
+
+        .refund-highlight {
+          background: #d32f2f;
+          color: #fff;
+          padding: 12px 15px;
+          text-align: center;
+          font-size: 16px;
+          font-weight: 900;
+          margin: 10px 0;
+          font-family: 'JetBrains Mono', monospace;
+          border-radius: 4px;
+          letter-spacing: 0.5px;
+        }
+
+        .footer {
+          text-align: center;
+          margin-top: 8px;
+        }
+
+        .thank-you {
+          font-size: 8px;
+          margin: 6px 0;
+          font-style: italic;
+          text-align: center;
+          color: #6c757d;
+        }
+
+        .footer-text {
+          font-size: 6px;
+          color: #adb5bd;
+          margin-top: 4px;
+          border-top: 1px solid #dee2e6;
+          padding-top: 3px;
+        }
+
+        @media print {
+          * {
+            font-family: 'UniSalar_F_007', sans-serif !important;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+          }
+
+          .receipt {
+            width: 80mm;
+            padding: 0;
+          }
+
+          .separator {
+            border-top-style: dashed;
+            border-top-width: 1px;
+            border-top-color: #000;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <div class="header">
+          <div class="shop-name">${shopName}</div>
+          <div class="refund-title">گەڕاندنەوەی پارە</div>
+        </div>
+
+        <div class="separator">--------------------------</div>
+
+        <div class="metadata">
+          <div class="meta-item">
+            <span class="meta-label">ژمارەی فاکتور:</span>
+            <span class="meta-value">#${invoice.invoice_number}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">ڕێکەوتی گەڕاندنەوە:</span>
+            <span class="meta-value">${new Date().toLocaleString('ku')}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">کڕیار:</span>
+            <span class="meta-value">${saleData.customers?.name || 'نەناسراو'}</span>
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="items-table">
+          <div class="table-header">
+            <div class="item-name">ناوی کاڵا</div>
+            <div class="item-unit">یەکە</div>
+            <div class="item-qty">بڕ</div>
+          </div>
+          ${saleData.sale_items?.map((item: any) => `
+            <div class="table-row">
+              <div class="item-name">${item.products?.name || 'نەناسراو'}</div>
+              <div class="item-unit">${item.products?.unit || ''}</div>
+              <div class="item-qty">${item.quantity}</div>
+            </div>
+          `).join('') || ''}
+        </div>
+
+        <div class="separator"></div>
+
+        <div class="financial-summary">
+          <div class="summary-row">
+            <span class="summary-label">بڕی گەڕاوە:</span>
+            <span class="summary-value">${formatCurrencyWithDecimals(invoice.total)} IQD</span>
+          </div>
+        </div>
+
+        <div class="refund-highlight">
+          گەڕاندنەوەی پارە: ${formatCurrencyWithDecimals(invoice.total)} IQD
+        </div>
+
+        <div class="footer">
+          <div class="thank-you">
+            سوپاس بۆ تێگەیشتنی ئێمە
+          </div>
+          <div class="footer-text">
+            گەشەپێدانی سیستم لەلایەن Click Group
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
 }
 
 async function generateInvoiceHTML(saleData: any, invoice: Invoice) {

@@ -4,6 +4,10 @@ import fs from 'fs'
 import path from 'path'
 
 export async function POST(request: NextRequest) {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized')
+  }
+
   try {
     console.log('Migrating profiles for existing users...')
 

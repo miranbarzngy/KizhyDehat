@@ -132,13 +132,24 @@ export default function AdminPage() {
         .from('sale_items')
         .select(`
           quantity,
-          inventory:item_id(cost_price)
+          inventory_id
         `)
 
       if (itemsError) throw itemsError
 
+      // Get inventory data separately
+      const inventoryIds = saleItemsData?.map(item => item.inventory_id).filter(Boolean) || []
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('id, cost_price')
+        .in('id', inventoryIds)
+
+      if (inventoryError) throw inventoryError
+
+      const inventoryMap = new Map(inventoryData?.map(inv => [inv.id, inv.cost_price]) || [])
+
       const cogsExpenses = saleItemsData?.reduce((sum, item) => {
-        const costPrice = item.inventory?.cost_price || 0
+        const costPrice = inventoryMap.get(item.inventory_id) || 0
         return sum + (costPrice * item.quantity)
       }, 0) || 0
 
@@ -278,12 +289,21 @@ export default function AdminPage() {
             .from('sale_items')
             .select(`
               quantity,
-              inventory:item_id(cost_price)
+              inventory_id
             `)
             .in('sale_id', saleIds)
 
+          // Get inventory data separately
+          const inventoryIds = dayItems?.map(item => item.inventory_id).filter(Boolean) || []
+          const { data: dayInventoryData } = await supabase
+            .from('inventory')
+            .select('id, cost_price')
+            .in('id', inventoryIds)
+
+          const dayInventoryMap = new Map(dayInventoryData?.map(inv => [inv.id, inv.cost_price]) || [])
+
           dayExpensesTotal = dayItems?.reduce((sum, item) => {
-            const costPrice = item.inventory?.cost_price || 0
+            const costPrice = dayInventoryMap.get(item.inventory_id) || 0
             return sum + (costPrice * item.quantity)
           }, 0) || 0
         }
@@ -628,6 +648,11 @@ export default function AdminPage() {
   }
 
   const createRole = async () => {
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت ڕۆڵ زیاد بکرێت')
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('roles')

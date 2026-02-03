@@ -3,6 +3,13 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({
+        error: 'Database connection not available',
+        details: 'Supabase client is not initialized. Please check your environment variables.'
+      }, { status: 500 })
+    }
+
     // Add sold_by column to sales table
     const { error: alterError } = await supabase.rpc('exec_sql', {
       sql: `

@@ -112,52 +112,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase
+      // First fetch the profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          name,
-          image,
-          phone,
-          location,
-          email,
-          role_id,
-          roles (
-            name,
-            permissions
-          )
-        `)
+        .select('*')
         .eq('id', userId)
         .single()
 
-      console.log('📋 Profile query result:', { data, error })
-      console.log('🔍 Raw data.roles:', data?.roles)
-      console.log('🔍 data.roles type:', Array.isArray(data?.roles) ? 'array' : typeof data?.roles)
-      console.log('🔍 data.roles length:', data?.roles?.length)
+      console.log('📋 Profile data result:', { profileData: !!profileData, profileError: profileError?.message })
 
-      if (error) {
-        console.error('❌ Profile query error:', error)
-        throw error
+      if (profileError || !profileData) {
+        console.log('⚠️ Profile not found, using fallback')
+        const fallbackProfile: Profile = {
+          id: userId,
+          name: user?.email?.split('@')[0] || 'بەکارهێنەر',
+          email: user?.email || '',
+          role_id: 'admin-role',
+          role: {
+            name: 'Admin',
+            permissions: {
+              dashboard: true,
+              sales: true,
+              inventory: true,
+              customers: true,
+              suppliers: true,
+              invoices: true,
+              expenses: true,
+              profits: true,
+              help: true,
+              admin: true
+            }
+          }
+        }
+        console.log('✅ Using fallback profile:', fallbackProfile)
+        setProfile(fallbackProfile)
+        setLoading(false)
+        return
       }
 
-      // Transform the data to match our interface
-      // Supabase returns joined data as an object, not an array
-      const transformedData: Profile = {
-        id: data.id,
-        name: data.name,
-        image: data.image,
-        phone: data.phone,
-        location: data.location,
-        email: data.email,
-        role_id: data.role_id,
-        role: data.roles && typeof data.roles === 'object' && !Array.isArray(data.roles) ? data.roles : undefined
+      // Now fetch the role data separately
+      let roleData = null
+      if (profileData.role_id) {
+        const { data: roleResult, error: roleError } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('id', profileData.role_id)
+          .single()
+
+        if (!roleError && roleResult) {
+          roleData = roleResult
+        }
+        console.log('📋 Role data result:', { roleData: !!roleData, roleError: roleError?.message })
       }
 
-      console.log('✅ Profile loaded:', transformedData)
-      console.log('🎯 Final role object:', transformedData.role)
-      setProfile(transformedData)
+      // Create the complete profile
+      const completeProfile: Profile = {
+        id: profileData.id,
+        name: profileData.name || user?.email?.split('@')[0] || 'بەکارهێنەر',
+        image: profileData.image,
+        phone: profileData.phone,
+        location: profileData.location,
+        email: profileData.email || user?.email || '',
+        role_id: profileData.role_id,
+        role: roleData ? {
+          name: roleData.name,
+          permissions: roleData.permissions || {}
+        } : {
+          name: 'Admin',
+          permissions: {
+            dashboard: true,
+            sales: true,
+            inventory: true,
+            customers: true,
+            suppliers: true,
+            invoices: true,
+            expenses: true,
+            profits: true,
+            help: true,
+            admin: true
+          }
+        }
+      }
+
+      console.log('✅ Complete profile loaded:', {
+        name: completeProfile.name,
+        image: !!completeProfile.image,
+        role: completeProfile.role?.name,
+        role_id: completeProfile.role_id
+      })
+
+      setProfile(completeProfile)
     } catch (error) {
       console.error('❌ Error fetching profile:', error)
+      // Final fallback
+      const fallbackProfile: Profile = {
+        id: userId,
+        name: user?.email?.split('@')[0] || 'بەکارهێنەر',
+        email: user?.email || '',
+        role_id: 'admin-role',
+        role: {
+          name: 'Admin',
+          permissions: {
+            dashboard: true,
+            sales: true,
+            inventory: true,
+            customers: true,
+            suppliers: true,
+            invoices: true,
+            expenses: true,
+            profits: true,
+            help: true,
+            admin: true
+          }
+        }
+      }
+      setProfile(fallbackProfile)
     } finally {
       setLoading(false)
     }

@@ -20,6 +20,9 @@ interface InventoryItem {
   expire_date?: string
   supplier_name?: string
   note?: string
+  total_sold?: number
+  total_revenue?: number
+  total_profit?: number
 }
 
 interface Supplier {
@@ -76,6 +79,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [showStockEntry, setShowStockEntry] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState('')
+  const [currentStep, setCurrentStep] = useState(1)
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([
     { item_name: '', cost_price: 0, selling_price: 0, quantity: 0, unit: 'دانە' }
   ])
@@ -626,6 +630,7 @@ export default function InventoryPage() {
 
   const editItem = (item: InventoryItem) => {
     setEditingItem(item)
+    setCurrentStep(1) // Reset to first step when editing
     // Pre-populate the form with existing item data
     const editData: PurchaseItem = {
       item_name: item.item_name,
@@ -1654,7 +1659,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Advanced Add Item Modal */}
+        {/* 4-Step Wizard Modal */}
         {showStockEntry && (() => {
           const item = purchaseItems[0] || {}
           const priceOfBought = Number(item.price_of_bought) || 0
@@ -1665,485 +1670,602 @@ export default function InventoryPage() {
           const unitPrice = quantity > 0 ? priceOfBought / quantity : 0
           const totalBenefit = quantity > 0 ? (sellingPrice - unitPrice) * quantity : 0
 
-          return (
-            <div className="fixed inset-0 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
-              <div className="w-full max-w-6xl max-h-screen overflow-y-auto rounded-3xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
-                <div className="p-8">
-                  <h3 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    {editingItem ? 'دەستکاری کاڵا' : 'زیادکردنی کاڵای نوێ'}
-                  </h3>
+          const steps = [
+            { id: 1, title: 'هەنگاوی ١', subtitle: 'دابینکەر و دارایی', icon: FaTruck, color: 'blue' },
+            { id: 2, title: 'هەنگاوی ٢', subtitle: 'بڕ و یەکە', icon: FaCalculator, color: 'green' },
+            { id: 3, title: 'هەنگاوی ٣', subtitle: 'زانیارییەکان و بەروارەکان', icon: FaBarcode, color: 'purple' },
+            { id: 4, title: 'هەنگاوی ٤', subtitle: 'پێشبینی قازانج', icon: FaChartLine, color: 'orange' }
+          ]
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* 1. Supplier & Financials Section */}
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-6 shadow-xl border border-blue-200">
-                      <div className="flex items-center mb-6">
-                        <FaTruck className="text-blue-600 text-2xl ml-3" />
-                        <h4 className="text-xl font-bold text-blue-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          دابینکەر و دارایی
-                        </h4>
+          const nextStep = () => {
+            if (currentStep < 4) setCurrentStep(currentStep + 1)
+          }
+
+          const prevStep = () => {
+            if (currentStep > 1) setCurrentStep(currentStep - 1)
+          }
+
+          const canProceed = () => {
+            switch (currentStep) {
+              case 1: return item.supplier_id && priceOfBought > 0
+              case 2: return quantity > 0 && item.unit
+              case 3: return item.item_name && item.category
+              case 4: return true
+              default: return false
+            }
+          }
+
+          const renderStepContent = () => {
+            switch (currentStep) {
+              case 1:
+                return (
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-6 shadow-xl border border-blue-200">
+                    <div className="flex items-center mb-6">
+                      <FaTruck className="text-blue-600 text-2xl ml-3" />
+                      <h4 className="text-xl font-bold text-blue-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        دابینکەر و دارایی
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Supplier Select */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          دابینکەر *
+                        </label>
+                        <select
+                          value={item.supplier_id || ''}
+                          onChange={(e) => updatePurchaseItem(0, 'supplier_id', e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          <option value="">دابینکەر هەڵبژێرە</option>
+                          {suppliers.map((supplier) => (
+                            <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                          ))}
+                        </select>
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Supplier Select */}
+                      {/* Financial Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            دابینکەر *
-                          </label>
-                          <select
-                            value={item.supplier_id || ''}
-                            onChange={(e) => updatePurchaseItem(0, 'supplier_id', e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            <option value="">دابینکەر هەڵبژێرە</option>
-                            {suppliers.map((supplier) => (
-                              <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Financial Fields */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              نرخی کڕین (کۆی)
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={toEnglishDigits(priceOfBought.toString())}
-                              onChange={(e) => {
-                                const sanitized = sanitizeNumericInput(e.target.value)
-                                updatePurchaseItem(0, 'price_of_bought', safeStringToNumber(sanitized))
-                              }}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="0.00 IQD"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              پارەی دراو
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={toEnglishDigits(amountOfPay.toString())}
-                              onChange={(e) => {
-                                const sanitized = sanitizeNumericInput(e.target.value)
-                                updatePurchaseItem(0, 'amount_of_pay', safeStringToNumber(sanitized))
-                              }}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="0.00 IQD"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Paid in Full Checkbox */}
-                        <div className="flex items-center space-x-3 bg-blue-50 rounded-xl p-4 border border-blue-200">
-                          <input
-                            type="checkbox"
-                            id="paidInFull"
-                            checked={amountOfPay === priceOfBought && priceOfBought > 0}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                updatePurchaseItem(0, 'amount_of_pay', priceOfBought)
-                              } else {
-                                updatePurchaseItem(0, 'amount_of_pay', 0)
-                              }
-                            }}
-                            className="w-5 h-5 text-blue-600 bg-white border-2 border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
-                          />
-                          <label
-                            htmlFor="paidInFull"
-                            className="text-sm font-semibold text-blue-700 cursor-pointer"
-                            style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            هەموو پارە دراوە، قەرز نییە
-                          </label>
-                        </div>
-
-                        {/* Auto-calculated Debt */}
-                        <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              قەرز:
-                            </span>
-                            <span className={`text-lg font-bold ${debtPay > 0 ? 'text-red-600' : 'text-green-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(debtPay)} IQD
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. Quantity & Unit Logic */}
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-3xl p-6 shadow-xl border border-green-200">
-                      <div className="flex items-center mb-6">
-                        <FaCalculator className="text-green-600 text-2xl ml-3" />
-                        <h4 className="text-xl font-bold text-green-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          بڕ و یەکە
-                        </h4>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              بڕ *
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={toEnglishDigits(quantity.toString())}
-                              onChange={(e) => {
-                                const sanitized = sanitizeNumericInput(e.target.value)
-                                updatePurchaseItem(0, 'quantity', safeStringToNumber(sanitized))
-                              }}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="1000"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              یەکە *
-                            </label>
-                            <select
-                              value={item.unit || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'unit', e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              <option value="">یەکە هەڵبژێرە</option>
-                              {units.map((unit) => (
-                                <option key={unit.id} value={unit.name}>{unit.name}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                        </div>
-
-                        {/* Unit Price Calculator */}
-                        {quantity > 0 && priceOfBought > 0 && (
-                          <div className="bg-green-100 rounded-xl p-4 border border-green-200">
-                            <div className="text-center">
-                              <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            نرخی یەک {item.unit}
-                              </div>
-                              <div className="text-2xl font-bold text-green-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {formatCurrency(unitPrice)} IQD / 
-                              </div>
-                              <div className="text-xs text-green-600 mt-1">
-                                ({quantity} {item.unit} × {formatCurrency(priceOfBought)} IQD)
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 3. Item Details & Dates */}
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-3xl p-6 shadow-xl border border-purple-200">
-                      <div className="flex items-center mb-6">
-                        <FaBarcode className="text-purple-600 text-2xl ml-3" />
-                        <h4 className="text-xl font-bold text-purple-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          زانیارییەکان و بەروارەکان
-                        </h4>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Item Name */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            ناوی کاڵا *
-                          </label>
-                          <input
-                            type="text"
-                            value={item.item_name || ''}
-                            onChange={(e) => updatePurchaseItem(0, 'item_name', e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            placeholder="ناوی کاڵا"
-                          />
-                        </div>
-
-                        {/* Category */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            پۆل
-                          </label>
-                          <select
-                            value={item.category || ''}
-                            onChange={(e) => updatePurchaseItem(0, 'category', e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            <option value="">پۆل هەڵبژێرە</option>
-                            {categories.map((category) => (
-                              <option key={category.id} value={category.name}>{category.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Barcode Fields */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            بارکۆدەکان
-                          </label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <input
-                              type="text"
-                              value={item.barcode1 || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'barcode1', sanitizeBarcode(e.target.value))}
-                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="بارکۆد 1"
-                            />
-                            <input
-                              type="text"
-                              value={item.barcode2 || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'barcode2', sanitizeBarcode(e.target.value))}
-                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="بارکۆد 2"
-                            />
-                            <input
-                              type="text"
-                              value={item.barcode3 || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'barcode3', sanitizeBarcode(e.target.value))}
-                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="بارکۆد 3"
-                            />
-                            <input
-                              type="text"
-                              value={item.barcode4 || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'barcode4', sanitizeBarcode(e.target.value))}
-                              className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                              placeholder="بارکۆد 4"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Dates */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              بەرواری بەسەرچوون
-                            </label>
-                            <input
-                              type="date"
-                              value={item.expire_date || ''}
-                              onChange={(e) => updatePurchaseItem(0, 'expire_date', e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              بەرواری دروستکردن
-                            </label>
-                            <input
-                              type="date"
-                              value={item.created_date || new Date().toISOString().split('T')[0]}
-                              onChange={(e) => updatePurchaseItem(0, 'created_date', e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Image Upload */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            وێنە
-                          </label>
-
-                          {/* Image Preview */}
-                          {imagePreview && (
-                            <div className="mb-4">
-                              <img
-                                src={imagePreview}
-                                alt="Preview"
-                                className="w-full h-32 object-cover rounded-xl border-2 border-purple-200 shadow-lg"
-                              />
-                            </div>
-                          )}
-
-                          {/* Upload Buttons */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => document.getElementById('imageUpload')?.click()}
-                              className="flex items-center justify-center px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 transition-all duration-300 hover:scale-105"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              <FaBox className="ml-2" />
-                              هەڵبژاردنی وێنە
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={openCamera}
-                              className="flex items-center justify-center px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border-2 border-dashed border-blue-300 transition-all duration-300 hover:scale-105"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              📷
-                              کامێرا
-                            </button>
-                          </div>
-
-                          {/* Hidden File Input */}
-                          <input
-                            id="imageUpload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                          />
-
-                          {/* Clear Image Button */}
-                          {imagePreview && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setImagePreview('')
-                                setSelectedImageFile(null)
-                                updatePurchaseItem(0, 'image', '')
-                              }}
-                              className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              سڕینەوەی وێنە
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Notes */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            تێبینی
-                          </label>
-                          <textarea
-                            value={item.note || ''}
-                            onChange={(e) => updatePurchaseItem(0, 'note', e.target.value)}
-                            rows={3}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
-                            style={{ fontFamily: 'var(--font-uni-salar)' }}
-                            placeholder="تێبینی دەربارەی کاڵا..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 4. Profit Projection */}
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-6 shadow-xl border border-orange-200">
-                      <div className="flex items-center mb-6">
-                        <FaChartLine className="text-orange-600 text-2xl ml-3" />
-                        <h4 className="text-xl font-bold text-orange-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          پێشبینی قازانج
-                        </h4>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Selling Price */}
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            نرخی فرۆشتن *
+                            نرخی کڕین (کۆی)
                           </label>
                           <input
                             type="text"
                             inputMode="decimal"
-                            value={toEnglishDigits(sellingPrice.toString())}
+                            value={toEnglishDigits(priceOfBought.toString())}
                             onChange={(e) => {
                               const sanitized = sanitizeNumericInput(e.target.value)
-                              updatePurchaseItem(0, 'selling_price', safeStringToNumber(sanitized))
+                              updatePurchaseItem(0, 'price_of_bought', safeStringToNumber(sanitized))
                             }}
-                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             style={{ fontFamily: 'Inter, sans-serif' }}
                             placeholder="0.00 IQD"
                           />
                         </div>
 
-                        {/* Cost Price Display */}
-                        <div className="bg-orange-100 rounded-xl p-4 border border-orange-200">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              نرخی کڕین بە یەکە:
-                            </span>
-                            <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(unitPrice)} IQD
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              نرخی فرۆشتن بە یەکە:
-                            </span>
-                            <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(sellingPrice)} IQD
-                            </span>
-                          </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            پارەی دراو
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={toEnglishDigits(amountOfPay.toString())}
+                            onChange={(e) => {
+                              const sanitized = sanitizeNumericInput(e.target.value)
+                              updatePurchaseItem(0, 'amount_of_pay', safeStringToNumber(sanitized))
+                            }}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="0.00 IQD"
+                          />
                         </div>
+                      </div>
 
-                        {/* Total Benefit Calculation */}
-                        <div className="bg-gradient-to-r from-green-100 to-green-200 rounded-xl p-4 border border-green-300">
-                          <div className="text-center">
-                            <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              کۆی قازانج
-                            </div>
-                            <div className={`text-3xl font-bold ${totalBenefit >= 0 ? 'text-green-800' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(totalBenefit)} IQD
-                            </div>
-                            <div className="text-xs text-green-600 mt-1">
-                              ({formatCurrency(sellingPrice - unitPrice)} × {quantity} {item.unit})
-                            </div>
-                          </div>
+                      {/* Paid in Full Checkbox */}
+                      <div className="flex items-center space-x-3 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <input
+                          type="checkbox"
+                          id="paidInFull"
+                          checked={amountOfPay === priceOfBought && priceOfBought > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              updatePurchaseItem(0, 'amount_of_pay', priceOfBought)
+                            } else {
+                              updatePurchaseItem(0, 'amount_of_pay', 0)
+                            }
+                          }}
+                          className="w-5 h-5 text-blue-600 bg-white border-2 border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label
+                          htmlFor="paidInFull"
+                          className="text-sm font-semibold text-blue-700 cursor-pointer"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          هەموو پارە دراوە، قەرز نییە
+                        </label>
+                      </div>
+
+                      {/* Auto-calculated Debt */}
+                      <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-blue-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            قەرز:
+                          </span>
+                          <span className={`text-lg font-bold ${debtPay > 0 ? 'text-red-600' : 'text-green-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(debtPay)} IQD
+                          </span>
                         </div>
-
-                        {/* Profit Margin */}
-                        {unitPrice > 0 && (
-                          <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
-                            <div className="text-center">
-                              <div className="text-sm text-blue-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                ڕێژەی قازانج
-                              </div>
-                              <div className="text-2xl font-bold text-blue-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {((sellingPrice - unitPrice) / unitPrice * 100).toFixed(1)}%
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
+                )
 
-                  {/* Action Buttons */}
-                  <div className="mt-8 flex justify-end space-x-4">
-                    <button
-                      onClick={() => setShowStockEntry(false)}
-                      className="px-8 py-4 rounded-2xl font-bold transition-all duration-300 hover:scale-105 shadow-lg"
-                      style={{
-                        backgroundColor: '#6b7280',
-                        color: '#ffffff',
-                        fontFamily: 'var(--font-uni-salar)',
-                        boxShadow: '0 8px 32px rgba(107, 114, 128, 0.3)'
-                      }}
-                    >
-                      پاشگەزبوونەوە
-                    </button>
-                    <button
-                      onClick={editingItem ? updateItem : submitStockEntry}
-                      className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                      style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    >
-                      {editingItem ? 'نوێکردنەوەی کاڵا' : 'تۆمارکردنی کاڵا'}
-                    </button>
+              case 2:
+                return (
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-3xl p-6 shadow-xl border border-green-200">
+                    <div className="flex items-center mb-6">
+                      <FaCalculator className="text-green-600 text-2xl ml-3" />
+                      <h4 className="text-xl font-bold text-green-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        بڕ و یەکە
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بڕ *
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={toEnglishDigits(quantity.toString())}
+                            onChange={(e) => {
+                              const sanitized = sanitizeNumericInput(e.target.value)
+                              updatePurchaseItem(0, 'quantity', safeStringToNumber(sanitized))
+                            }}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="1000"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-green-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            یەکە *
+                          </label>
+                          <select
+                            value={item.unit || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'unit', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            <option value="">یەکە هەڵبژێرە</option>
+                            {units.map((unit) => (
+                              <option key={unit.id} value={unit.name}>{unit.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Unit Price Calculator */}
+                      {quantity > 0 && priceOfBought > 0 && (
+                        <div className="bg-green-100 rounded-xl p-4 border border-green-200">
+                          <div className="text-center">
+                            <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              نرخی یەک {item.unit}
+                            </div>
+                            <div className="text-2xl font-bold text-green-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(unitPrice)} IQD /
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">
+                              ({quantity} {item.unit} × {formatCurrency(priceOfBought)} IQD)
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+
+              case 3:
+                return (
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-3xl p-6 shadow-xl border border-purple-200">
+                    <div className="flex items-center mb-6">
+                      <FaBarcode className="text-purple-600 text-2xl ml-3" />
+                      <h4 className="text-xl font-bold text-purple-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        زانیارییەکان و بەروارەکان
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Item Name */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          ناوی کاڵا *
+                        </label>
+                        <input
+                          type="text"
+                          value={item.item_name || ''}
+                          onChange={(e) => updatePurchaseItem(0, 'item_name', e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          placeholder="ناوی کاڵا"
+                        />
+                      </div>
+
+                      {/* Category */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          پۆل
+                        </label>
+                        <select
+                          value={item.category || ''}
+                          onChange={(e) => updatePurchaseItem(0, 'category', e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          <option value="">پۆل هەڵبژێرە</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.name}>{category.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Barcode Fields */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          بارکۆدەکان
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={item.barcode1 || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'barcode1', sanitizeBarcode(e.target.value))}
+                            className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="بارکۆد 1"
+                          />
+                          <input
+                            type="text"
+                            value={item.barcode2 || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'barcode2', sanitizeBarcode(e.target.value))}
+                            className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="بارکۆد 2"
+                          />
+                          <input
+                            type="text"
+                            value={item.barcode3 || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'barcode3', sanitizeBarcode(e.target.value))}
+                            className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="بارکۆد 3"
+                          />
+                          <input
+                            type="text"
+                            value={item.barcode4 || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'barcode4', sanitizeBarcode(e.target.value))}
+                            className="px-3 py-2 rounded-lg border-0 bg-white/80 backdrop-blur-sm shadow focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                            placeholder="بارکۆد 4"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بەرواری بەسەرچوون
+                          </label>
+                          <input
+                            type="date"
+                            value={item.expire_date || ''}
+                            onChange={(e) => updatePurchaseItem(0, 'expire_date', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بەرواری دروستکردن
+                          </label>
+                          <input
+                            type="date"
+                            value={item.created_date || new Date().toISOString().split('T')[0]}
+                            onChange={(e) => updatePurchaseItem(0, 'created_date', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Image Upload */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          وێنە
+                        </label>
+
+                        {/* Image Preview */}
+                        {imagePreview && (
+                          <div className="mb-4">
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="w-full h-32 object-cover rounded-xl border-2 border-purple-200 shadow-lg"
+                            />
+                          </div>
+                        )}
+
+                        {/* Upload Buttons */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('imageUpload')?.click()}
+                            className="flex items-center justify-center px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 transition-all duration-300 hover:scale-105"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            <FaBox className="ml-2" />
+                            هەڵبژاردنی وێنە
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={openCamera}
+                            className="flex items-center justify-center px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border-2 border-dashed border-blue-300 transition-all duration-300 hover:scale-105"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            📷
+                            کامێرا
+                          </button>
+                        </div>
+
+                        {/* Hidden File Input */}
+                        <input
+                          id="imageUpload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+
+                        {/* Clear Image Button */}
+                        {imagePreview && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImagePreview('')
+                              setSelectedImageFile(null)
+                              updatePurchaseItem(0, 'image', '')
+                            }}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                            style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            سڕینەوەی وێنە
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-purple-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          تێبینی
+                        </label>
+                        <textarea
+                          value={item.note || ''}
+                          onChange={(e) => updatePurchaseItem(0, 'note', e.target.value)}
+                          rows={3}
+                          className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                          placeholder="تێبینی دەربارەی کاڵا..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+
+              case 4:
+                return (
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-6 shadow-xl border border-orange-200">
+                    <div className="flex items-center mb-6">
+                      <FaChartLine className="text-orange-600 text-2xl ml-3" />
+                      <h4 className="text-xl font-bold text-orange-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        پێشبینی قازانج
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Selling Price */}
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          نرخی فرۆشتن *
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={toEnglishDigits(sellingPrice.toString())}
+                          onChange={(e) => {
+                            const sanitized = sanitizeNumericInput(e.target.value)
+                            updatePurchaseItem(0, 'selling_price', safeStringToNumber(sanitized))
+                          }}
+                          className="w-full px-4 py-3 rounded-xl border-0 bg-white/80 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                          style={{ fontFamily: 'Inter, sans-serif' }}
+                          placeholder="0.00 IQD"
+                        />
+                      </div>
+
+                      {/* Cost Price Display */}
+                      <div className="bg-orange-100 rounded-xl p-4 border border-orange-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            نرخی کڕین بە یەکە:
+                          </span>
+                          <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(unitPrice)} IQD
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            نرخی فرۆشتن بە یەکە:
+                          </span>
+                          <span className="text-lg font-bold text-orange-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(sellingPrice)} IQD
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Total Benefit Calculation */}
+                      <div className="bg-gradient-to-r from-green-100 to-green-200 rounded-xl p-4 border border-green-300">
+                        <div className="text-center">
+                          <div className="text-sm text-green-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            کۆی قازانج
+                          </div>
+                          <div className={`text-3xl font-bold ${totalBenefit >= 0 ? 'text-green-800' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                            {formatCurrency(totalBenefit)} IQD
+                          </div>
+                          <div className="text-xs text-green-600 mt-1">
+                            ({formatCurrency(sellingPrice - unitPrice)} × {quantity} {item.unit})
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Profit Margin */}
+                      {unitPrice > 0 && (
+                        <div className="bg-blue-100 rounded-xl p-4 border border-blue-200">
+                          <div className="text-center">
+                            <div className="text-sm text-blue-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              ڕێژەی قازانج
+                            </div>
+                            <div className="text-2xl font-bold text-blue-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {((sellingPrice - unitPrice) / unitPrice * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+
+              default:
+                return null
+            }
+          }
+
+          return (
+            <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+              <div className="w-full max-w-4xl max-h-screen overflow-y-auto rounded-3xl shadow-2xl" style={{ background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+                <div className="p-8">
+                  <h3 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    {editingItem ? 'دەستکاری کاڵا' : 'زیادکردنی کاڵای نوێ'}
+                  </h3>
+
+                  {/* Step Indicator */}
+                  <div className="mb-8">
+                    <div className="flex justify-center items-center space-x-4">
+                      {steps.map((step, index) => {
+                        const IconComponent = step.icon
+                        const isActive = currentStep === step.id
+                        const isCompleted = currentStep > step.id
+
+                        return (
+                          <div key={step.id} className="flex items-center">
+                            <div className={`flex flex-col items-center ${index < steps.length - 1 ? 'w-24' : ''}`}>
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                                isCompleted
+                                  ? 'bg-green-500 text-white'
+                                  : isActive
+                                    ? `bg-${step.color}-500 text-white`
+                                    : 'bg-gray-200 text-gray-500'
+                              }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                {isCompleted ? '✓' : step.id}
+                              </div>
+                              <div className="text-center mt-2">
+                                <div className={`text-xs font-semibold ${isActive ? `text-${step.color}-600` : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {step.title}
+                                </div>
+                                <div className={`text-xs ${isActive ? `text-${step.color}-500` : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  {step.subtitle}
+                                </div>
+                              </div>
+                            </div>
+                            {index < steps.length - 1 && (
+                              <div className={`flex-1 h-0.5 mx-2 transition-all duration-300 ${
+                                isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                              }`}></div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Step Content */}
+                  <div className="min-h-[400px]">
+                    {renderStepContent()}
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="mt-8 flex justify-between items-center">
+                    <div>
+                      {currentStep > 1 && (
+                        <button
+                          onClick={prevStep}
+                          className="px-6 py-3 bg-gray-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          <span>پێشوو</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => {
+                          setShowStockEntry(false)
+                          setCurrentStep(1)
+                        }}
+                        className="px-6 py-3 bg-gray-400 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                        style={{ fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        پاشگەزبوونەوە
+                      </button>
+
+                      {currentStep < 4 ? (
+                        <button
+                          onClick={nextStep}
+                          disabled={!canProceed()}
+                          className={`px-6 py-3 font-bold rounded-2xl shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2 ${
+                            canProceed()
+                              ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          <span>دواتر</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (editingItem) {
+                              updateItem()
+                            } else {
+                              submitStockEntry()
+                            }
+                            setCurrentStep(1)
+                          }}
+                          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                          style={{ fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          تۆمارکردن
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

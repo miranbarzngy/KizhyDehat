@@ -30,6 +30,7 @@ export default function PayrollPage() {
   const [showGeneratePayroll, setShowGeneratePayroll] = useState(false)
   const [newEmployee, setNewEmployee] = useState({
     name: '',
+    position: '',
     salary: 0
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
@@ -125,8 +126,13 @@ export default function PayrollPage() {
   }
 
   const addEmployee = async () => {
-    if (!newEmployee.name || newEmployee.salary <= 0) {
+    if (!newEmployee.name || !newEmployee.position || !newEmployee.salary) {
       alert('تکایە هەموو زانیارییەکان پڕبکەرەوە')
+      return
+    }
+
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت کارمەند زیاد بکرێت')
       return
     }
 
@@ -138,7 +144,7 @@ export default function PayrollPage() {
       if (error) throw error
 
       setShowAddEmployee(false)
-      setNewEmployee({ name: '', salary: 0 })
+      setNewEmployee({ name: '', position: '', salary: 0 })
       fetchEmployees()
     } catch (error) {
       console.error('Error adding employee:', error)
@@ -147,6 +153,11 @@ export default function PayrollPage() {
   }
 
   const generatePayroll = async () => {
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت مووچەی مانگانە دروست بکرێت')
+      return
+    }
+
     try {
       const payrollData = employees.map(employee => ({
         employee_id: employee.id,
@@ -171,6 +182,11 @@ export default function PayrollPage() {
   }
 
   const markAsPaid = async (payrollId: string, employeeId: string, amount: number) => {
+    if (!supabase) {
+      alert('دۆخی دیمۆ: ناتوانرێت مووچە وەک پارەدراو نیشان بدرێت')
+      return
+    }
+
     try {
       // Update payroll status
       const { error: payrollError } = await supabase

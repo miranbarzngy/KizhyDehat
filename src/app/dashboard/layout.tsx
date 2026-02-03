@@ -278,26 +278,7 @@ export default function DashboardLayout({
               </span>
             </button>
 
-            {showInstallButton && (
-              <button
-                onClick={handleInstallClick}
-                className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105"
-                title="دامەزراندنی ئەپ"
-              >
-                <div className="flex items-center justify-center w-12 h-12 rounded-full mb-1 text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg">
-                  <span className="text-lg">📱</span>
-                </div>
-                <span
-                  className="text-xs text-center font-medium"
-                  style={{
-                    color: 'var(--theme-sidebar-text)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                >
-                  دامەزراندن
-                </span>
-              </button>
-            )}
+
           </div>
         </div>
 

@@ -473,23 +473,23 @@ export default function InvoicesPage() {
 
       <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-      <!-- Table Refinement: The table headers should have a very light gray background or a simple border-bottom. Increase the row height in the table for better readability on thermal paper. -->
+      <!-- Clean Table: No grey backgrounds or borders for a clean, minimal look -->
       <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
         <thead>
-          <tr style="border-bottom: 2px solid #000;">
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">ناوی کاڵا</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">یەکە</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">بڕ</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">نرخ</th>
+          <tr>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">ناوی کاڵا</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">یەکە</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">بڕ</th>
+            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">نرخ</th>
           </tr>
         </thead>
         <tbody>
           ${mockItems.map(item => `
             <tr style="height: 24px;">
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.name}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.unit}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.quantity}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.price.toFixed(2)}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.name}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.unit}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.quantity}</td>
+              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.price.toFixed(2)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1098,23 +1098,23 @@ async function generateInvoiceHTML(saleData: any, invoice: Invoice) {
 
     <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
 
-    <!-- Table Refinement: The table headers should have a very light gray background or a simple border-bottom. Increase the row height in the table for better readability on thermal paper. -->
+    <!-- Clean Table: No grey backgrounds or borders for a clean, minimal look -->
     <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
       <thead>
-        <tr style="border-bottom: 2px solid #000;">
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">ناوی کاڵا</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">یەکە</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">بڕ</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px; background: #f9f9f9;">نرخ</th>
+        <tr>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">ناوی کاڵا</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">یەکە</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">بڕ</th>
+          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">نرخ</th>
         </tr>
       </thead>
       <tbody>
         ${saleData.sale_items?.map((item: any) => `
           <tr style="height: 24px;">
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.products?.name || 'نەناسراو'}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500; border-bottom: 1px solid #eee;">${item.products?.unit || ''}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.quantity}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; border-bottom: 1px solid #eee;">${item.price.toFixed(2)}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.products?.name || 'نەناسراو'}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.products?.unit || ''}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.quantity}</td>
+            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.price.toFixed(2)}</td>
           </tr>
         `).join('') || ''}
       </tbody>

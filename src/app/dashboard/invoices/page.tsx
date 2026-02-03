@@ -365,10 +365,24 @@ export default function InvoicesPage() {
       for (const item of saleData.sale_items) {
         const restoreQuantity = item.quantity // Restore the full quantity
 
+        // First get current quantity
+        const { data: currentItem, error: fetchError } = await supabase
+          .from('inventory')
+          .select('quantity')
+          .eq('id', item.item_id)
+          .single()
+
+        if (fetchError) {
+          console.error('Error fetching current inventory:', fetchError)
+          throw new Error('Failed to fetch current inventory')
+        }
+
+        const newQuantity = (currentItem.quantity || 0) + restoreQuantity
+
         const { error: inventoryError } = await supabase
           .from('inventory')
           .update({
-            quantity: supabase.raw('quantity + ?', [restoreQuantity])
+            quantity: newQuantity
           })
           .eq('id', item.item_id)
 
@@ -377,15 +391,29 @@ export default function InvoicesPage() {
           throw new Error('Failed to restore inventory')
         }
 
-        console.log(`Restored ${restoreQuantity} ${item.unit} of ${item.inventory?.item_name}`)
+        console.log(`Restored ${restoreQuantity} ${item.unit} of ${item.inventory?.item_name} (new total: ${newQuantity})`)
       }
 
       // 2. Handle customer debt adjustment
       if (saleData.payment_method === 'debt' && saleData.customers) {
+        // First get current debt
+        const { data: currentCustomer, error: fetchDebtError } = await supabase
+          .from('customers')
+          .select('total_debt')
+          .eq('id', saleData.customer_id)
+          .single()
+
+        if (fetchDebtError) {
+          console.error('Error fetching current customer debt:', fetchDebtError)
+          throw new Error('Failed to fetch current customer debt')
+        }
+
+        const newDebt = (currentCustomer.total_debt || 0) - saleData.total
+
         const { error: debtError } = await supabase
           .from('customers')
           .update({
-            total_debt: supabase.raw('total_debt - ?', [saleData.total])
+            total_debt: newDebt
           })
           .eq('id', saleData.customer_id)
 
@@ -394,7 +422,7 @@ export default function InvoicesPage() {
           throw new Error('Failed to adjust customer debt')
         }
 
-        console.log(`Reduced customer debt by ${saleData.total} IQD`)
+        console.log(`Reduced customer debt by ${saleData.total} IQD (new total: ${newDebt})`)
       }
 
       // 3. Mark sale as refunded

@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, formatCurrencyWithDecimals, toEnglishDigits } from '@/lib/numberUtils'
-import { FaSearch, FaEye, FaPrint, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaFileInvoice } from 'react-icons/fa'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import html2canvas from 'html2canvas'
+import { useEffect, useRef, useState } from 'react'
+import { FaCog, FaEye, FaFileInvoice, FaImage, FaMapMarkerAlt, FaPhone, FaPrint, FaQrcode, FaSearch, FaStore } from 'react-icons/fa'
+import InvoiceTemplate from '@/components/InvoiceTemplate'
 
 interface InvoiceSettings {
   id: string
@@ -23,40 +25,91 @@ interface Invoice {
   invoice_number: number
   customer_name: string
   total: number
+  status: string
   payment_method: string
   date: string
   items_count: number
 }
 
-function InvoicePreview({ saleData, invoice }: { saleData: any, invoice: Invoice }) {
-  const [html, setHtml] = useState<string>('')
+function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invoice: Invoice, invoiceRef: React.RefObject<HTMLDivElement> }) {
+  const [settings, setSettings] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadInvoice = async () => {
-      const invoiceHtml = await generateInvoiceHTML(saleData, invoice)
-      setHtml(invoiceHtml)
-    }
-    loadInvoice()
-  }, [saleData, invoice])
+    const loadSettings = async () => {
+      try {
+        if (!supabase) return
 
-  if (!html) {
+        const { data, error } = await supabase
+          .from('invoice_settings')
+          .select('*')
+          .single()
+
+        if (!error && data) {
+          setSettings(data)
+        } else {
+          // Use default settings
+          setSettings({
+            shop_name: 'فرۆشگای کوردستان',
+            shop_phone: '',
+            shop_address: '',
+            shop_logo: '',
+            thank_you_note: 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.',
+            qr_code_url: ''
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching invoice settings:', error)
+        setSettings({
+          shop_name: 'فرۆشگای کوردستان',
+          shop_phone: '',
+          shop_address: '',
+          shop_logo: '',
+          thank_you_note: 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.',
+          qr_code_url: ''
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadSettings()
+  }, [])
+
+  if (loading || !settings) {
     return <div className="text-center p-4">چاوەڕوانبە...</div>
   }
 
+  // Prepare invoice data for InvoiceTemplate
+  const invoiceData = {
+    invoiceNumber: invoice.invoice_number,
+    customerName: saleData.customers?.name || 'نەناسراو',
+    customerPhone: saleData.customers?.phone1 || '',
+    sellerName: saleData.sold_by || 'فرۆشیار',
+    date: new Date(invoice.date).toLocaleDateString('ku'),
+    time: new Date().toLocaleTimeString('ku'),
+    paymentMethod: invoice.payment_method || 'cash',
+    items: saleData.sale_items?.map((item: any) => ({
+      name: item.products?.name || 'نەناسراو',
+      unit: item.products?.unit || item.unit || 'دانە',
+      quantity: item.quantity,
+      price: item.price,
+      total: item.price * item.quantity // Calculate line total correctly
+    })) || [],
+    subtotal: saleData.subtotal || invoice.total,
+    discount: saleData.discount || 0,
+    total: invoice.total,
+    shopName: settings.shop_name,
+    shopPhone: settings.shop_phone,
+    shopAddress: settings.shop_address,
+    shopLogo: settings.shop_logo,
+    qrCodeUrl: settings.qr_code_url,
+    thankYouNote: settings.thank_you_note
+  }
+
   return (
-    <div
-      className="text-xs"
-      style={{
-        fontFamily: 'var(--font-uni-salar)',
-        fontWeight: 'bold',
-        letterSpacing: '0.5px',
-        lineHeight: '1.4',
-        direction: 'rtl'
-      }}
-      dangerouslySetInnerHTML={{
-        __html: html
-      }}
-    />
+    <div ref={invoiceRef}>
+      <InvoiceTemplate data={invoiceData} />
+    </div>
   )
 }
 
@@ -76,7 +129,8 @@ interface PendingSale {
 }
 
 export default function InvoicesPage() {
-  const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('settings')
+  const invoiceRef = useRef<HTMLDivElement>(null)
+  const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('pending')
   const [settings, setSettings] = useState<InvoiceSettings | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [pendingSales, setPendingSales] = useState<PendingSale[]>([])
@@ -86,6 +140,7 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+
 
   // Settings form state
   const [formData, setFormData] = useState({
@@ -146,7 +201,7 @@ export default function InvoicesPage() {
             quantity,
             price,
             unit,
-            inventory(item_name)
+            inventory(item_name, unit)
           )
         `)
         .eq('status', 'pending')
@@ -192,7 +247,7 @@ export default function InvoicesPage() {
             items: sale.sale_items?.map((item: any) => ({
               item_name: item.inventory?.item_name || 'نەناسراو',
               quantity: item.quantity,
-              unit: item.unit,
+              unit: item.inventory?.unit || item.unit || 'دانە',
               price: item.price,
               total: item.price * item.quantity
             })) || []
@@ -217,11 +272,11 @@ export default function InvoicesPage() {
     if (!confirmAction) return
 
     try {
-      // 1. Update sale status to 'sold'
+      // 1. Update sale status to 'completed'
       console.log('Attempting to update sale status for ID:', pendingSale.id)
       const { data: saleUpdateData, error: saleError } = await supabase
         .from('sales')
-        .update({ status: 'sold' })
+        .update({ status: 'completed' })
         .eq('id', pendingSale.id)
         .select()
 
@@ -349,6 +404,196 @@ export default function InvoicesPage() {
     }
   }
 
+  const returnSale = async (pendingSale: PendingSale) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    const returnAction = confirm(`دڵنیایت لە گەڕاندنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
+    if (!returnAction) return
+
+    try {
+      // 1. Update sale status to 'refunded'
+      console.log('Attempting to return sale for ID:', pendingSale.id)
+      const { data: saleUpdateData, error: saleError } = await supabase
+        .from('sales')
+        .update({ status: 'refunded' })
+        .eq('id', pendingSale.id)
+        .select()
+
+      console.log('Sale return result:', { data: saleUpdateData, error: saleError })
+
+      if (saleError) {
+        console.error('Error updating sale status for return:', {
+          error: saleError,
+          message: saleError.message,
+          details: saleError.details,
+          hint: saleError.hint,
+          code: saleError.code,
+          saleId: pendingSale.id
+        })
+        throw new Error(`Failed to return sale: ${saleError.message || 'Unknown error'}`)
+      }
+
+      if (!saleUpdateData || saleUpdateData.length === 0) {
+        throw new Error('Sale return succeeded but no data returned - sale may not exist')
+      }
+
+      // 2. Add back quantities to inventory (reverse of confirmSale)
+      for (const item of pendingSale.items) {
+        // Get current inventory data
+        const { data: currentItem, error: fetchError } = await supabase
+          .from('inventory')
+          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
+          .eq('item_name', item.item_name)
+          .single()
+
+        if (fetchError) {
+          console.error('Error fetching inventory item for return:', fetchError)
+          throw new Error('Failed to fetch inventory item for return')
+        }
+
+        // Calculate new values (reverse the confirmSale logic)
+        const newQuantity = (currentItem.quantity || 0) + item.quantity
+        const newTotalSold = Math.max(0, (currentItem.total_sold || 0) - item.quantity)
+        const newTotalRevenue = Math.max(0, (currentItem.total_revenue || 0) - item.total)
+        const profitPerItem = item.price - (currentItem.cost_price || 0)
+        const newTotalProfit = Math.max(0, (currentItem.total_profit || 0) - (profitPerItem * item.quantity))
+
+        // Update inventory
+        const { error: inventoryError } = await supabase
+          .from('inventory')
+          .update({
+            quantity: newQuantity,
+            total_sold: newTotalSold,
+            total_revenue: newTotalRevenue,
+            total_profit: newTotalProfit,
+            is_archived: false // Un-archive if it was archived due to zero quantity
+          })
+          .eq('item_name', item.item_name)
+
+        if (inventoryError) {
+          console.error('Error updating inventory for return:', inventoryError)
+          throw new Error('Failed to update inventory for return')
+        }
+      }
+
+      // 3. Handle customer debt for returns (reverse debt logic)
+      const { data: saleData, error: saleFetchError } = await supabase
+        .from('sales')
+        .select('payment_method, customer_id')
+        .eq('id', pendingSale.id)
+        .single()
+
+      if (saleFetchError) {
+        console.error('Error fetching sale data for return:', saleFetchError)
+        throw new Error('Failed to fetch sale data for return')
+      }
+
+      if (saleData.payment_method === 'debt') {
+        // Get current customer debt
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .select('total_debt')
+          .eq('id', saleData.customer_id)
+          .single()
+
+        if (customerError) {
+          console.error('Error fetching customer debt for return:', customerError)
+          throw new Error('Failed to fetch customer debt for return')
+        }
+
+        const newDebt = Math.max(0, (customerData.total_debt || 0) - pendingSale.total)
+
+        // Update customer debt (reduce it since we're returning)
+        const { error: debtError } = await supabase
+          .from('customers')
+          .update({ total_debt: newDebt })
+          .eq('id', saleData.customer_id)
+
+        if (debtError) {
+          console.error('Error updating customer debt for return:', debtError)
+          throw new Error('Failed to update customer debt for return')
+        }
+
+        // Add return record to customer payments
+        const { error: paymentError } = await supabase
+          .from('customer_payments')
+          .insert({
+            customer_id: saleData.customer_id,
+            date: new Date().toISOString().split('T')[0],
+            amount: -pendingSale.total, // Negative amount for return
+            items: pendingSale.items.map(item => `${item.item_name} x${item.quantity} ${item.unit}`).join(', '),
+            note: 'Item return - debt reduced'
+          })
+
+        if (paymentError) {
+          console.error('Error creating customer payment record for return:', paymentError)
+          // Don't fail the entire operation for this
+        }
+      }
+
+      // Refresh data
+      fetchPendingSales()
+      fetchInvoices()
+
+      alert(`فرۆشتن بە سەرکەوتوویی گەڕێندرایەوە!\n\nکڕیار: ${pendingSale.customer_name}\nبڕ: ${formatCurrencyWithDecimals(pendingSale.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error returning sale:', error)
+      alert(`هەڵە لە گەڕاندنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const cancelSale = async (pendingSale: PendingSale) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    const cancelAction = confirm(`دڵنیایت لە هەڵوەشاندنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
+    if (!cancelAction) return
+
+    try {
+      // 1. Update sale status to 'cancelled'
+      console.log('Attempting to cancel sale for ID:', pendingSale.id)
+      const { data: saleUpdateData, error: saleError } = await supabase
+        .from('sales')
+        .update({ status: 'cancelled' })
+        .eq('id', pendingSale.id)
+        .select()
+
+      console.log('Sale cancel result:', { data: saleUpdateData, error: saleError })
+
+      if (saleError) {
+        console.error('Error updating sale status for cancel:', {
+          error: saleError,
+          message: saleError.message,
+          details: saleError.details,
+          hint: saleError.hint,
+          code: saleError.code,
+          saleId: pendingSale.id
+        })
+        throw new Error(`Failed to cancel sale: ${saleError.message || 'Unknown error'}`)
+      }
+
+      if (!saleUpdateData || saleUpdateData.length === 0) {
+        throw new Error('Sale cancel succeeded but no data returned - sale may not exist')
+      }
+
+      // Refresh data
+      fetchPendingSales()
+      fetchInvoices()
+
+      alert(`فرۆشتن بە سەرکەوتوویی هەڵوەشێنرایەوە!\n\nکڕیار: ${pendingSale.customer_name}\nبڕ: ${formatCurrencyWithDecimals(pendingSale.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error cancelling sale:', error)
+      alert(`هەڵە لە هەڵوەشاندنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const fetchSettings = async () => {
     if (!supabase) return
 
@@ -410,6 +655,7 @@ export default function InvoicesPage() {
       let selectFields = `
         id,
         total,
+        status,
         payment_method,
         date,
         customers!inner(name)
@@ -420,6 +666,7 @@ export default function InvoicesPage() {
           id,
           invoice_number,
           total,
+          status,
           payment_method,
           date,
           customers!inner(name)
@@ -446,15 +693,40 @@ export default function InvoicesPage() {
       }
 
       // Transform data and handle invoice numbers gracefully
-      const transformedInvoices: Invoice[] = (data || []).map((sale: any, index: number) => ({
-        id: sale.id,
-        invoice_number: hasInvoiceNumberColumn ? (sale.invoice_number || (1000 + index)) : (1000 + index),
-        customer_name: sale.customers?.[0]?.name || 'نەناسراو',
-        total: sale.total,
-        payment_method: sale.payment_method,
-        date: sale.date,
-        items_count: 0 // Will be populated when viewing details
-      }))
+      const transformedInvoices: Invoice[] = await Promise.all(
+        (data || []).map(async (sale: any, index: number) => {
+          // Fetch customer data separately if not available in join
+          let customerName = sale.customers?.name || 'نەناسراو'
+
+          // If customer data is missing from join, fetch it separately
+          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id) {
+            try {
+              const { data: customerData, error: customerError } = await supabase
+                .from('customers')
+                .select('name')
+                .eq('id', sale.customer_id)
+                .single()
+
+              if (!customerError && customerData) {
+                customerName = customerData.name || 'نەناسراو'
+              }
+            } catch (error) {
+              console.error('Error fetching customer data:', error)
+            }
+          }
+
+          return {
+            id: sale.id,
+            invoice_number: hasInvoiceNumberColumn ? (sale.invoice_number || (1000 + index)) : (1000 + index),
+            customer_name: customerName,
+            total: sale.total,
+            status: sale.status,
+            payment_method: sale.payment_method,
+            date: sale.date,
+            items_count: 0 // Will be populated when viewing details
+          }
+        })
+      )
 
       setInvoices(transformedInvoices)
     } catch (error) {
@@ -575,12 +847,136 @@ export default function InvoicesPage() {
     }
   }
 
+  const downloadInvoice = async () => {
+    if (!invoiceRef.current || !invoiceDetails || !selectedInvoice) return
+
+    try {
+      // Wait for fonts to load
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 4, // Higher resolution for sharper Kurdish letters
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        width: invoiceRef.current.offsetWidth,
+        height: invoiceRef.current.offsetHeight,
+        onclone: (clonedDoc) => {
+          // Ensure the cloned document has the same styles as the original
+          const clonedElement = clonedDoc.querySelector('[data-invoice-ref]') || clonedDoc.body
+
+          // Add font face declaration to ensure UniSalar font is available
+          const style = clonedDoc.createElement('style')
+          style.textContent = `
+            @font-face {
+              font-family: 'UniSalar';
+              src: url('/fonts/UniSalar_F_007.otf') format('truetype');
+              font-weight: normal;
+              font-style: normal;
+            }
+
+            /* Ensure proper text rendering for Kurdish text */
+            * {
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeLegibility;
+            }
+          `
+          clonedDoc.head.appendChild(style)
+
+          // Force layout recalculation
+          clonedDoc.body.offsetHeight
+        }
+      })
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `Invoice_${selectedInvoice.invoice_number}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png', 1.0)
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      alert('هەڵە لە داگرتنی وێنەی فاکتور')
+    }
+  }
+
   const reprintInvoice = (invoice: Invoice) => {
     // TODO: Implement invoice reprinting
     alert(`دووبارە چاپکردنی فاکتور ${invoice.invoice_number}`)
   }
 
 
+
+  const viewPendingSaleDetails = async (pendingSale: PendingSale) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    try {
+      // First, fetch the basic sale data with customer info
+      const { data: saleData, error: saleError } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          customers(name, phone1)
+        `)
+        .eq('id', pendingSale.id)
+        .single()
+
+      if (saleError) {
+        console.error('Sale query error:', saleError)
+        throw new Error(`Sale record not found: ${saleError.message}`)
+      }
+
+      // Pending sales don't have invoice numbers yet
+
+      // For pending sales, use the data from the pendingSale object directly
+      // since the sale_items table might not have complete data yet
+      const saleItemsWithNames = pendingSale.items.map((item, index) => ({
+        id: index + 1,
+        quantity: item.quantity,
+        price: item.price,
+        unit: item.unit,
+        total: item.price * item.quantity, // Calculate line total correctly
+        products: {
+          name: item.item_name,
+          unit: item.unit
+        }
+      }))
+
+      // Create a mock invoice object for pending sales preview
+      const mockInvoice: Invoice & { payment_method?: string } = {
+        id: pendingSale.id,
+        invoice_number: 0, // Pending sales don't have invoice numbers yet
+        customer_name: pendingSale.customer_name,
+        total: pendingSale.total,
+        status: 'completed', // Show as completed for preview
+        date: pendingSale.date,
+        items_count: pendingSale.items.length,
+        payment_method: saleData.payment_method || 'cash'
+      }
+
+      setSelectedInvoice(mockInvoice)
+      setInvoiceDetails({
+        ...saleData,
+        sale_items: saleItemsWithNames,
+        payment_method: saleData.payment_method || 'cash' // Ensure payment method is available
+      })
+      setShowInvoiceModal(true)
+    } catch (error) {
+      console.error('Error fetching pending sale details:', error)
+      alert(`هەڵە لە بارکردنی وردەکارییەکانی فرۆشتنی چاوەڕوانکراو: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 
   const viewInvoiceDetails = async (invoice: Invoice) => {
     if (!supabase) {
@@ -693,102 +1089,161 @@ export default function InvoicesPage() {
     const mockSellerName = 'فرۆشیار'
 
     return `
-      <!-- Header Layout: Place the shop logo at the very top center. Use a larger, bolder UniSalar font for the shop name directly under the logo. Add the phone and location icons next to the shop info. -->
-      <div style="text-align: center; margin-bottom: 15px; margin-top: 10px; direction: rtl;">
-        ${shopLogo ? `
-          <div style="display: flex; justify-content: center; margin-bottom: 8px; margin-top: 5px;">
-            <img src="${shopLogo}" alt="${shopName}" style="width: 55px; height: 55px; object-fit: contain;" />
-          </div>
-        ` : ''}
-        <div style="font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; margin: 4px 0; color: #000; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
-        ${shopPhone ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📞 ${shopPhone}</div>` : ''}
-        ${shopAddress ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📍 ${shopAddress}</div>` : ''}
-      </div>
+      <div style="font-family: var(--font-uni-salar); direction: rtl; width: 100%; max-width: 320px; margin: 0 auto; background: white; padding: 16px;">
+        <!-- Header Section -->
+        <div style="text-align: center; margin-bottom: 16px;">
+          <!-- Shop Logo - Circular -->
+          ${shopLogo ? `
+            <div style="width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 50%; overflow: hidden; border: 3px solid #e5e7eb; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);">
+              <img src="${shopLogo}" alt="${shopName}" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+          ` : ''}
 
-      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
+          <!-- Shop Name -->
+          <h1 style="font-size: 18px; font-weight: bold; color: #1f2937; margin: 6px 0; font-family: var(--font-uni-salar);">
+            ${shopName}
+          </h1>
 
-      <!-- Information Grid: Use a two-column grid where labels and values are clearly separated with proper padding. -->
-      <div style="margin: 10px 0; font-size: 9px; direction: rtl;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px;">
-          <!-- Left Column -->
-          <div style="text-align: right;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ڕێکەوت/کات:</span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${new Date().toLocaleString('ku')}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">تەلەفۆن:</span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">07501234567</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">فرۆشیار:</span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${mockSellerName}</span>
-            </div>
-          </div>
-          <!-- Right Column -->
-          <div style="text-align: right;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ژمارەی فاکتور:</span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">#${currentInvoiceNumber}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-              <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">کڕیار:</span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${mockCustomerName}</span>
-            </div>
+          <!-- Shop Contact Info -->
+          <div style="display: flex; flex-direction: column; gap: 3px; align-items: center; font-size: 10px; color: #6b7280;">
+            ${shopPhone ? `<div style="display: flex; align-items: center; gap: 3px;">📞 ${shopPhone}</div>` : ''}
+            ${shopAddress ? `<div style="display: flex; align-items: center; gap: 3px;">📍 ${shopAddress}</div>` : ''}
           </div>
         </div>
-        <!-- Payment Method centered and bolded with dashed lines above and below -->
-        <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
-        <div style="text-align: center; margin: 6px 0; padding: 6px; background: #f8f9fa; border-radius: 3px;">
-          <span style="font-family: var(--font-uni-salar); font-weight: 900; color: #000; font-size: 10px;">شێوازی پارەدان: نەختینە</span>
+
+        <!-- Separator -->
+        <div style="text-align: center; margin: 12px 0; color: #d1d5db; font-size: 16px;">--------------------------</div>
+
+        <!-- Information Grid -->
+        <div style="margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 10px;">
+            <!-- Right Column -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="text-align: center;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 3px;">ژمارەی فاکتور</div>
+                <div style="font-family: 'Inter', sans-serif; font-weight: bold; color: #1f2937; font-size: 14px; direction: ltr;">
+                  #${toEnglishDigits(currentInvoiceNumber.toString())}
+                </div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 3px;">کڕیار</div>
+                <div style="font-weight: bold; color: #1f2937; font-size: 12px; word-break: break-word;">
+                  ${mockCustomerName}
+                </div>
+              </div>
+            </div>
+
+            <!-- Left Column -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="text-align: center;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 3px;">بەروار/کات</div>
+                <div style="font-family: 'Inter', sans-serif; color: #1f2937; font-size: 10px; direction: ltr;">
+                  ${new Date().toLocaleDateString('ku')}
+                </div>
+                <div style="font-family: 'Inter', sans-serif; color: #6b7280; font-size: 9px; direction: ltr;">
+                  ${new Date().toLocaleTimeString('ku')}
+                </div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 3px;">فرۆشیار</div>
+                <div style="font-weight: bold; color: #1f2937; font-size: 12px; word-break: break-word;">
+                  ${mockSellerName}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Method - Full Width -->
+          <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+            <div style="text-align: center;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 3px;">شێوازی پارەدان</div>
+              <div style="font-weight: bold; color: #1f2937; font-size: 14px;">
+                کاش
+              </div>
+            </div>
+          </div>
         </div>
-        <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
-      </div>
 
-      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
+        <!-- Separator -->
+        <div style="text-align: center; margin: 12px 0; color: #d1d5db; font-size: 16px;">--------------------------</div>
 
-      <!-- Clean Table: No grey backgrounds or borders for a clean, minimal look -->
-      <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
-        <thead>
-          <tr>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">ناوی کاڵا</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">یەکە</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">بڕ</th>
-            <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">نرخ</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${mockItems.map(item => `
-            <tr style="height: 24px;">
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.name}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.unit}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.quantity}</td>
-              <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.price.toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
-
-      <!-- The Black Total Bar: The black bar for کۆی گشتی must span the full width of the receipt. Center the text inside this bar and ensure it's white and bold. -->
-      <div style="margin: 15px 0; background: #000; color: #fff; padding: 18px 25px; text-align: center; font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; border: 3px solid #000; width: 100%; box-sizing: border-box;">
-        کۆی گشتی: ${mockTotal.toFixed(2)} IQD
-      </div>
-
-      <!-- QR Code & Footer: Add more vertical space (margin) above the QR code. Make the 'Click Group' branding text at the bottom smaller and lighter in color. -->
-      ${qrCodeUrl ? `
-        <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0 12px 0;">
-          <img src="${qrCodeUrl}" alt="QR Code" style="width: 60px; height: 60px; border: 1px solid #000;" />
+        <!-- Items Table -->
+        <div style="margin-bottom: 16px;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 10px;">
+            <thead>
+              <tr style="background: #f9fafb;">
+                <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: right; font-weight: bold; color: #374151;">
+                  ناوی کاڵا
+                </th>
+                <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-weight: bold; color: #374151;">
+                  یەکە
+                </th>
+                <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-weight: bold; color: #374151;">
+                  بڕ
+                </th>
+                <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-weight: bold; color: #374151;">
+                  نرخ
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              ${mockItems.map(item => `
+                <tr style="hover: background: #f9fafb;">
+                  <td style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: right; font-weight: 500; max-width: 100px; overflow: hidden; text-overflow: ellipsis;">
+                    ${item.name}
+                  </td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-weight: 500;">
+                    ${item.unit}
+                  </td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-family: 'Inter', sans-serif; font-weight: bold; direction: ltr;">
+                    ${toEnglishDigits(item.quantity.toString())}
+                  </td>
+                  <td style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; font-family: 'Inter', sans-serif; font-weight: bold; direction: ltr;">
+                    ${formatCurrency(item.price * item.quantity)}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
-      ` : ''}
 
-      <div style="text-align: center; margin: 10px 0; direction: rtl;">
-        <div style="font-family: var(--font-uni-salar); font-size: 10px; margin: 8px 0; color: #555;">
-          ${thankYouNote}
-        </div>
-        <div style="font-family: var(--font-uni-salar); font-size: 7px; color: #999; margin-top: 8px; text-align: center; font-weight: 300;">
-          گەشەپێدانی سیستم لەلایەن Click Group
+        <!-- Separator -->
+        <div style="text-align: center; margin: 12px 0; color: #d1d5db; font-size: 16px;">--------------------------</div>
+
+        <!-- Footer Section -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Financial Summary -->
+          <div style="border-top: 2px solid #d1d5db; padding-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold;">
+              <span style="color: #1f2937;">کۆی گشتی:</span>
+              <span style="font-family: 'Inter', sans-serif; color: #1f2937; direction: ltr;">
+                ${formatCurrency(mockTotal)} IQD
+              </span>
+            </div>
+          </div>
+
+          <!-- Grand Total Highlight -->
+          <div style="background: transparent; color: #000; text-align: center; padding: 10px 12px; border-radius: 6px; font-size: 16px; font-weight: bold; border: 2px solid #000;">
+            کۆی گشتی: ${formatCurrency(mockTotal)} IQD
+          </div>
+
+          <!-- QR Code -->
+          ${qrCodeUrl ? `
+            <div style="text-align: center; margin: 12px 0;">
+              <img src="${qrCodeUrl}" alt="QR Code" style="width: 48px; height: 48px; margin: 0 auto;" />
+            </div>
+          ` : ''}
+
+          <!-- Thank You Note -->
+          <div style="text-align: center; font-size: 10px; color: #6b7280; font-style: italic; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+            ${thankYouNote}
+          </div>
+
+          <!-- Developer Branding -->
+          <div style="text-align: center; font-size: 8px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 6px;">
+            گەشەپێدانی سیستم لە لایەن Click Group<br />
+            07701466787
+          </div>
         </div>
       </div>
     `
@@ -801,7 +1256,7 @@ export default function InvoicesPage() {
     return (
       invoice.customer_name.toLowerCase().includes(searchLower) ||
       invoice.invoice_number.toString().includes(searchTerm) ||
-      invoice.payment_method.toLowerCase().includes(searchLower)
+      invoice.status.toLowerCase().includes(searchLower)
     )
   })
 
@@ -823,7 +1278,7 @@ export default function InvoicesPage() {
         >
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              فاکتورەکان و ڕێکخستنەکان
+              پسوڵە و ڕێکخستنەکان
             </h1>
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <FaFileInvoice className="text-blue-500" />
@@ -833,18 +1288,6 @@ export default function InvoicesPage() {
 
           {/* Tab Navigation */}
           <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'settings'
-                  ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
-              }`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              <FaCog className="inline ml-2" />
-              ڕێکخستنەکان
-            </button>
             <button
               onClick={() => setActiveTab('pending')}
               className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
@@ -867,7 +1310,19 @@ export default function InvoicesPage() {
               style={{ fontFamily: 'var(--font-uni-salar)' }}
             >
               <FaFileInvoice className="inline ml-2" />
-              فاکتورەکان
+              پسوڵەی فرۆشتنەکان
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
+                activeTab === 'settings'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+              style={{ fontFamily: 'var(--font-uni-salar)' }}
+            >
+              <FaCog className="inline ml-2" />
+              ڕێکخستنەکان
             </button>
           </div>
 
@@ -1102,7 +1557,7 @@ export default function InvoicesPage() {
                     <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="گەڕان بە ژمارەی فاکتور، کڕیار، یان شێوازی پارەدان..."
+                      placeholder="گەڕان بە ژمارەی فاکتور، کڕیار، یان دۆخ..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -1117,22 +1572,25 @@ export default function InvoicesPage() {
                     <table className="min-w-full">
                       <thead>
                         <tr className="border-b border-gray-200/50 bg-gray-50/50">
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             ژمارەی فاکتور
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کڕیار
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             بەروار
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کۆی گشتی
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            دۆخ
+                          </th>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             شێوازی پارەدان
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کردارەکان
                           </th>
                         </tr>
@@ -1146,25 +1604,40 @@ export default function InvoicesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                           >
-                            <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-6 py-4 text-gray-800 font-bold text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                               #{invoice.invoice_number}
                             </td>
-                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            <td className="px-6 py-4 text-gray-800 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {invoice.customer_name}
                             </td>
-                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-6 py-4 text-gray-600 text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                               {new Date(invoice.date).toLocaleDateString('ku')}
                             </td>
-                            <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrencyWithDecimals(invoice.total)} IQD
+                            <td className="px-6 py-4 text-gray-800 font-bold text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(invoice.total)} IQD
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-2">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                invoice.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                invoice.status === 'refunded' ? 'bg-red-100 text-red-800' :
+                                invoice.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                'bg-orange-100 text-orange-800'
+                              }`}>
+                                {invoice.status === 'completed' ? '✅ تەواوکراو' :
+                                 invoice.status === 'refunded' ? '↩️ گەڕێندراوە' :
+                                 invoice.status === 'cancelled' ? '❌ هەڵوەشێنراوە' :
+                                 '⏳ چاوەڕوانکراو'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                invoice.status === 'cancelled' || invoice.status === 'refunded' ? 'bg-gray-100 text-gray-800' :
                                 invoice.payment_method === 'cash' ? 'bg-green-100 text-green-800' :
                                 invoice.payment_method === 'fib' ? 'bg-blue-100 text-blue-800' :
                                 'bg-orange-100 text-orange-800'
                               }`}>
-                                {invoice.payment_method === 'cash' ? '💵 نەختینە' :
+                                {invoice.status === 'cancelled' || invoice.status === 'refunded' ? 'null' :
+                                 invoice.payment_method === 'cash' ? '💵 کاش' :
                                  invoice.payment_method === 'fib' ? '💳 ئۆنلاین' :
                                  '📝 قەرز'}
                               </span>
@@ -1291,16 +1764,48 @@ export default function InvoicesPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <motion.button
-                                onClick={() => confirmSale(sale)}
-                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                title="پشتڕاستکردنەوەی فرۆشتن"
-                                style={{ fontFamily: 'var(--font-uni-salar)' }}
-                              >
-                                پشتڕاستکردنەوە
-                              </motion.button>
+                              <div className="flex space-x-2">
+                                <motion.button
+                                  onClick={() => viewPendingSaleDetails(sale)}
+                                  className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="بینینی وردەکارییەکان"
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  <FaEye className="inline" />
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => confirmSale(sale)}
+                                  className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="فرۆشراوی فرۆشتن"
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  فرۆشراو
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => returnSale(sale)}
+                                  className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="گەڕێندراوەی کاڵا"
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  گەڕێندراوە
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => cancelSale(sale)}
+                                  className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="هەڵوەشاندنەوەی فرۆشتن"
+                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  هەڵوەشاندنەوە
+                                </motion.button>
+                              </div>
                             </td>
                           </motion.tr>
                         ))}
@@ -1340,7 +1845,7 @@ export default function InvoicesPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -1365,36 +1870,83 @@ export default function InvoicesPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                {/* Invoice Preview */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <InvoicePreview saleData={invoiceDetails} invoice={selectedInvoice} />
+              <div className="overflow-hidden" style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
+                {/* Invoice Wrapper */}
+                <div style={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                  padding: '20px'
+                }}>
+                  {/* Invoice Component */}
+                  <div style={{
+                    maxHeight: '100%',
+                    width: 'auto',
+                    aspectRatio: 'auto',
+                    transformOrigin: 'top center',
+                    zoom: '0.6'
+                  }}>
+                    <InvoicePreview saleData={invoiceDetails} invoice={selectedInvoice} invoiceRef={invoiceRef} />
+                  </div>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-                <div className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  کۆی گشتی: {formatCurrencyWithDecimals(selectedInvoice.total)} IQD
-                </div>
-                <div className="flex space-x-3">
-                  <motion.button
-                    onClick={() => window.print()}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPrint className="inline ml-2" />
-                    چاپکردن
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setShowInvoiceModal(false)}
-                    className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    داخستن
-                  </motion.button>
+              {/* Sticky Modal Footer */}
+              <div className="sticky bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 shadow-lg p-4 print:hidden" style={{ flexShrink: 0 }}>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Total Amount Display */}
+                  <div className="text-center sm:text-right">
+                    <div className="text-sm text-gray-600 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      کۆی گشتی
+                    </div>
+                    <div className="text-xl font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                      {formatCurrency(selectedInvoice.total)} IQD
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <motion.button
+                      onClick={() => window.print()}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      <span>چاپکردن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={downloadInvoice}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>داگرتن</span>
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => setShowInvoiceModal(false)}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 print:hidden"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>داخستن</span>
+                    </motion.button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1434,106 +1986,190 @@ async function generateInvoiceHTML(saleData: any, invoice: Invoice) {
   const qrCodeUrl = settings?.qr_code_url || ''
   const currentInvoiceNumber = settings?.current_invoice_number || invoice.invoice_number
 
-  // Get seller information (this would need to be added to the sales data)
+  // Get seller information
   const sellerName = saleData.sold_by || 'فرۆشیار'
 
+  const getPaymentStatus = () => {
+    switch (invoice.payment_method) {
+      case 'cash': return 'کاش'
+      case 'fib': return 'ئۆنلاین (FIB)'
+      case 'debt': return 'قەرز'
+      default: return 'نەپارەدراو'
+    }
+  }
+
   return `
-    <!-- Header Layout: Place the shop logo at the very top center. Use a larger, bolder UniSalar font for the shop name directly under the logo. Add the phone and location icons next to the shop info. -->
-    <div style="text-align: center; margin-bottom: 15px; margin-top: 10px; direction: rtl;">
-      ${shopLogo ? `
-        <div style="display: flex; justify-content: center; margin-bottom: 8px; margin-top: 5px;">
-          <img src="${shopLogo}" alt="${shopName}" style="width: 55px; height: 55px; object-fit: contain;" />
-        </div>
-      ` : ''}
-      <div style="font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; margin: 4px 0; color: #000; text-transform: uppercase; letter-spacing: 1px;">${shopName}</div>
-      ${shopPhone ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📞 ${shopPhone}</div>` : ''}
-      ${shopAddress ? `<div style="font-family: var(--font-uni-salar); font-size: 9px; margin: 2px 0; color: #555;">📍 ${shopAddress}</div>` : ''}
-    </div>
+    <div style="font-family: var(--font-uni-salar); direction: rtl; width: 100%; max-width: 400px; margin: 0 auto; background: white; padding: 20px;">
+      <!-- Header Section -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <!-- Shop Logo - Circular -->
+        ${shopLogo ? `
+          <div style="width: 80px; height: 80px; margin: 0 auto 16px; border-radius: 50%; overflow: hidden; border: 4px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <img src="${shopLogo}" alt="${shopName}" style="width: 100%; height: 100%; object-fit: cover;" />
+          </div>
+        ` : ''}
 
-    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
+        <!-- Shop Name -->
+        <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin: 8px 0; font-family: var(--font-uni-salar);">
+          ${shopName}
+        </h1>
 
-    <!-- Information Grid: Use a two-column grid where labels and values are clearly separated with proper padding. -->
-    <div style="margin: 10px 0; font-size: 9px; direction: rtl;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px;">
-        <!-- Left Column -->
-        <div style="text-align: right;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ڕێکەوت/کات:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${new Date(invoice.date).toLocaleString('ku')}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">تەلەفۆن:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${saleData.customers?.phone1 || ''}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">فرۆشیار:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${sellerName}</span>
-          </div>
-        </div>
-        <!-- Right Column -->
-        <div style="text-align: right;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0;">
-            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">ژمارەی فاکتور:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">#${currentInvoiceNumber}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-            <span style="font-family: var(--font-uni-salar); font-weight: bold; color: #000;">کڕیار:</span>
-            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; direction: ltr;">${saleData.customers?.name || 'نەناسراو'}</span>
-          </div>
+        <!-- Shop Contact Info -->
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: center; font-size: 12px; color: #6b7280;">
+          ${shopPhone ? `<div style="display: flex; align-items: center; gap: 4px;">📞 ${shopPhone}</div>` : ''}
+          ${shopAddress ? `<div style="display: flex; align-items: center; gap: 4px;">📍 ${shopAddress}</div>` : ''}
         </div>
       </div>
-      <!-- Payment Method centered and bolded with dashed lines above and below -->
-      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
-      <div style="text-align: center; margin: 6px 0; padding: 6px; background: #f8f9fa; border-radius: 3px;">
-        <span style="font-family: var(--font-uni-salar); font-weight: 900; color: #000; font-size: 10px;">شێوازی پارەدان: ${invoice.payment_method === 'cash' ? 'نەختینە' : invoice.payment_method === 'fib' ? 'ئۆنلاین' : 'قەرز'}</span>
+
+      <!-- Separator -->
+      <div style="text-align: center; margin: 16px 0; color: #d1d5db; font-size: 20px;">--------------------------</div>
+
+      <!-- Information Grid -->
+      <div style="margin-bottom: 24px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 12px;">
+          <!-- Right Column -->
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">ژمارەی فاکتور</div>
+              <div style="font-family: 'Inter', sans-serif; font-weight: bold; color: #1f2937; font-size: 18px; direction: ltr;">
+                ${invoice.invoice_number === 0 ? '' : '#' + toEnglishDigits(invoice.invoice_number.toString())}
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">کڕیار</div>
+              <div style="font-weight: bold; color: #1f2937; font-size: 14px; word-break: break-word;">
+                ${saleData.customers?.name || 'نەناسراو'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Left Column -->
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">بەروار/کات</div>
+              <div style="font-family: 'Inter', sans-serif; color: #1f2937; font-size: 12px; direction: ltr;">
+                ${new Date(invoice.date).toLocaleDateString('ku')}
+              </div>
+              <div style="font-family: 'Inter', sans-serif; color: #6b7280; font-size: 10px; direction: ltr;">
+                ${new Date().toLocaleTimeString('ku')}
+              </div>
+            </div>
+            ${saleData.customers?.phone1 ? `
+              <div style="text-align: center;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">تەلەفۆن</div>
+                <div style="font-family: 'Inter', sans-serif; color: #1f2937; font-size: 12px; direction: ltr;">
+                  ${saleData.customers.phone1}
+                </div>
+              </div>
+            ` : ''}
+            <div style="text-align: center;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">فرۆشیار</div>
+              <div style="font-weight: bold; color: #1f2937; font-size: 14px; word-break: break-word;">
+                ${sellerName}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Method - Full Width -->
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+          <div style="text-align: center;">
+            <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">شێوازی پارەدان</div>
+            <div style="font-weight: bold; color: #1f2937; font-size: 18px;">
+              ${getPaymentStatus()}
+            </div>
+          </div>
+        </div>
       </div>
-      <div style="text-align: center; margin: 8px 0; font-size: 8px; color: #6c757d;">---</div>
-    </div>
 
-    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
+      <!-- Separator -->
+      <div style="text-align: center; margin: 16px 0; color: #d1d5db; font-size: 20px;">--------------------------</div>
 
-    <!-- Clean Table: No grey backgrounds or borders for a clean, minimal look -->
-    <table style="margin: 12px 0; border-collapse: collapse; width: 100%; font-size: 9px; direction: rtl;">
-      <thead>
-        <tr>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">ناوی کاڵا</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">یەکە</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">بڕ</th>
-          <th style="padding: 8px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold; font-size: 9px;">نرخ</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${saleData.sale_items?.map((item: any) => `
-          <tr style="height: 24px;">
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.products?.name || 'نەناسراو'}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: 500;">${item.products?.unit || ''}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.quantity}</td>
-            <td style="padding: 6px 4px; text-align: center; font-family: var(--font-uni-salar); font-weight: bold;">${item.price.toFixed(2)}</td>
-          </tr>
-        `).join('') || ''}
-      </tbody>
-    </table>
-
-    <div style="text-align: center; margin: 6px 0; font-size: 8px; color: #6c757d;">---</div>
-
-    <!-- The Black Total Bar: The black bar for کۆی گشتی must span the full width of the receipt. Center the text inside this bar and ensure it's white and bold. -->
-    <div style="margin: 15px 0; background: #000; color: #fff; padding: 18px 25px; text-align: center; font-family: var(--font-uni-salar); font-size: 20px; font-weight: 900; border: 3px solid #000; width: 100%; box-sizing: border-box;">
-      کۆی گشتی: ${formatCurrencyWithDecimals(invoice.total)} IQD
-    </div>
-
-    <!-- QR Code & Footer: Add more vertical space (margin) above the QR code. Make the 'Click Group' branding text at the bottom smaller and lighter in color. -->
-    ${qrCodeUrl ? `
-      <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0 12px 0;">
-        <img src="${qrCodeUrl}" alt="QR Code" style="width: 60px; height: 60px; border: 1px solid #000;" />
+      <!-- Items Table -->
+      <div style="margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
+          <thead>
+            <tr style="background: #f9fafb;">
+              <th style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: right; font-weight: bold; color: #374151;">
+                ناوی کاڵا
+              </th>
+              <th style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-weight: bold; color: #374151;">
+                یەکە
+              </th>
+              <th style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-weight: bold; color: #374151;">
+                بڕ
+              </th>
+              <th style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-weight: bold; color: #374151;">
+                نرخ
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            ${saleData.sale_items?.map((item: any) => `
+              <tr style="hover: background: #f9fafb;">
+                <td style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: right; font-weight: 500; max-width: 140px; overflow: hidden; text-overflow: ellipsis;">
+                  ${item.products?.name || 'نەناسراو'}
+                </td>
+                <td style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-weight: 500;">
+                  ${item.products?.unit || ''}
+                </td>
+                <td style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-family: 'Inter', sans-serif; font-weight: bold; direction: ltr;">
+                  ${toEnglishDigits(item.quantity.toString())}
+                </td>
+                <td style="border: 1px solid #d1d5db; padding: 8px 12px; text-align: center; font-family: 'Inter', sans-serif; font-weight: bold; direction: ltr;">
+                  ${formatCurrency(item.total)}
+                </td>
+              </tr>
+            `).join('') || ''}
+          </tbody>
+        </table>
       </div>
-    ` : ''}
 
-    <div style="text-align: center; margin: 10px 0; direction: rtl;">
-      <div style="font-family: var(--font-uni-salar); font-size: 10px; margin: 8px 0; color: #555;">
-        ${thankYouNote}
-      </div>
-      <div style="font-family: var(--font-uni-salar); font-size: 7px; color: #999; margin-top: 8px; text-align: center; font-weight: 300;">
-        گەشەپێدانی سیستم لەلایەن Click Group
+      <!-- Separator -->
+      <div style="text-align: center; margin: 16px 0; color: #d1d5db; font-size: 20px;">--------------------------</div>
+
+      <!-- Footer Section -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Financial Summary -->
+        <div style="border-top: 2px solid #d1d5db; padding-top: 12px;">
+          ${saleData.discount && saleData.discount > 0 ? `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px;">
+              <span style="font-weight: 600; color: #374151;">داشکاندن:</span>
+              <span style="font-family: 'Inter', sans-serif; font-weight: bold; color: #dc2626; direction: ltr;">
+                -${formatCurrency(saleData.discount)}
+              </span>
+            </div>
+          ` : ''}
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold;">
+            <span style="color: #1f2937;">کۆی گشتی:</span>
+            <span style="font-family: 'Inter', sans-serif; color: #1f2937; direction: ltr;">
+              ${formatCurrency(invoice.total)} IQD
+            </span>
+          </div>
+        </div>
+
+        <!-- Grand Total Highlight -->
+        <div style="background: transparent; color: #000; text-align: center; padding: 12px 16px; border-radius: 8px; font-size: 20px; font-weight: bold; border: 2px solid #000;">
+          کۆی گشتی: ${formatCurrency(invoice.total)} IQD
+        </div>
+
+        <!-- QR Code -->
+        ${qrCodeUrl ? `
+          <div style="text-align: center; margin: 16px 0;">
+            <img src="${qrCodeUrl}" alt="QR Code" style="width: 64px; height: 64px; margin: 0 auto;" />
+          </div>
+        ` : ''}
+
+        <!-- Thank You Note -->
+        <div style="text-align: center; font-size: 12px; color: #6b7280; font-style: italic; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+          ${thankYouNote}
+        </div>
+
+        <!-- Developer Branding -->
+        <div style="text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+          گەشەپێدانی سیستم لە لایەن Click Group<br />
+          07701466787
+        </div>
       </div>
     </div>
   `

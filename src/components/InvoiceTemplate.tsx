@@ -52,13 +52,13 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
   }
 
   return (
-    <div className={containerClasses} style={{ fontFamily: 'var(--font-uni-salar)', direction: 'rtl' }}>
+    <div className={containerClasses} style={{ fontFamily: 'var(--font-uni-salar)', direction: 'rtl' }} data-invoice-ref>
       <div className={isPrint ? "p-4" : "p-8"}>
         {/* Header Section */}
         <div className="text-center mb-6">
           {/* Shop Logo - Circular */}
           {data.shopLogo && (
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+            <div className="w-40 h-40 mx-auto mb-4 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
               <img
                 src={data.shopLogo}
                 alt={data.shopName}
@@ -68,12 +68,12 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           )}
 
           {/* Shop Name */}
-          <h1 className="text-2xl font-bold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <h1 className="text-2xl font-bold text-black mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
             {data.shopName}
           </h1>
 
           {/* Shop Contact Info */}
-          <div className="space-y-1 text-sm text-gray-600">
+          <div className="space-y-1 text-sm text-black">
             {data.shopPhone && (
               <div className="flex items-center justify-center gap-2">
                 <FaPhone className="text-gray-400" size={12} />
@@ -98,17 +98,17 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
             {/* Right Column */}
             <div className="space-y-3">
               <div className="text-center">
-                <div className="font-semibold text-gray-700 space-y-1">
+                <div className="font-semibold text-black space-y-1">
                   <div>ژمارەی فاکتور</div>
-                  <div className="font-mono font-bold text-gray-800 text-lg" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                  <div className="font-mono font-bold text-black text-lg" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                     #{toEnglishDigits(data.invoiceNumber.toString())}
                   </div>
                 </div>
               </div>
               <div className="text-center">
-                <div className="font-semibold text-gray-700 space-y-1">
+                <div className="font-semibold text-black space-y-1">
                   <div>کڕیار</div>
-                  <div className="font-bold text-gray-800 text-sm min-w-[150px] break-words">
+                  <div className="font-bold text-black text-sm min-w-[150px] break-words">
                     {data.customerName}
                   </div>
                 </div>
@@ -118,21 +118,21 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
             {/* Left Column */}
             <div className="space-y-3">
               <div className="text-center">
-                <div className="font-semibold text-gray-700 space-y-1">
+                <div className="font-semibold text-black space-y-1">
                   <div>بەروار/کات</div>
-                  <div className="font-mono text-gray-800 text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                  <div className="font-mono text-black text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                     {data.date}
                   </div>
-                  <div className="font-mono text-gray-600 text-xs" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                  <div className="font-mono text-black text-xs" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                     {data.time}
                   </div>
                 </div>
               </div>
               {data.customerPhone && (
                 <div className="text-center">
-                  <div className="font-semibold text-gray-700 space-y-1">
+                  <div className="font-semibold text-black space-y-1">
                     <div>تەلەفۆن</div>
-                    <div className="font-mono text-gray-800 text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                    <div className="font-mono text-black text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                       {data.customerPhone}
                     </div>
                   </div>
@@ -140,9 +140,9 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
               )}
               {data.sellerName && (
                 <div className="text-center">
-                  <div className="font-semibold text-gray-700 space-y-1">
+                  <div className="font-semibold text-black space-y-1">
                     <div>فرۆشیار</div>
-                    <div className="font-bold text-gray-800 text-sm min-w-[150px] break-words">
+                    <div className="font-bold text-black text-sm min-w-[150px] break-words">
                       {data.sellerName}
                     </div>
                   </div>
@@ -154,9 +154,9 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           {/* Payment Method - Full Width */}
           <div className="mt-4 pt-3 border-t border-gray-200">
             <div className="text-center">
-              <div className="font-semibold text-gray-700 space-y-1">
+              <div className="font-semibold text-black space-y-1">
                 <div>شێوازی پارەدان</div>
-                <div className="font-bold text-gray-800 text-lg">
+                <div className="font-bold text-black text-lg">
                   {getPaymentStatus()}
                 </div>
               </div>
@@ -172,16 +172,16 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           <table className="w-full border-collapse border border-gray-300 text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="border border-gray-300 px-3 py-2 text-right font-bold text-gray-700">
+                <th className="border border-gray-300 px-3 py-2 text-right font-bold text-black">
                   ناوی کاڵا
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-700">
+                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-black">
                   یەکە
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-700">
+                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-black">
                   بڕ
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-gray-700">
+                <th className="border border-gray-300 px-3 py-2 text-center font-bold text-black">
                   نرخ
                 </th>
               </tr>
@@ -216,22 +216,22 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           <div className="border-t-2 border-gray-300 pt-3">
             {data.discount > 0 && (
               <div className="flex justify-between items-center mb-2 text-sm">
-                <span className="font-semibold text-gray-700">داشکاندن:</span>
+                <span className="font-semibold text-black">داشکاندن:</span>
                 <span className="font-mono font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                   -{formatCurrency(data.discount)}
                 </span>
               </div>
             )}
             <div className="flex justify-between items-center text-lg font-bold">
-              <span className="text-gray-800">کۆی گشتی:</span>
-              <span className="font-mono text-gray-800" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+              <span className="text-black">کۆی گشتی:</span>
+              <span className="font-mono text-black" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                 {formatCurrency(data.total)} IQD
               </span>
             </div>
           </div>
 
           {/* Grand Total Highlight */}
-          <div className="bg-black text-white text-center py-3 px-4 rounded-lg text-xl font-bold">
+          <div className="text-black text-center py-3 px-4 text-xl font-bold">
             کۆی گشتی: {formatCurrency(data.total)} IQD
           </div>
 
@@ -247,12 +247,12 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           )}
 
           {/* Thank You Note */}
-          <div className="text-center text-sm text-gray-600 italic border-t border-gray-200 pt-3">
+          <div className="text-center text-sm text-black italic border-t border-gray-200 pt-3">
             {data.thankYouNote}
           </div>
 
           {/* Developer Branding */}
-          <div className="text-center text-xs text-gray-400 border-t border-gray-200 pt-2">
+          <div className="text-center text-xs text-black border-t border-gray-200 pt-2">
             گەشەپێدانی سیستم لە لایەن Click Group<br />
             07701466787
           </div>

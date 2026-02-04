@@ -138,7 +138,8 @@ export default function InvoicesPage() {
           total,
           payment_method,
           date,
-          customers!inner(name, phone1),
+          customer_id,
+          customers(name, phone1),
           sale_items(
             id,
             item_id,
@@ -158,20 +159,46 @@ export default function InvoicesPage() {
       }
 
       // Transform data to match PendingSale interface
-      const transformedPendingSales: PendingSale[] = (data || []).map(sale => ({
-        id: sale.id,
-        customer_name: sale.customers?.[0]?.name || 'نەناسراو',
-        customer_phone: sale.customers?.[0]?.phone1 || '',
-        total: sale.total,
-        date: sale.date,
-        items: sale.sale_items?.map((item: any) => ({
-          item_name: item.inventory?.item_name || 'نەناسراو',
-          quantity: item.quantity,
-          unit: item.unit,
-          price: item.price,
-          total: item.price * item.quantity
-        })) || []
-      }))
+      const transformedPendingSales: PendingSale[] = await Promise.all(
+        (data || []).map(async (sale: any) => {
+          // Fetch customer data separately if not available in join
+          let customerName = sale.customers?.name || 'نەناسراو'
+          let customerPhone = sale.customers?.phone1 || ''
+
+          // If customer data is missing from join, fetch it separately
+          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id) {
+            try {
+              const { data: customerData, error: customerError } = await supabase
+                .from('customers')
+                .select('name, phone1')
+                .eq('id', sale.customer_id)
+                .single()
+
+              if (!customerError && customerData) {
+                customerName = customerData.name || 'نەناسراو'
+                customerPhone = customerData.phone1 || ''
+              }
+            } catch (error) {
+              console.error('Error fetching customer data:', error)
+            }
+          }
+
+          return {
+            id: sale.id,
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            total: sale.total,
+            date: sale.date,
+            items: sale.sale_items?.map((item: any) => ({
+              item_name: item.inventory?.item_name || 'نەناسراو',
+              quantity: item.quantity,
+              unit: item.unit,
+              price: item.price,
+              total: item.price * item.quantity
+            })) || []
+          }
+        })
+      )
 
       setPendingSales(transformedPendingSales)
     } catch (error) {

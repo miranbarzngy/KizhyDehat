@@ -1269,8 +1269,8 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 pl-0 md:pl-6">
+      <div className="w-full max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1287,7 +1287,7 @@ export default function InvoicesPage() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
+          <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
             <button
               onClick={() => setActiveTab('pending')}
               className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
@@ -1568,29 +1568,29 @@ export default function InvoicesPage() {
 
                 {/* Invoices Table */}
                 <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto w-full">
                     <table className="min-w-full">
                       <thead>
                         <tr className="border-b border-gray-200/50 bg-gray-50/50">
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             ژمارەی فاکتور
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کڕیار
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             بەروار
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کۆی گشتی
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             دۆخ
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             شێوازی پارەدان
                           </th>
-                          <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کردارەکان
                           </th>
                         </tr>
@@ -1604,20 +1604,20 @@ export default function InvoicesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                           >
-                            <td className="px-6 py-4 text-gray-800 font-bold text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 font-bold text-center text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                               #{invoice.invoice_number}
                             </td>
-                            <td className="px-6 py-4 text-gray-800 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 text-center text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {invoice.customer_name}
                             </td>
-                            <td className="px-6 py-4 text-gray-600 text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 text-center text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                               {new Date(invoice.date).toLocaleDateString('ku')}
                             </td>
-                            <td className="px-6 py-4 text-gray-800 font-bold text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 font-bold text-center text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                               {formatCurrency(invoice.total)} IQD
                             </td>
-                            <td className="px-6 py-2">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            <td className="px-2 md:px-6 py-2 md:py-4">
+                              <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium ${
                                 invoice.status === 'completed' ? 'bg-green-100 text-green-800' :
                                 invoice.status === 'refunded' ? 'bg-red-100 text-red-800' :
                                 invoice.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
@@ -1629,8 +1629,8 @@ export default function InvoicesPage() {
                                  '⏳ چاوەڕوانکراو'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-center">
+                              <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium ${
                                 invoice.status === 'cancelled' || invoice.status === 'refunded' ? 'bg-gray-100 text-gray-800' :
                                 invoice.payment_method === 'cash' ? 'bg-green-100 text-green-800' :
                                 invoice.payment_method === 'fib' ? 'bg-blue-100 text-blue-800' :
@@ -1642,25 +1642,25 @@ export default function InvoicesPage() {
                                  '📝 قەرز'}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex space-x-2">
+                            <td className="px-2 md:px-6 py-3 md:py-4">
+                              <div className="flex space-x-1 md:space-x-2">
                                 <motion.button
                                   onClick={() => viewInvoiceDetails(invoice)}
-                                  className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="بینینی وردەکارییەکان"
                                 >
-                                  <FaEye />
+                                  <FaEye className="text-xs md:text-sm" />
                                 </motion.button>
                                 <motion.button
                                   onClick={() => reprintInvoice(invoice)}
-                                  className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-green-500 hover:bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="دووبارە چاپکردن"
                                 >
-                                  <FaPrint />
+                                  <FaPrint className="text-xs md:text-sm" />
                                 </motion.button>
                               </div>
                             </td>
@@ -1701,32 +1701,32 @@ export default function InvoicesPage() {
               >
                 {/* Pending Sales Table */}
                 <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto w-full">
                     <table className="min-w-full">
                       <thead>
                         <tr className="border-b border-gray-200/50 bg-gray-50/50">
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کڕیار
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             تەلەفۆن
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             ناوی کاڵا
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             یەکە
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             بڕ
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             بەروار
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             دۆخ
                           </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <th className="px-2 md:px-6 py-3 md:py-4 text-right font-semibold text-gray-700 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کردارەکان
                           </th>
                         </tr>
@@ -1740,44 +1740,44 @@ export default function InvoicesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                           >
-                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.customer_name}
                             </td>
-                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
                               {sale.customer_phone || '—'}
                             </td>
-                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.items.map(item => item.item_name).join(', ')}
                             </td>
-                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.items.map(item => item.unit).join(', ')}
                             </td>
-                            <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 font-bold text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                               {sale.items.map(item => item.quantity).join(', ')}
                             </td>
-                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                               {new Date(sale.date).toLocaleDateString('ku')}
                             </td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <td className="px-2 md:px-6 py-2 md:py-4">
+                              <span className="px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium bg-orange-100 text-orange-800">
                                 ⏳ چاوەڕوانکراو
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex space-x-2">
+                            <td className="px-2 md:px-6 py-3 md:py-4">
+                              <div className="flex space-x-1 md:space-x-2">
                                 <motion.button
                                   onClick={() => viewPendingSaleDetails(sale)}
-                                  className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="بینینی وردەکارییەکان"
                                   style={{ fontFamily: 'var(--font-uni-salar)' }}
                                 >
-                                  <FaEye className="inline" />
+                                  <FaEye className="text-xs md:text-sm" />
                                 </motion.button>
                                 <motion.button
                                   onClick={() => confirmSale(sale)}
-                                  className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-green-500 hover:bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="فرۆشراوی فرۆشتن"
@@ -1787,7 +1787,7 @@ export default function InvoicesPage() {
                                 </motion.button>
                                 <motion.button
                                   onClick={() => returnSale(sale)}
-                                  className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="گەڕێندراوەی کاڵا"
@@ -1797,7 +1797,7 @@ export default function InvoicesPage() {
                                 </motion.button>
                                 <motion.button
                                   onClick={() => cancelSale(sale)}
-                                  className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  className="px-2 md:px-3 py-1 md:py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   title="هەڵوەشاندنەوەی فرۆشتن"

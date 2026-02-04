@@ -1931,29 +1931,39 @@ export default function InvoicesPage() {
                   >
                     <style jsx>{`
                       .invoice-preview-container {
-                        zoom: 0.4;
+                        zoom: 0.25;
+                      }
+                      @media (min-width: 480px) {
+                        .invoice-preview-container {
+                          zoom: 0.3;
+                        }
                       }
                       @media (min-width: 640px) {
                         .invoice-preview-container {
-                          zoom: 0.5;
+                          zoom: 0.4;
                         }
                       }
                       @media (min-width: 768px) {
                         .invoice-preview-container {
-                          zoom: 0.6;
+                          zoom: 0.5;
                         }
                       }
                       @media (min-width: 1024px) {
                         .invoice-preview-container {
-                          zoom: 0.7;
+                          zoom: 0.6;
                         }
                       }
                       @media (min-width: 1280px) {
                         .invoice-preview-container {
-                          zoom: 0.8;
+                          zoom: 0.7;
                         }
                       }
                       @media (min-width: 1536px) {
+                        .invoice-preview-container {
+                          zoom: 0.8;
+                        }
+                      }
+                      @media (min-width: 1920px) {
                         .invoice-preview-container {
                           zoom: 1;
                         }

@@ -340,7 +340,7 @@ export default function ExpensesPage() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <motion.div
               className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 border border-red-200"
               whileHover={{ scale: 1.02 }}
@@ -370,22 +370,6 @@ export default function ExpensesPage() {
               </div>
               <p className="text-sm text-blue-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 تۆمارکراوە
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <FaImage className="text-green-600 text-2xl" />
-                <span className="text-sm text-green-600 font-medium">خەرجییەکان بە وێنە</span>
-              </div>
-              <div className="text-3xl font-bold text-green-700 mb-1">
-                {expenses.filter(e => e.image).length}
-              </div>
-              <p className="text-sm text-green-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                وێنەیان هەیە
               </p>
             </motion.div>
           </div>
@@ -447,10 +431,10 @@ export default function ExpensesPage() {
 
 
 
-                  {/* Image Upload with Camera Option */}
+                  {/* Image Upload */}
                   <div>
                     <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      وێنە (داخستن یان کامێرا)
+                      وێنە
                     </label>
 
                     {/* Image Preview */}
@@ -470,28 +454,16 @@ export default function ExpensesPage() {
                       </div>
                     )}
 
-                    {/* Upload Options */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <motion.button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <FaUpload />
-                        <span style={{ fontFamily: 'var(--font-uni-salar)' }}>داخستن</span>
-                      </motion.button>
-
-                      <motion.button
-                        onClick={startCamera}
-                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl border-2 border-green-200 hover:border-green-300 transition-all duration-200"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <FaCamera />
-                        <span style={{ fontFamily: 'var(--font-uni-salar)' }}>کامێرا</span>
-                      </motion.button>
-                    </div>
+                    {/* Upload Button */}
+                    <motion.button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <FaUpload />
+                      <span style={{ fontFamily: 'var(--font-uni-salar)' }}>زیادکردنی وێنە</span>
+                    </motion.button>
 
                     {/* Hidden file input */}
                     <input

@@ -1,12 +1,12 @@
 'use client'
 
+import InvoiceTemplate from '@/components/InvoiceTemplate'
 import { formatCurrency, formatCurrencyWithDecimals, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import html2canvas from 'html2canvas'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaImage, FaMapMarkerAlt, FaPhone, FaPrint, FaQrcode, FaSearch, FaStore } from 'react-icons/fa'
-import InvoiceTemplate from '@/components/InvoiceTemplate'
 
 interface InvoiceSettings {
   id: string
@@ -96,7 +96,7 @@ function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invo
       total: item.price * item.quantity // Calculate line total correctly
     })) || [],
     subtotal: saleData.subtotal || invoice.total,
-    discount: saleData.discount || 0,
+    discount: saleData.discount_amount || 0,
     total: invoice.total,
     shopName: settings.shop_name,
     shopPhone: settings.shop_phone,
@@ -1017,19 +1017,56 @@ export default function InvoicesPage() {
     }
 
     try {
+      // Check if discount_amount and subtotal columns exist
+      let hasDiscountAmountColumn = false
+      let hasSubtotalColumn = false
+
+      try {
+        const testQuery = await supabase
+          .from('sales')
+          .select('discount_amount')
+          .limit(1)
+        hasDiscountAmountColumn = !testQuery.error
+      } catch (error) {
+        console.log('Discount amount column not available yet')
+        hasDiscountAmountColumn = false
+      }
+
+      try {
+        const testQuery = await supabase
+          .from('sales')
+          .select('subtotal')
+          .limit(1)
+        hasSubtotalColumn = !testQuery.error
+      } catch (error) {
+        console.log('Subtotal column not available yet')
+        hasSubtotalColumn = false
+      }
+
+      // Build select fields dynamically
+      let selectFields = `
+        id,
+        total,
+        payment_method,
+        date,
+        sold_by,
+        customers(name, phone1)
+      `
+
+      if (hasDiscountAmountColumn) {
+        selectFields += `,
+        discount_amount`
+      }
+
+      if (hasSubtotalColumn) {
+        selectFields += `,
+        subtotal`
+      }
+
       // First, fetch the basic sale data with customer info
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
-        .select(`
-          id,
-          total,
-          discount,
-          subtotal,
-          payment_method,
-          date,
-          sold_by,
-          customers(name, phone1)
-        `)
+        .select(selectFields)
         .eq('id', invoice.id)
         .single()
 
@@ -1099,7 +1136,7 @@ export default function InvoicesPage() {
       setInvoiceDetails({
         ...saleData,
         sale_items: saleItemsWithNames,
-        discount: saleData.discount || 0
+        discount_amount: saleData.discount_amount || 0
       })
       setShowInvoiceModal(true)
     } catch (error) {
@@ -2213,14 +2250,22 @@ async function generateInvoiceHTML(saleData: any, invoice: Invoice) {
       <div style="display: flex; flex-direction: column; gap: 16px;">
         <!-- Financial Summary -->
         <div style="border-top: 2px solid #d1d5db; padding-top: 12px;">
-          ${saleData.discount && saleData.discount > 0 ? `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px;">
-              <span style="font-weight: 600; color: #374151;">داشکاندن:</span>
-              <span style="font-family: 'Inter', sans-serif; font-weight: bold; color: #dc2626; direction: ltr;">
-                -${formatCurrency(saleData.discount)}
-              </span>
-            </div>
-          ` : ''}
+          <!-- Subtotal -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px;">
+            <span style="font-weight: 600; color: #374151;">کۆی نرخ:</span>
+            <span style="font-family: 'Inter', sans-serif; color: #1f2937; direction: ltr;">
+              ${formatCurrency(saleData.subtotal || invoice.total)} IQD
+            </span>
+          </div>
+
+          <!-- Discount -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px;">
+            <span style="font-weight: 600; color: #374151;">داشکاندن:</span>
+            <span style="font-family: 'Inter', sans-serif; font-weight: bold; color: #dc2626; direction: ltr;">
+              -${formatCurrency(saleData.discount_amount || 0)}
+            </span>
+          </div>
+
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold;">
             <span style="color: #1f2937;">کۆی گشتی:</span>
             <span style="font-family: 'Inter', sans-serif; color: #1f2937; direction: ltr;">

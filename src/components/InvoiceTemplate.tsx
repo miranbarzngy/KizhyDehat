@@ -1,7 +1,7 @@
 'use client'
 
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
-import { FaMapMarkerAlt, FaPhone, FaQrcode } from 'react-icons/fa'
+import { FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
 
 interface InvoiceItem {
   name: string
@@ -214,14 +214,22 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
         <div className="space-y-4">
           {/* Financial Summary */}
           <div className="border-t-2 border-gray-300 pt-3">
-            {data.discount > 0 && (
-              <div className="flex justify-between items-center mb-2 text-sm">
-                <span className="font-semibold text-black">داشکاندن:</span>
-                <span className="font-mono font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
-                  -{formatCurrency(data.discount)}
-                </span>
-              </div>
-            )}
+            {/* Subtotal */}
+            <div className="flex justify-between items-center mb-2 text-sm">
+              <span className="font-semibold text-black">کۆی نرخ:</span>
+              <span className="font-mono text-black" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                {formatCurrency(data.subtotal)} IQD
+              </span>
+            </div>
+
+            {/* Discount */}
+            <div className="flex justify-between items-center mb-2 text-sm">
+              <span className="font-semibold text-black">داشکاندن:</span>
+              <span className="font-mono font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                -{formatCurrency(data.discount)}
+              </span>
+            </div>
+
             <div className="flex justify-between items-center text-lg font-bold">
               <span className="text-black">کۆی گشتی:</span>
               <span className="font-mono text-black" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>

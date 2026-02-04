@@ -1909,7 +1909,7 @@ export default function InvoicesPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="overflow-hidden" style={{ display: 'flex', flexDirection: 'column', height: '80vh' }}>
+              <div className="overflow-hidden max-h-[90vh] md:max-h-[80vh]" style={{ display: 'flex', flexDirection: 'column' }}>
                 {/* Invoice Wrapper */}
                 <div style={{
                   flex: 1,
@@ -1917,16 +1917,48 @@ export default function InvoicesPage() {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'flex-start',
-                  padding: '20px'
+                  padding: '10px'
                 }}>
-                  {/* Invoice Component */}
-                  <div style={{
-                    maxHeight: '100%',
-                    width: 'auto',
-                    aspectRatio: 'auto',
-                    transformOrigin: 'top center',
-                    zoom: '0.6'
-                  }}>
+                  {/* Invoice Component - Responsive Scaling */}
+                  <div
+                    className="invoice-preview-container"
+                    style={{
+                      maxHeight: '100%',
+                      width: 'auto',
+                      aspectRatio: 'auto',
+                      transformOrigin: 'top center'
+                    }}
+                  >
+                    <style jsx>{`
+                      .invoice-preview-container {
+                        zoom: 0.4;
+                      }
+                      @media (min-width: 640px) {
+                        .invoice-preview-container {
+                          zoom: 0.5;
+                        }
+                      }
+                      @media (min-width: 768px) {
+                        .invoice-preview-container {
+                          zoom: 0.6;
+                        }
+                      }
+                      @media (min-width: 1024px) {
+                        .invoice-preview-container {
+                          zoom: 0.7;
+                        }
+                      }
+                      @media (min-width: 1280px) {
+                        .invoice-preview-container {
+                          zoom: 0.8;
+                        }
+                      }
+                      @media (min-width: 1536px) {
+                        .invoice-preview-container {
+                          zoom: 1;
+                        }
+                      }
+                    `}</style>
                     <InvoicePreview saleData={invoiceDetails} invoice={selectedInvoice} invoiceRef={invoiceRef} />
                   </div>
                 </div>

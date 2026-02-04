@@ -989,7 +989,13 @@ export default function InvoicesPage() {
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .select(`
-          *,
+          id,
+          total,
+          discount,
+          subtotal,
+          payment_method,
+          date,
+          sold_by,
           customers(name, phone1)
         `)
         .eq('id', invoice.id)
@@ -1060,7 +1066,8 @@ export default function InvoicesPage() {
       setSelectedInvoice(invoice)
       setInvoiceDetails({
         ...saleData,
-        sale_items: saleItemsWithNames
+        sale_items: saleItemsWithNames,
+        discount: saleData.discount || 0
       })
       setShowInvoiceModal(true)
     } catch (error) {

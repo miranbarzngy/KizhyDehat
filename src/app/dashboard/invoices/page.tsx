@@ -218,14 +218,29 @@ export default function InvoicesPage() {
 
     try {
       // 1. Update sale status to 'sold'
-      const { error: saleError } = await supabase
+      console.log('Attempting to update sale status for ID:', pendingSale.id)
+      const { data: saleUpdateData, error: saleError } = await supabase
         .from('sales')
         .update({ status: 'sold' })
         .eq('id', pendingSale.id)
+        .select()
+
+      console.log('Sale update result:', { data: saleUpdateData, error: saleError })
 
       if (saleError) {
-        console.error('Error updating sale status:', saleError)
-        throw new Error('Failed to update sale status')
+        console.error('Error updating sale status:', {
+          error: saleError,
+          message: saleError.message,
+          details: saleError.details,
+          hint: saleError.hint,
+          code: saleError.code,
+          saleId: pendingSale.id
+        })
+        throw new Error(`Failed to update sale status: ${saleError.message || 'Unknown error'}`)
+      }
+
+      if (!saleUpdateData || saleUpdateData.length === 0) {
+        throw new Error('Sale update succeeded but no data returned - sale may not exist')
       }
 
       // 2. Update inventory quantities and stats

@@ -1191,13 +1191,13 @@ export default function InvoicesPage() {
                       <thead>
                         <tr className="border-b border-gray-200/50 bg-gray-50/50">
                           <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            ناوی کاڵا
-                          </th>
-                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             کڕیار
                           </th>
                           <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             تەلەفۆن
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            ناوی کاڵا
                           </th>
                           <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             یەکە
@@ -1226,13 +1226,13 @@ export default function InvoicesPage() {
                             transition={{ delay: index * 0.05 }}
                           >
                             <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              {sale.items.map(item => item.item_name).join(', ')}
-                            </td>
-                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.customer_name}
                             </td>
                             <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
-                              {sale.customer_phone}
+                              {sale.customer_phone || '—'}
+                            </td>
+                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {sale.items.map(item => item.item_name).join(', ')}
                             </td>
                             <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.items.map(item => item.unit).join(', ')}

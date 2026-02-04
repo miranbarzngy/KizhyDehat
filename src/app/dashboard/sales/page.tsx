@@ -1356,7 +1356,8 @@ export default function SalesPage() {
 
           {/* Products List/Grid */}
           <motion.div
-            className="flex-1 overflow-y-auto pr-2"
+            className="flex-1 overflow-y-auto pr-2 scrollbar-hide"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
@@ -1471,7 +1472,7 @@ export default function SalesPage() {
 
       {/* Bottom Section - Cart (Mobile) / Right Side (Desktop) */}
       <motion.div
-        className="h-[30vh] lg:h-full w-80 lg:w-96 bg-white/60 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-white/20 shadow-2xl flex flex-col"
+        className="h-[30vh] lg:h-full w-full lg:w-96 bg-white/60 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-white/20 shadow-2xl flex flex-col"
         initial={{ x: 300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
@@ -1634,7 +1635,7 @@ export default function SalesPage() {
               <div className="text-center">
                 <div className="text-sm mb-0.5">💵</div>
                 <div className={`text-xs font-bold ${paymentMethod === 'cash' ? 'text-green-700' : 'text-gray-700'}`}>
-                  نەختینە
+                  کاش
                 </div>
               </div>
             </motion.button>
@@ -1681,6 +1682,26 @@ export default function SalesPage() {
               </div>
             </motion.button>
           </div>
+
+          {/* Discount Section */}
+          <motion.div
+            className="space-y-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <label className="block text-xs font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              داشکاندن (IQD)
+            </label>
+            <input
+              type="text"
+              value={discount}
+              onChange={(e) => setDiscount(safeStringToNumber(e.target.value))}
+              className="w-full px-2 py-1 rounded border-0 bg-white/60 backdrop-blur-sm shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-xs text-center"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+              placeholder="0"
+            />
+          </motion.div>
 
           {/* Total Display */}
           <motion.div

@@ -2,9 +2,9 @@
 
 import { formatCurrency, safeStringToNumber, sanitizeBarcode, sanitizeNumericInput, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
+import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaArchive, FaBarcode, FaBox, FaCalculator, FaChartLine, FaEdit, FaSearch, FaTags, FaTrash, FaTruck } from 'react-icons/fa'
-import { motion } from 'framer-motion'
 
 interface InventoryItem {
   id: string
@@ -839,14 +839,14 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 pl-0 md:pl-6">
+      <div className="w-full max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
           بەڕێوەبردنی کاڵاکان
         </h1>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
+        <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
           <button
             onClick={() => setActiveTab('inventory')}
             className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
@@ -1219,26 +1219,26 @@ export default function InventoryPage() {
                     دروستکراوە: {new Date(unit.created_at).toLocaleDateString('ku-IQ')}
                   </div>
 
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => {
-                          setEditingUnit(unit)
-                          setNewUnitName(unit.name)
-                          setNewUnitSymbol(unit.symbol || '')
-                        }}
-                        className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                        style={{ fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        <FaEdit className="inline ml-2" />
-                        دەستکاری
-                      </button>
-                      <button
-                        onClick={() => deleteUnit(unit.id, unit.name)}
-                        className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setEditingUnit(unit)
+                        setNewUnitName(unit.name)
+                        setNewUnitSymbol(unit.symbol || '')
+                      }}
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <FaEdit className="inline ml-2" />
+                      دەستکاری
+                    </button>
+                    <button
+                      onClick={() => deleteUnit(unit.id, unit.name)}
+                      className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -166,7 +166,7 @@ export default function DashboardPage() {
       // Transform sales data to match the expected format
       const transformedRecentSales = recentSalesData?.map(sale => ({
         id: sale.id,
-        customer_name: sale.customers?.name || 'نەناسراو',
+        customer_name: sale.customers?.[0]?.name || 'نەناسراو',
         total_price: sale.total,
         status: sale.payment_method === 'cash' ? 'paid' :
                 sale.payment_method === 'fib' ? 'paid' : 'debt'

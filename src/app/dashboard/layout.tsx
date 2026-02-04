@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -23,7 +23,7 @@ const menuItems = [
   { name: 'کۆگا', href: '/dashboard/inventory', icon: '📦', permission: 'inventory' },
   { name: 'کڕیاران', href: '/dashboard/customers', icon: '👥', permission: 'customers' },
   { name: 'دابینکەران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
-  { name: 'فاکتورەکان', href: '/dashboard/invoices', icon: '🧾', permission: 'sales' },
+  { name: 'پسوڵەکان', href: '/dashboard/invoices', icon: '🧾', permission: 'sales' },
   { name: 'خەرجییەکان', href: '/dashboard/expenses', icon: '💸', permission: 'expenses' },
   { name: 'قازانج', href: '/dashboard/profits', icon: '📈', permission: 'profits' },
   { name: 'یارمەتی', href: '/dashboard/help', icon: '❓', permission: 'help' },
@@ -37,6 +37,7 @@ export default function DashboardLayout({
 }) {
   const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallButton, setShowInstallButton] = useState(false)
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
@@ -209,37 +210,9 @@ export default function DashboardLayout({
     <div className="min-h-screen" style={{ background: 'var(--theme-background)', color: 'var(--theme-foreground)' }}>
       <div className="flex flex-col">
         {/* Top Navigation Bar */}
-        <div className="w-full h-20 flex items-center justify-center px-6 border-b" style={{ background: 'var(--theme-sidebar-bg)', borderColor: 'var(--theme-border)' }}>
-          <div className="flex items-center justify-center space-x-6">
-            {filteredMenuItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105"
-              >
-                <div
-                  className="flex items-center justify-center w-12 h-12 rounded-full mb-1 shadow-lg transition-all duration-200 hover:scale-110"
-                  style={{
-                    background: 'var(--theme-sidebar-hover)',
-                    color: 'var(--theme-sidebar-text)'
-                  }}
-                >
-                  <span className="text-xl">{item.icon}</span>
-                </div>
-                <span
-                  className="text-xs text-center font-medium"
-                  style={{
-                    color: 'var(--theme-sidebar-text)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                >
-                  {item.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <div className="absolute right-6 flex items-center space-x-4">
-            {/* Shop Info Button */}
+        <div className="w-full h-20 mt-0.5 flex items-center justify-between border-b" style={{ background: 'var(--theme-sidebar-bg)', borderColor: 'var(--theme-border)', marginRight: '2px' }}>
+          {/* Shop Logo - Left Side */}
+          <div className="flex items-center flex-shrink-0">
             <button
               onClick={() => setShowUserSidebar(true)}
               className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105"
@@ -268,7 +241,7 @@ export default function DashboardLayout({
                 <Store className="w-6 h-6" style={{ display: shopSettings?.icon && shopSettings.icon.trim() !== '' ? 'none' : 'flex' }} />
               </div>
               <span
-                className="text-xs text-center font-medium max-w-24"
+                className="text-xs text-center font-medium max-w-20 sm:max-w-24"
                 style={{
                   color: 'var(--theme-sidebar-text)',
                   fontFamily: 'var(--font-uni-salar)'
@@ -277,14 +250,51 @@ export default function DashboardLayout({
                 {shopSettings?.shopname || 'فرۆشگا'}
               </span>
             </button>
+          </div>
 
-
+          {/* Navigation Menu - Fill Space */}
+          <div className="flex items-center justify-around flex-1 overflow-hidden">
+            <div className="flex items-center justify-around w-full gap-x-8 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {filteredMenuItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105 flex-shrink-0 mt-0.5"
+                  >
+                    <div
+                      className={`flex items-center justify-center w-12 h-12 rounded-full mb-1 transition-all duration-200 ${
+                        isActive ? 'bg-blue-600 text-white shadow-lg scale-110' : ''
+                      }`}
+                      style={{
+                        background: isActive ? '#2563eb' : 'var(--theme-sidebar-hover)',
+                        color: isActive ? '#ffffff' : 'var(--theme-sidebar-text)'
+                      }}
+                    >
+                      <span className="text-xl mt-1">{item.icon}</span>
+                    </div>
+                    <span
+                      className={`text-xs text-center font-medium transition-colors duration-200 ${
+                        isActive ? 'text-blue-600' : ''
+                      }`}
+                      style={{
+                        color: isActive ? '#2563eb' : 'var(--theme-sidebar-text)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      {item.name}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         </div>
 
         {/* Main content */}
-        <div className="flex-1 min-h-screen">
-          <main className="p-8">
+        <div className="flex-1 min-h-screen w-full">
+          <main className="p-4 sm:p-6 lg:p-8 w-full">
             {children}
           </main>
         </div>

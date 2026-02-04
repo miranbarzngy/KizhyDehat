@@ -60,10 +60,26 @@ function InvoicePreview({ saleData, invoice }: { saleData: any, invoice: Invoice
   )
 }
 
+interface PendingSale {
+  id: string
+  customer_name: string
+  customer_phone: string
+  total: number
+  date: string
+  items: Array<{
+    item_name: string
+    quantity: number
+    unit: string
+    price: number
+    total: number
+  }>
+}
+
 export default function InvoicesPage() {
-  const [activeTab, setActiveTab] = useState<'settings' | 'invoices'>('settings')
+  const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('settings')
   const [settings, setSettings] = useState<InvoiceSettings | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [pendingSales, setPendingSales] = useState<PendingSale[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -85,7 +101,188 @@ export default function InvoicesPage() {
   useEffect(() => {
     fetchSettings()
     fetchInvoices()
+    fetchPendingSales()
   }, [])
+
+  const fetchPendingSales = async () => {
+    if (!supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          id,
+          total,
+          payment_method,
+          date,
+          customers!inner(name, phone1),
+          sale_items(
+            id,
+            item_id,
+            quantity,
+            price,
+            unit,
+            inventory(item_name)
+          )
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching pending sales:', error)
+        setPendingSales([])
+        return
+      }
+
+      // Transform data to match PendingSale interface
+      const transformedPendingSales: PendingSale[] = (data || []).map(sale => ({
+        id: sale.id,
+        customer_name: sale.customers?.name || 'نەناسراو',
+        customer_phone: sale.customers?.phone1 || '',
+        total: sale.total,
+        date: sale.date,
+        items: sale.sale_items?.map((item: any) => ({
+          item_name: item.inventory?.item_name || 'نەناسراو',
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          total: item.price * item.quantity
+        })) || []
+      }))
+
+      setPendingSales(transformedPendingSales)
+    } catch (error) {
+      console.error('Error fetching pending sales:', error)
+      setPendingSales([])
+    }
+  }
+
+  const confirmSale = async (pendingSale: PendingSale) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    const confirmAction = confirm(`دڵنیایت لە پشتڕاستکردنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
+    if (!confirmAction) return
+
+    try {
+      // 1. Update sale status to 'sold'
+      const { error: saleError } = await supabase
+        .from('sales')
+        .update({ status: 'sold' })
+        .eq('id', pendingSale.id)
+
+      if (saleError) {
+        console.error('Error updating sale status:', saleError)
+        throw new Error('Failed to update sale status')
+      }
+
+      // 2. Update inventory quantities and stats
+      for (const item of pendingSale.items) {
+        // Get current inventory data
+        const { data: currentItem, error: fetchError } = await supabase
+          .from('inventory')
+          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
+          .eq('item_name', item.item_name)
+          .single()
+
+        if (fetchError) {
+          console.error('Error fetching inventory item:', fetchError)
+          throw new Error('Failed to fetch inventory item')
+        }
+
+        // Calculate new values
+        const newQuantity = (currentItem.quantity || 0) - item.quantity
+        const newTotalSold = (currentItem.total_sold || 0) + item.quantity
+        const newTotalRevenue = (currentItem.total_revenue || 0) + item.total
+        const profitPerItem = item.price - (currentItem.cost_price || 0)
+        const newTotalProfit = (currentItem.total_profit || 0) + (profitPerItem * item.quantity)
+
+        // Update inventory
+        const { error: inventoryError } = await supabase
+          .from('inventory')
+          .update({
+            quantity: newQuantity,
+            total_sold: newTotalSold,
+            total_revenue: newTotalRevenue,
+            total_profit: newTotalProfit,
+            is_archived: newQuantity <= 0
+          })
+          .eq('item_name', item.item_name)
+
+        if (inventoryError) {
+          console.error('Error updating inventory:', inventoryError)
+          throw new Error('Failed to update inventory')
+        }
+      }
+
+      // 3. Handle customer debt if payment method was debt
+      const { data: saleData, error: saleFetchError } = await supabase
+        .from('sales')
+        .select('payment_method, customer_id')
+        .eq('id', pendingSale.id)
+        .single()
+
+      if (saleFetchError) {
+        console.error('Error fetching sale data:', saleFetchError)
+        throw new Error('Failed to fetch sale data')
+      }
+
+      if (saleData.payment_method === 'debt') {
+        // Get current customer debt
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .select('total_debt')
+          .eq('id', saleData.customer_id)
+          .single()
+
+        if (customerError) {
+          console.error('Error fetching customer debt:', customerError)
+          throw new Error('Failed to fetch customer debt')
+        }
+
+        const newDebt = (customerData.total_debt || 0) + pendingSale.total
+
+        // Update customer debt
+        const { error: debtError } = await supabase
+          .from('customers')
+          .update({ total_debt: newDebt })
+          .eq('id', saleData.customer_id)
+
+        if (debtError) {
+          console.error('Error updating customer debt:', debtError)
+          throw new Error('Failed to update customer debt')
+        }
+
+        // Add to customer payments
+        const { error: paymentError } = await supabase
+          .from('customer_payments')
+          .insert({
+            customer_id: saleData.customer_id,
+            date: new Date().toISOString().split('T')[0],
+            amount: pendingSale.total,
+            items: pendingSale.items.map(item => `${item.item_name} x${item.quantity} ${item.unit}`).join(', '),
+            note: 'Confirmed sale on credit'
+          })
+
+        if (paymentError) {
+          console.error('Error creating customer payment record:', paymentError)
+          // Don't fail the entire operation for this
+        }
+      }
+
+      // Refresh data
+      fetchPendingSales()
+      fetchInvoices()
+
+      alert(`فرۆشتن بە سەرکەوتوویی پشتڕاستکرایەوە!\n\nکڕیار: ${pendingSale.customer_name}\nبڕ: ${formatCurrencyWithDecimals(pendingSale.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error confirming sale:', error)
+      alert(`هەڵە لە پشتڕاستکردنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 
   const fetchSettings = async () => {
     if (!supabase) return
@@ -573,7 +770,7 @@ export default function InvoicesPage() {
           <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'settings'
                   ? 'bg-blue-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
@@ -584,8 +781,20 @@ export default function InvoicesPage() {
               ڕێکخستنەکان
             </button>
             <button
+              onClick={() => setActiveTab('pending')}
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
+                activeTab === 'pending'
+                  ? 'bg-orange-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+              style={{ fontFamily: 'var(--font-uni-salar)' }}
+            >
+              ⏳
+              فرۆشتنە چاوەڕوانکراوەکان
+            </button>
+            <button
               onClick={() => setActiveTab('invoices')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'invoices'
                   ? 'bg-blue-500 text-white shadow-md'
                   : 'text-gray-600 hover:bg-white/50'
@@ -932,6 +1141,112 @@ export default function InvoicesPage() {
                                     گەڕانەکەت بگۆڕە یان پاکبکە
                                   </p>
                                 )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Pending Sales Tab */}
+            {activeTab === 'pending' && (
+              <motion.div
+                key="pending"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Pending Sales Table */}
+                <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200/50 bg-gray-50/50">
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            ناوی کاڵا
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            کڕیار
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            تەلەفۆن
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            یەکە
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بڕ
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            بەروار
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            دۆخ
+                          </th>
+                          <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            کردارەکان
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingSales.map((sale, index) => (
+                          <motion.tr
+                            key={sale.id}
+                            className="border-b border-gray-100/50 hover:bg-white/30 transition-colors duration-200"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {sale.items.map(item => item.item_name).join(', ')}
+                            </td>
+                            <td className="px-6 py-4 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {sale.customer_name}
+                            </td>
+                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
+                              {sale.customer_phone}
+                            </td>
+                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {sale.items.map(item => item.unit).join(', ')}
+                            </td>
+                            <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {sale.items.map(item => item.quantity).join(', ')}
+                            </td>
+                            <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {new Date(sale.date).toLocaleDateString('ku')}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                ⏳ چاوەڕوانکراو
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <motion.button
+                                onClick={() => confirmSale(sale)}
+                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                title="پشتڕاستکردنەوەی فرۆشتن"
+                                style={{ fontFamily: 'var(--font-uni-salar)' }}
+                              >
+                                پشتڕاستکردنەوە
+                              </motion.button>
+                            </td>
+                          </motion.tr>
+                        ))}
+                        {pendingSales.length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-12 text-center">
+                              <div className="text-gray-400">
+                                <div className="text-4xl mb-4">⏳</div>
+                                <p className="text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                  هیچ فرۆشتنێکی چاوەڕوانکراو نیە
+                                </p>
                               </div>
                             </td>
                           </tr>

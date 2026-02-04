@@ -513,7 +513,7 @@ export default function SalesPage() {
         userId: user?.id
       })
 
-      // Insert sale with comprehensive metadata for reporting
+      // Insert sale with comprehensive metadata for reporting - initially as pending
       const saleInsertData = {
         customer_id: selectedCustomer, // Always link to customer
         total,
@@ -523,6 +523,7 @@ export default function SalesPage() {
         discount_amount: discount,
         subtotal: total + discount, // Store original subtotal before discount
         items_count: cart.length,
+        status: 'pending', // New sales start as pending
         created_at: new Date().toISOString(),
         notes: paymentMethod === 'debt' ? 'Sale on credit' : null
       }
@@ -626,78 +627,7 @@ export default function SalesPage() {
         throw itemsError
       }
 
-      // Update inventory using converted quantities and archive if needed
-      for (const item of cart) {
-        const newQuantity = item.item.quantity - item.baseQuantity
-        const profitPerItem = item.price - (item.item.cost_price || 0)
-        const totalProfit = profitPerItem * item.baseQuantity
-        const totalRevenue = item.price * item.baseQuantity
-
-        console.log(`Updating inventory for ${item.item.item_name}:`)
-        console.log(`  Quantity: ${item.item.quantity} - ${item.baseQuantity} = ${newQuantity}`)
-        console.log(`  Total sold increment: ${item.baseQuantity}`)
-        console.log(`  Total revenue increment: ${totalRevenue}`)
-        console.log(`  Total profit increment: ${totalProfit}`)
-
-        const updateData: any = {
-          quantity: newQuantity,
-          total_sold: (item.item.total_sold || 0) + item.baseQuantity,
-          total_revenue: (item.item.total_revenue || 0) + totalRevenue,
-          total_profit: (item.item.total_profit || 0) + totalProfit
-        }
-
-        // Archive item if quantity becomes zero or negative
-        if (newQuantity <= 0) {
-          updateData.is_archived = true
-          console.log(`Archiving item ${item.item.item_name} due to zero stock`)
-        }
-
-        const { error: updateError } = await supabase!
-          .from('inventory')
-          .update(updateData)
-          .eq('id', item.item.id)
-
-        if (updateError) {
-          console.error('Inventory update error:', updateError)
-          throw updateError
-        }
-      }
-
-      // If debt payment, update customer debt
-      if (paymentMethod === 'debt') {
-        const customer = customers.find(c => c.id === selectedCustomer)
-        if (customer) {
-          console.log(`Updating customer debt: ${customer.total_debt} + ${total} = ${customer.total_debt + total}`)
-
-          const { error: debtError } = await supabase!
-            .from('customers')
-            .update({
-              total_debt: customer.total_debt + total
-            })
-            .eq('id', selectedCustomer)
-
-          if (debtError) {
-            console.error('Customer debt update error:', debtError)
-            throw debtError
-          }
-
-          // Add to customer payments
-          const { error: paymentError } = await supabase!
-            .from('customer_payments')
-            .insert({
-              customer_id: selectedCustomer,
-              date: new Date().toISOString().split('T')[0],
-              amount: total,
-              items: cart.map(item => `${item.item.item_name} x${item.quantity} ${item.unit}`).join(', '),
-              note: 'Sale on credit'
-            })
-
-          if (paymentError) {
-            console.error('Customer payment insertion error:', paymentError)
-            throw paymentError
-          }
-        }
-      }
+      // NOTE: Inventory and customer debt updates are deferred until sale is confirmed from pending status
 
       // Show invoice with customer data
       const customerName = customers.find(c => c.id === selectedCustomer)?.name

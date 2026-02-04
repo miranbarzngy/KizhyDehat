@@ -1909,7 +1909,7 @@ export default function InvoicesPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="overflow-hidden max-h-[90vh] md:max-h-[80vh]" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="overflow-y-auto overflow-x-hidden max-h-[90vh] md:max-h-[80vh]" style={{ display: 'flex', flexDirection: 'column' }}>
                 {/* Invoice Wrapper */}
                 <div style={{
                   flex: 1,
@@ -1919,14 +1919,14 @@ export default function InvoicesPage() {
                   alignItems: 'flex-start',
                   padding: '10px'
                 }}>
-                  {/* Invoice Component - Responsive Scaling */}
+                  {/* Invoice Component - Responsive Scaling with Scroll */}
                   <div
                     className="invoice-preview-container"
                     style={{
-                      maxHeight: '100%',
                       width: 'auto',
                       aspectRatio: 'auto',
-                      transformOrigin: 'top center'
+                      transformOrigin: 'top center',
+                      minHeight: 'fit-content'
                     }}
                   >
                     <style jsx>{`

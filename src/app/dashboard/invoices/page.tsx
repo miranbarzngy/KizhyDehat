@@ -105,9 +105,32 @@ export default function InvoicesPage() {
   }, [])
 
   const fetchPendingSales = async () => {
-    if (!supabase) return
+    if (!supabase) {
+      setPendingSales([])
+      return
+    }
 
     try {
+      // First check if status column exists by trying a simple query
+      let hasStatusColumn = false
+      try {
+        const testQuery = await supabase
+          .from('sales')
+          .select('status')
+          .limit(1)
+
+        hasStatusColumn = !testQuery.error
+      } catch (columnError) {
+        console.log('Status column not available yet, skipping pending sales fetch')
+        hasStatusColumn = false
+      }
+
+      if (!hasStatusColumn) {
+        console.log('Status column not found, setting empty pending sales')
+        setPendingSales([])
+        return
+      }
+
       const { data, error } = await supabase
         .from('sales')
         .select(`
@@ -137,8 +160,8 @@ export default function InvoicesPage() {
       // Transform data to match PendingSale interface
       const transformedPendingSales: PendingSale[] = (data || []).map(sale => ({
         id: sale.id,
-        customer_name: sale.customers?.name || 'نەناسراو',
-        customer_phone: sale.customers?.phone1 || '',
+        customer_name: sale.customers?.[0]?.name || 'نەناسراو',
+        customer_phone: sale.customers?.[0]?.phone1 || '',
         total: sale.total,
         date: sale.date,
         items: sale.sale_items?.map((item: any) => ({
@@ -384,7 +407,7 @@ export default function InvoicesPage() {
       const transformedInvoices: Invoice[] = (data || []).map((sale: any, index: number) => ({
         id: sale.id,
         invoice_number: hasInvoiceNumberColumn ? (sale.invoice_number || (1000 + index)) : (1000 + index),
-        customer_name: sale.customers?.name || 'نەناسراو',
+        customer_name: sale.customers?.[0]?.name || 'نەناسراو',
         total: sale.total,
         payment_method: sale.payment_method,
         date: sale.date,

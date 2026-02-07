@@ -6,8 +6,16 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Store } from 'lucide-react'
-import ThemeToggle from '@/components/ThemeToggle'
-import UserProfilePopup from '@/components/UserProfilePopup'
+import dynamic from 'next/dynamic'
+
+// Dynamic import for better code splitting - only loads when needed
+const UserProfilePopup = dynamic(
+  () => import('@/components/UserProfilePopup').then(mod => mod.default),
+  { 
+    loading: () => null,
+    ssr: false 
+  }
+)
 
 interface ShopSettings {
   id: string
@@ -220,7 +228,8 @@ export default function DashboardLayout({
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+            willChange: 'backdrop-filter'
           }}
         >
           {/* Single Row: RTL - Branding first (right), Navigation second (left) */}

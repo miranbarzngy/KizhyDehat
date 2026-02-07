@@ -98,7 +98,8 @@ export default function UserProfilePopup({ isOpen, onClose, shopSettings }: User
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               border: '1px solid rgba(255, 255, 255, 0.4)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              willChange: 'backdrop-filter, opacity, transform'
             }}
           >
             {/* Close Button */}

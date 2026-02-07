@@ -81,6 +81,7 @@ export default function ProfitsPage() {
     totalSales: 0,
     totalExpenses: 0,
     totalProfits: 0,
+    totalReturns: 0,
     cashSales: 0,
     onlineSales: 0,
     payLaterSales: 0,
@@ -153,7 +154,7 @@ export default function ProfitsPage() {
       // Total sales - exclude cancelled and refunded items
       const { data: salesData } = await supabase
         .from('sales')
-        .select('total, payment_method')
+        .select('total, payment_method, status')
         .match(dateFilter)
         .neq('status', 'cancelled')
         .neq('status', 'refunded')
@@ -163,11 +164,21 @@ export default function ProfitsPage() {
       const onlineSales = salesData?.filter(sale => sale.payment_method === 'fib').reduce((sum, sale) => sum + sale.total, 0) || 0
       const payLaterSales = salesData?.filter(sale => sale.payment_method === 'debt').reduce((sum, sale) => sum + sale.total, 0) || 0
 
-      // Inventory expenses (cost of goods sold)
+      // Get total returns (refunded sales)
+      const { data: refundedData } = await supabase
+        .from('sales')
+        .select('total')
+        .match(dateFilter)
+        .eq('status', 'refunded')
+
+      const totalReturns = refundedData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+
+      // Inventory expenses (cost of goods sold) - exclude refunded sales items
       const { data: inventoryData } = await supabase
         .from('sale_items')
-        .select('quantity, cost_price')
+        .select('quantity, cost_price, sales!inner(status)')
         .match(dateFilter)
+        .neq('sales.status', 'refunded')
 
       const inventoryExpenses = inventoryData?.reduce((sum, item) => sum + (item.cost_price * item.quantity), 0) || 0
 
@@ -186,6 +197,7 @@ export default function ProfitsPage() {
         totalSales,
         totalExpenses,
         totalProfits,
+        totalReturns,
         cashSales,
         onlineSales,
         payLaterSales,
@@ -229,6 +241,7 @@ export default function ProfitsPage() {
           .select('total')
           .eq('date', dateStr)
           .neq('status', 'cancelled')
+          .neq('status', 'refunded')
 
         const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
@@ -498,7 +511,7 @@ export default function ProfitsPage() {
         return
       }
 
-      // Try to fetch refunded items - if status column doesn't exist, this will fail gracefully
+      // Try to fetch refunded items with status filter
       let refundsQuery = supabase
         .from('sales')
         .select(`
@@ -507,10 +520,8 @@ export default function ProfitsPage() {
           date,
           customers!left(name, phone)
         `)
-
-      // Only add status filter if we're confident the column exists
-      // For now, we'll simulate refunded items by taking a few recent sales
-      refundsQuery = refundsQuery.order('date', { ascending: false }).limit(3)
+        .eq('status', 'refunded')
+        .order('date', { ascending: false })
 
       if (dateFrom) refundsQuery = refundsQuery.gte('date', dateFrom)
       if (dateTo) refundsQuery = refundsQuery.lte('date', dateTo)
@@ -524,8 +535,7 @@ export default function ProfitsPage() {
       }
 
       if (refundsData && refundsData.length > 0) {
-        // Since we don't have a status column, we'll treat the first few sales as "refunded" for demo purposes
-        const processedRefunds: RefundedItem[] = refundsData.slice(0, 2).map((refund: any) => ({
+        const processedRefunds: RefundedItem[] = refundsData.map((refund: any) => ({
           id: `refund-${refund.id}`,
           customer_name: refund.customers?.name || 'نەناسراو',
           customer_phone: refund.customers?.phone || '',

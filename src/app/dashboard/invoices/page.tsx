@@ -590,6 +590,146 @@ export default function InvoicesPage() {
     }
   }
 
+  // Refund an already completed invoice
+  const refundInvoice = async (invoice: Invoice) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    const refundAction = confirm(`دڵنیایت لە گەڕاندنەوەی فاکتور ${invoice.invoice_number} بە بڕی ${formatCurrencyWithDecimals(invoice.total)} IQD؟`)
+    if (!refundAction) return
+
+    try {
+      // 1. Fetch the sale items for this invoice
+      const { data: saleItemsData, error: itemsError } = await supabase
+        .from('sale_items')
+        .select(`
+          id,
+          item_id,
+          quantity,
+          price,
+          unit,
+          inventory(item_name, unit, cost_price)
+        `)
+        .eq('sale_id', invoice.id)
+
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError)
+        throw new Error('Failed to fetch sale items')
+      }
+
+      // 2. Update sale status to 'refunded'
+      console.log('Attempting to refund invoice for ID:', invoice.id)
+      const { data: saleUpdateData, error: saleError } = await supabase
+        .from('sales')
+        .update({ status: 'refunded' })
+        .eq('id', invoice.id)
+        .select()
+
+      console.log('Invoice refund result:', { data: saleUpdateData, error: saleError })
+
+      if (saleError) {
+        console.error('Error updating sale status for refund:', saleError)
+        throw new Error(`Failed to refund invoice: ${saleError.message || 'Unknown error'}`)
+      }
+
+      if (!saleUpdateData || saleUpdateData.length === 0) {
+        throw new Error('Invoice refund succeeded but no data returned')
+      }
+
+      // 3. Add back quantities to inventory (reverse of original sale)
+      for (const item of (saleItemsData || [])) {
+        const { data: currentItem, error: fetchError } = await supabase
+          .from('inventory')
+          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
+          .eq('id', item.item_id)
+          .single()
+
+        if (fetchError) {
+          console.error('Error fetching inventory item for refund:', fetchError)
+          continue // Skip this item
+        }
+
+        const costPrice = item.inventory?.cost_price || currentItem?.cost_price || 0
+        const itemTotal = item.price * item.quantity
+
+        // Calculate new values (reverse the original sale logic)
+        const newQuantity = (currentItem?.quantity || 0) + item.quantity
+        const newTotalSold = Math.max(0, (currentItem?.total_sold || 0) - item.quantity)
+        const newTotalRevenue = Math.max(0, (currentItem?.total_revenue || 0) - itemTotal)
+        const profitPerItem = item.price - costPrice
+        const newTotalProfit = Math.max(0, (currentItem?.total_profit || 0) - (profitPerItem * item.quantity))
+
+        // Update inventory
+        const { error: inventoryError } = await supabase
+          .from('inventory')
+          .update({
+            quantity: newQuantity,
+            total_sold: newTotalSold,
+            total_revenue: newTotalRevenue,
+            total_profit: newTotalProfit,
+            is_archived: false
+          })
+          .eq('id', item.item_id)
+
+        if (inventoryError) {
+          console.error('Error updating inventory for refund:', inventoryError)
+        }
+      }
+
+      // 4. Handle customer debt for refunds (reverse debt logic)
+      const { data: saleData, error: saleFetchError } = await supabase
+        .from('sales')
+        .select('payment_method, customer_id')
+        .eq('id', invoice.id)
+        .single()
+
+      if (!saleFetchError && saleData) {
+        if (saleData.payment_method === 'debt') {
+          // Get current customer debt
+          const { data: customerData, error: customerError } = await supabase
+            .from('customers')
+            .select('total_debt')
+            .eq('id', saleData.customer_id)
+            .single()
+
+          if (!customerError && customerData) {
+            const newDebt = Math.max(0, (customerData.total_debt || 0) - invoice.total)
+
+            // Update customer debt (reduce it since we're refunding)
+            await supabase
+              .from('customers')
+              .update({ total_debt: newDebt })
+              .eq('id', saleData.customer_id)
+
+            // Add refund record to customer payments
+            await supabase
+              .from('customer_payments')
+              .insert({
+                customer_id: saleData.customer_id,
+                date: new Date().toISOString().split('T')[0],
+                amount: -invoice.total,
+                items: saleItemsData?.map((item: any) => 
+                  `${item.inventory?.item_name || 'نەناسراو'} x${item.quantity} ${item.unit}`
+                ).join(', ') || '',
+                note: 'Invoice refund - debt reduced'
+              })
+          }
+        }
+      }
+
+      // Refresh data
+      fetchInvoices()
+
+      alert(`فاکتور ${invoice.invoice_number} بە سەرکەوتوویی گەڕێندرایەوە!\n\nبڕ: ${formatCurrencyWithDecimals(invoice.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error refunding invoice:', error)
+      alert(`هەڵە لە گەڕاندنەوەی فاکتور: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const fetchSettings = async () => {
     if (!supabase) {
       // Demo mode: set default settings
@@ -1726,6 +1866,18 @@ export default function InvoicesPage() {
                                 >
                                   <FaPrint className="text-xs md:text-sm" />
                                 </motion.button>
+                                {invoice.status !== 'refunded' && invoice.status !== 'cancelled' && (
+                                  <motion.button
+                                    onClick={() => refundInvoice(invoice)}
+                                    className="px-2 md:px-3 py-1 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="گەڕاندنەوە"
+                                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                  >
+                                    ↩️
+                                  </motion.button>
+                                )}
                               </div>
                             </td>
                           </motion.tr>

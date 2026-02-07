@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { sanitizePhoneNumber, formatCurrency } from '@/lib/numberUtils'
 import { motion, AnimatePresence } from 'framer-motion'
-import DashboardLoader from '@/components/DashboardLoader'
 import { FaUser, FaUsers, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaPlus, FaEdit, FaTrash, FaEye, FaShieldAlt, FaArrowUp, FaArrowDown, FaShoppingCart, FaMoneyBillWave, FaChartLine, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -734,10 +733,6 @@ export default function AdminPage() {
   }
 
 
-
-  if (loading) {
-    return <DashboardLoader message="چاوەڕوانبە..." />
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 w-full pl-0 md:pl-0">

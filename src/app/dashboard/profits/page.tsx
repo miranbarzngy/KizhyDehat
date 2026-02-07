@@ -1,6 +1,5 @@
 'use client'
 
-import DashboardLoader from '@/components/DashboardLoader'
 import { formatCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
@@ -541,10 +540,6 @@ export default function ProfitsPage() {
       console.error('Error fetching refunded items:', error)
       setRefundedItems([])
     }
-  }
-
-  if (loading) {
-    return <DashboardLoader message="چاوەڕوانبە..." />
   }
 
   return (

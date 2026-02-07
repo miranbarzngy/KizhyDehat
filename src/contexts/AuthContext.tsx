@@ -27,11 +27,12 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
+  syncKey: number
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Cookie utilities for server-side persistence
+// Cookie utilities
 const COOKIE_NAMES = {
   USER_ID: 'pos_user_id',
   USER_EMAIL: 'pos_user_email',
@@ -71,73 +72,57 @@ function clearAuthCookies() {
   Object.values(COOKIE_NAMES).forEach(name => deleteCookie(name))
 }
 
-// Force read profile from cookies - stable function
-function forceReadProfileFromCookies(): Profile | null {
-  if (typeof document === 'undefined') return null
-  
-  const userId = getCookie(COOKIE_NAMES.USER_ID)
-  const userName = getCookie(COOKIE_NAMES.USER_NAME)
-  const userImage = getCookie(COOKIE_NAMES.USER_IMAGE)
-  const roleId = getCookie(COOKIE_NAMES.ROLE_ID)
-  const roleName = getCookie(COOKIE_NAMES.ROLE_NAME)
-  const sessionExpiry = getCookie(COOKIE_NAMES.SESSION_EXPIRY)
-
-  if (!userId || !roleId) {
-    return null
-  }
-
-  // Check if session is expired
-  if (sessionExpiry) {
-    const expiry = new Date(sessionExpiry)
-    if (expiry < new Date()) {
-      return null
-    }
-  }
-
-  return {
-    id: userId,
-    name: userName || '',
-    image: userImage || '',
-    role_id: roleId,
-    role: {
-      name: roleName || '',
-      permissions: {
-        dashboard: true,
-        sales: true,
-        inventory: true,
-        customers: true,
-        suppliers: true,
-        invoices: true,
-        expenses: true,
-        profits: true,
-        help: true,
-        admin: true
-      }
-    }
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with null - NOT 'Admin' to prevent wrong fallback
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [syncKey, setSyncKey] = useState(0) // For forcing re-mount
   
-  // Refs to prevent infinite loops
-  const isInitialized = useRef(false)
   const isSyncing = useRef(false)
   const userIdRef = useRef<string | null>(null)
 
-  // Save profile to cookies for persistence
-  const saveProfileToCookies = useCallback((profileData: Profile | null, userData: User | null) => {
+  // Force read from cookies
+  const forceReadFromCookies = useCallback((): Profile | null => {
+    if (typeof document === 'undefined') return null
+    
+    const userId = getCookie(COOKIE_NAMES.USER_ID)
+    const userName = getCookie(COOKIE_NAMES.USER_NAME)
+    const userImage = getCookie(COOKIE_NAMES.USER_IMAGE)
+    const roleId = getCookie(COOKIE_NAMES.ROLE_ID)
+    const roleName = getCookie(COOKIE_NAMES.ROLE_NAME)
+    const sessionExpiry = getCookie(COOKIE_NAMES.SESSION_EXPIRY)
+
+    if (!userId || !roleId) return null
+    if (sessionExpiry) {
+      const expiry = new Date(sessionExpiry)
+      if (expiry < new Date()) return null
+    }
+
+    return {
+      id: userId,
+      name: userName || '',
+      image: userImage || '',
+      role_id: roleId,
+      role: {
+        name: roleName || '',
+        permissions: {
+          dashboard: true, sales: true, inventory: true, customers: true,
+          suppliers: true, invoices: true, expenses: true, profits: true,
+          help: true, admin: true
+        }
+      }
+    }
+  }, [])
+
+  // Save to cookies
+  const saveToCookies = useCallback((profileData: Profile | null, userData: User | null) => {
     if (profileData) {
       setCookie(COOKIE_NAMES.USER_ID, profileData.id)
       setCookie(COOKIE_NAMES.USER_NAME, profileData.name || '', 30)
       setCookie(COOKIE_NAMES.USER_IMAGE, profileData.image || '', 30)
       setCookie(COOKIE_NAMES.ROLE_ID, profileData.role_id)
       setCookie(COOKIE_NAMES.ROLE_NAME, profileData.role?.name || '', 30)
-      
       const expiry = new Date()
       expiry.setDate(expiry.getDate() + 7)
       setCookie(COOKIE_NAMES.SESSION_EXPIRY, expiry.toISOString(), 7)
@@ -157,9 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single()
 
-      if (profileError || !profileData) {
-        return null
-      }
+      if (profileError || !profileData) return null
 
       let roleData = null
       if (profileData.role_id) {
@@ -189,31 +172,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Force restore from cookies - stable, no dependencies
-  const forceRestoreFromCookies = useCallback(() => {
-    const cachedProfile = forceReadProfileFromCookies()
-    
-    if (cachedProfile && cachedProfile.name && cachedProfile.role_id) {
+  // Refresh session with heartbeat
+  const refreshSession = useCallback(async () => {
+    const cachedProfile = forceReadFromCookies()
+    if (cachedProfile) {
       console.log('🚀 FORCE RESTORE FROM COOKIES:', cachedProfile.name)
       setProfile(cachedProfile)
-      setLoading(false)
-      return true
     }
-    setLoading(false)
-    return false
-  }, [])
-
-  // Refresh session - stable, no dependencies
-  const refreshSession = useCallback(async () => {
-    forceRestoreFromCookies()
+    
     if (supabase) {
       try {
-        await supabase.auth.getSession()
+        await supabase.auth.getUser()
+        console.log('💓 Supabase auth.getUser() heartbeat')
       } catch {
-        // Ignore errors
+        console.log('⚠️ Heartbeat failed')
       }
     }
-  }, [forceRestoreFromCookies])
+    setLoading(false)
+  }, [forceReadFromCookies])
 
   useEffect(() => {
     // Demo mode
@@ -249,15 +225,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // IMMEDIATE: Force restore from cookies first
-    const immediateCachedProfile = forceReadProfileFromCookies()
-    if (immediateCachedProfile && immediateCachedProfile.name) {
-      console.log('🚀 IMMEDIATE cookie restore:', immediateCachedProfile.name)
-      setProfile(immediateCachedProfile)
-      userIdRef.current = immediateCachedProfile.id
+    // Immediate cookie restore
+    const cachedProfile = forceReadFromCookies()
+    if (cachedProfile && cachedProfile.name) {
+      console.log('🚀 IMMEDIATE cookie restore:', cachedProfile.name)
+      setProfile(cachedProfile)
+      userIdRef.current = cachedProfile.id
     }
 
-    // Get initial session
+    // Get session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setSession(session)
@@ -265,14 +241,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userIdRef.current = session.user.id
         
         const freshProfile = await fetchProfile(session.user.id, session.user.email || undefined)
-        
         if (freshProfile) {
           setProfile(freshProfile)
-          saveProfileToCookies(freshProfile, session.user)
+          saveToCookies(freshProfile, session.user)
         }
       }
       setLoading(false)
-      isInitialized.current = true
     })
 
     // Auth state listener
@@ -287,42 +261,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const freshProfile = await fetchProfile(session.user.id, session.user.email || undefined)
           if (freshProfile) {
             setProfile(freshProfile)
-            saveProfileToCookies(freshProfile, session.user)
+            saveToCookies(freshProfile, session.user)
           }
         } else {
-          forceRestoreFromCookies()
+          const cached = forceReadFromCookies()
+          if (cached) {
+            setProfile(cached)
+          }
         }
         setLoading(false)
       }
     )
 
-    // Tab wake-up handler - uses refs, NOT state dependencies
+    // Tab wake-up with Supabase heartbeat
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && !isSyncing.current) {
         isSyncing.current = true
         console.log('👁️ Tab became visible')
         
-        // Step 1: Force restore from cookies immediately
-        forceRestoreFromCookies()
+        // Increment syncKey to force re-mount of components
+        setSyncKey(prev => prev + 1)
         
-        // Step 2: Re-establish Supabase connection
+        // Force restore from cookies
+        const cached = forceReadFromCookies()
+        if (cached) {
+          setProfile(cached)
+          console.log('🍪 Profile restored from cookies')
+        }
+        
+        // Supabase heartbeat
         if (supabase) {
           try {
-            await supabase.auth.getSession()
-            console.log('💓 Supabase session verified')
+            await supabase.auth.getUser()
+            console.log('💓 Supabase heartbeat on focus')
           } catch {
-            console.log('⚠️ Supabase reconnect failed')
+            console.log('⚠️ Supabase heartbeat failed')
           }
         }
         
-        // Step 3: Try to refresh from server if we have a userId
+        // Try server refresh
         if (userIdRef.current) {
           try {
             const freshProfile = await fetchProfile(userIdRef.current)
             if (freshProfile) {
-              console.log('🔄 Fresh profile from server')
               setProfile(freshProfile)
-              saveProfileToCookies(freshProfile, { id: userIdRef.current } as User)
+              saveToCookies(freshProfile, { id: userIdRef.current } as User)
             }
           } catch {
             console.log('⚠️ Server refresh failed')
@@ -333,13 +316,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Window focus handler
-    const handleFocus = () => {
+    // Window focus
+    const handleFocus = async () => {
       if (!isSyncing.current) {
         console.log('🎯 Window focus')
-        forceRestoreFromCookies()
+        
+        const cached = forceReadFromCookies()
+        if (cached) {
+          setProfile(cached)
+        }
+        
         if (supabase) {
-          supabase.auth.getSession().catch(() => {})
+          try {
+            await supabase.auth.getUser()
+          } catch {}
         }
       }
     }
@@ -352,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
     }
-  }, []) // Empty dependency array - runs once on mount
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not configured')
@@ -374,7 +364,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshSession }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshSession, syncKey }}>
       {children}
     </AuthContext.Provider>
   )

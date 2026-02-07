@@ -25,9 +25,18 @@ CREATE POLICY "Allow public access" ON storage.objects
   TO anon, authenticated
   USING (bucket_id = 'supplier-images');
 
--- Policy to allow authenticated users to update/delete their own images
+-- Policy to allow authenticated users to update images
 CREATE POLICY "Allow owner updates" ON storage.objects
-  FOR UPDATE, DELETE
+  FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'supplier-images' AND
+    (storage.foldername(name) = 'images' OR storage.foldername(name) = '')
+  );
+
+-- Policy to allow authenticated users to delete images
+CREATE POLICY "Allow owner delete" ON storage.objects
+  FOR DELETE
   TO authenticated
   USING (
     bucket_id = 'supplier-images' AND

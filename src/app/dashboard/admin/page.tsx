@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { sanitizePhoneNumber, formatCurrency } from '@/lib/numberUtils'
 import { motion, AnimatePresence } from 'framer-motion'
+import DashboardLoader from '@/components/DashboardLoader'
 import { FaUser, FaUsers, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaPlus, FaEdit, FaTrash, FaEye, FaShieldAlt, FaArrowUp, FaArrowDown, FaShoppingCart, FaMoneyBillWave, FaChartLine, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -47,7 +48,7 @@ interface ChartData {
 
 export default function AdminPage() {
   const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'roles' | 'settings'>('analytics')
+  const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'settings'>('users')
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
@@ -77,320 +78,12 @@ export default function AdminPage() {
   })
   const [editingRole, setEditingRole] = useState<Role | null>(null)
 
-  // Financial Analytics State
-  const [financialStats, setFinancialStats] = useState({
-    totalSales: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    todaySales: 0,
-    yesterdaySales: 0,
-    salesTrend: 0, // percentage change from yesterday
-  })
-  const [chartData, setChartData] = useState<ChartData[]>([])
-
 
   useEffect(() => {
     fetchUsers()
     fetchRoles()
     fetchShopSettings()
-    fetchFinancialStats()
-    setupRealtimeSubscription()
   }, [])
-
-  // Financial Analytics Functions
-  const fetchFinancialStats = async () => {
-    if (!supabase) {
-      // Demo data
-      setFinancialStats({
-        totalSales: 125000,
-        totalExpenses: 87500,
-        netProfit: 37500,
-        todaySales: 24500,
-        yesterdaySales: 18900,
-        salesTrend: 29.6
-      })
-      return
-    }
-
-    try {
-      // Get today's date and yesterday's date
-      const today = new Date().toISOString().split('T')[0]
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-
-      // Total Sales: Sum of total from sales table
-      const { data: salesData, error: salesError } = await supabase
-        .from('sales')
-        .select('total')
-
-      if (salesError) throw salesError
-
-      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
-
-      // Total Expenses: Include both cost of goods sold AND other expenses
-      // 1. Cost of goods sold from sale_items
-      const { data: saleItemsData, error: itemsError } = await supabase
-        .from('sale_items')
-        .select(`
-          quantity,
-          inventory_id
-        `)
-
-      if (itemsError) throw itemsError
-
-      // Get inventory data separately
-      const inventoryIds = saleItemsData?.map(item => item.inventory_id).filter(Boolean) || []
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from('inventory')
-        .select('id, cost_price')
-        .in('id', inventoryIds)
-
-      if (inventoryError) throw inventoryError
-
-      const inventoryMap = new Map(inventoryData?.map(inv => [inv.id, inv.cost_price]) || [])
-
-      const cogsExpenses = saleItemsData?.reduce((sum, item) => {
-        const costPrice = inventoryMap.get(item.inventory_id) || 0
-        return sum + (costPrice * item.quantity)
-      }, 0) || 0
-
-      // 2. Other expenses from expenses table
-      const { data: otherExpensesData, error: expensesError } = await supabase
-        .from('expenses')
-        .select('amount')
-
-      if (expensesError) throw expensesError
-
-      const otherExpenses = otherExpensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
-
-      // Total expenses = COGS + Other expenses
-      const totalExpenses = cogsExpenses + otherExpenses
-
-      // Net Profit: Total Sales - Total Expenses
-      const netProfit = totalSales - totalExpenses
-
-      // Today's sales - Use date range to avoid timezone issues
-      const startOfToday = new Date(today)
-      startOfToday.setHours(0, 0, 0, 0)
-      const endOfToday = new Date(today)
-      endOfToday.setHours(23, 59, 59, 999)
-
-      console.log('Today date range:', startOfToday.toISOString(), 'to', endOfToday.toISOString())
-
-      // Try a simpler approach - filter by date string
-      const { data: todaySalesData, error: todayError } = await supabase
-        .from('sales')
-        .select('total, date')
-        .eq('date', today)
-
-      console.log('Today Sales Raw Data:', todaySalesData)
-      console.log('Today Sales Error:', todayError)
-
-      const todaySales = todaySalesData?.reduce((sum, sale) => {
-        const saleAmount = Number(sale.total || 0)
-        console.log('Processing sale:', sale.date, 'amount:', saleAmount)
-        return sum + saleAmount
-      }, 0) || 0
-
-      console.log('Today Sales Total:', todaySales)
-
-      // Yesterday's sales - Use date range to avoid timezone issues
-      const startOfYesterday = new Date(yesterday)
-      startOfYesterday.setHours(0, 0, 0, 0)
-      const endOfYesterday = new Date(yesterday)
-      endOfYesterday.setHours(23, 59, 59, 999)
-
-      const { data: yesterdaySalesData, error: yesterdayError } = await supabase
-        .from('sales')
-        .select('total, date')
-        .gte('date', startOfYesterday.toISOString())
-        .lte('date', endOfYesterday.toISOString())
-
-      const yesterdaySales = yesterdaySalesData?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0
-
-      // Sales trend percentage
-      const salesTrend = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : 0
-
-      setFinancialStats({
-        totalSales: Math.round(totalSales),
-        totalExpenses: Math.round(totalExpenses),
-        netProfit: Math.round(netProfit),
-        todaySales: Math.round(todaySales),
-        yesterdaySales: Math.round(yesterdaySales),
-        salesTrend: Math.round(salesTrend * 10) / 10
-      })
-
-      // Fetch chart data for last 7 days
-      await fetchChartData()
-
-    } catch (error) {
-      console.error('Error fetching financial stats:', error)
-      // Fallback to demo data
-      setFinancialStats({
-        totalSales: 125000,
-        totalExpenses: 87500,
-        netProfit: 37500,
-        todaySales: 24500,
-        yesterdaySales: 18900,
-        salesTrend: 29.6
-      })
-    }
-  }
-
-  const fetchChartData = async () => {
-    if (!supabase) {
-      // Demo chart data
-      const demoData: ChartData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        demoData.push({
-          date: dateStr,
-          sales: Math.round(Math.random() * 50000 + 10000),
-          expenses: Math.round(Math.random() * 30000 + 5000),
-          profit: 0 // Will be calculated
-        })
-      }
-      // Calculate profits
-      demoData.forEach(item => {
-        item.profit = item.sales - item.expenses
-      })
-      setChartData(demoData)
-      return
-    }
-
-    try {
-      const chartDataPoints: ChartData[] = []
-
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-
-        // Daily sales
-        const { data: daySales } = await supabase
-          .from('sales')
-          .select('total')
-          .eq('date', dateStr)
-
-        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
-
-        // Daily expenses (from sale_items cost_price * quantity)
-        // First get sales for this date, then get their items
-        const { data: daySalesIds } = await supabase
-          .from('sales')
-          .select('id')
-          .eq('date', dateStr)
-
-        let dayExpensesTotal = 0
-        if (daySalesIds && daySalesIds.length > 0) {
-          const saleIds = daySalesIds.map(sale => sale.id)
-          const { data: dayItems } = await supabase
-            .from('sale_items')
-            .select(`
-              quantity,
-              inventory_id
-            `)
-            .in('sale_id', saleIds)
-
-          // Get inventory data separately
-          const inventoryIds = dayItems?.map(item => item.inventory_id).filter(Boolean) || []
-          const { data: dayInventoryData } = await supabase
-            .from('inventory')
-            .select('id, cost_price')
-            .in('id', inventoryIds)
-
-          const dayInventoryMap = new Map(dayInventoryData?.map(inv => [inv.id, inv.cost_price]) || [])
-
-          dayExpensesTotal = dayItems?.reduce((sum, item) => {
-            const costPrice = dayInventoryMap.get(item.inventory_id) || 0
-            return sum + (costPrice * item.quantity)
-          }, 0) || 0
-        }
-
-        chartDataPoints.push({
-          date: dateStr,
-          sales: Math.round(daySalesTotal),
-          expenses: Math.round(dayExpensesTotal),
-          profit: Math.round(daySalesTotal - dayExpensesTotal)
-        })
-      }
-
-      setChartData(chartDataPoints)
-    } catch (error) {
-      console.error('Error fetching chart data:', error)
-      // Fallback demo data
-      const demoData: ChartData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        demoData.push({
-          date: dateStr,
-          sales: Math.round(Math.random() * 50000 + 10000),
-          expenses: Math.round(Math.random() * 30000 + 5000),
-          profit: 0
-        })
-      }
-      demoData.forEach(item => {
-        item.profit = item.sales - item.expenses
-      })
-      setChartData(demoData)
-    }
-  }
-
-  const setupRealtimeSubscription = () => {
-    if (!supabase) return
-
-    // Subscribe to sales table changes
-    const salesSubscription = supabase
-      .channel('sales_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'sales'
-      }, (payload) => {
-        console.log('Sales table changed:', payload)
-        // Refresh financial stats when sales data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Subscribe to sale_items table changes
-    const itemsSubscription = supabase
-      .channel('sale_items_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'sale_items'
-      }, (payload) => {
-        console.log('Sale items table changed:', payload)
-        // Refresh financial stats when sale items data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Subscribe to expenses table changes
-    const expensesSubscription = supabase
-      .channel('expenses_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'expenses'
-      }, (payload) => {
-        console.log('Expenses table changed:', payload)
-        // Refresh financial stats when expenses data changes
-        fetchFinancialStats()
-      })
-      .subscribe()
-
-    // Cleanup subscriptions on unmount
-    return () => {
-      salesSubscription.unsubscribe()
-      itemsSubscription.unsubscribe()
-      expensesSubscription.unsubscribe()
-    }
-  }
 
   const fetchUsers = async () => {
     // Demo mode: show sample users data when Supabase is not configured
@@ -1043,70 +736,45 @@ export default function AdminPage() {
 
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center p-8 bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl"
-        >
-          <div className="text-6xl mb-4">⏳</div>
-          <p className="text-xl text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            چاوەڕوانبە...
-          </p>
-        </motion.div>
-      </div>
-    )
+    return <DashboardLoader message="چاوەڕوانبە..." />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 w-full pl-0 md:pl-0">
+      <div className="w-full max-w-7xl mx-auto px-4 md:p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1 sm:mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 بەڕێوەبردنی سیستەم
               </h1>
-              <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <p className="text-sm sm:text-base text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 بەڕێوەبردنی بەکارهێنەران، ڕۆڵەکان و ڕێکخستنەکان
               </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="text-center sm:text-right">
+                <p className="text-xs sm:text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
                   بەکارهێنەران
                 </p>
-                <p className="text-2xl font-bold text-blue-600">{users.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{users.length}</p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <div className="text-center sm:text-right">
+                <p className="text-xs sm:text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
                   ڕۆڵەکان
                 </p>
-                <p className="text-2xl font-bold text-purple-600">{roles.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{roles.length}</p>
               </div>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-8 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg">
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'analytics'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
-              }`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              <FaChartLine className="inline ml-2" />
-              شیکارییەکان
-            </button>
+          <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-1 mb-6 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg scrollbar-hide">
             <button
               onClick={() => setActiveTab('users')}
               className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${

@@ -1,5 +1,6 @@
 'use client'
 
+import DashboardLoader from '@/components/DashboardLoader'
 import { formatCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
@@ -543,7 +544,7 @@ export default function ProfitsPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">چاوەڕوانبە...</div>
+    return <DashboardLoader message="چاوەڕوانبە..." />
   }
 
   return (

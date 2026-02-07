@@ -29,7 +29,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile, loading, signOut, syncKey } = useAuth()
+  const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
   const [showProfilePopup, setShowProfilePopup] = useState(false)
@@ -108,9 +108,8 @@ export default function DashboardLayout({
         fontFamily: 'var(--font-uni-salar)'
       }}
     >
-      {/* Header with key to force re-mount on tab wake-up */}
+      {/* Header with Navigation */}
       <Header 
-        key={`header-${syncKey}`}
         shopSettings={shopSettings}
         onProfileClick={() => setShowSidebar(true)}
       />
@@ -130,9 +129,8 @@ export default function DashboardLayout({
         </main>
       </div>
 
-      {/* User Profile Sidebar with key to force re-mount */}
+      {/* User Profile Sidebar */}
       <Sidebar
-        key={`sidebar-${syncKey}`}
         shopSettings={shopSettings}
         isOpen={showSidebar}
         onClose={() => setShowSidebar(false)}

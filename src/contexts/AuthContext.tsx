@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
@@ -26,20 +26,198 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Cookie utilities for server-side persistence
+const COOKIE_NAMES = {
+  USER_ID: 'pos_user_id',
+  USER_EMAIL: 'pos_user_email',
+  USER_NAME: 'pos_user_name',
+  USER_IMAGE: 'pos_user_image',
+  ROLE_ID: 'pos_role_id',
+  ROLE_NAME: 'pos_role_name',
+  SESSION_EXPIRY: 'pos_session_expiry'
+}
+
+function setCookie(name: string, value: string, days: number = 7) {
+  if (typeof document === 'undefined') return
+  const expires = new Date()
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null
+  const nameEQ = `${name}=`
+  const ca = document.cookie.split(';')
+  for (let c of ca) {
+    c = c.trim()
+    if (c.indexOf(nameEQ) === 0) {
+      return decodeURIComponent(c.substring(nameEQ.length))
+    }
+  }
+  return null
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+}
+
+function clearAuthCookies() {
+  Object.values(COOKIE_NAMES).forEach(name => deleteCookie(name))
+}
+
+// Force read profile from cookies - stable function
+function forceReadProfileFromCookies(): Profile | null {
+  if (typeof document === 'undefined') return null
+  
+  const userId = getCookie(COOKIE_NAMES.USER_ID)
+  const userName = getCookie(COOKIE_NAMES.USER_NAME)
+  const userImage = getCookie(COOKIE_NAMES.USER_IMAGE)
+  const roleId = getCookie(COOKIE_NAMES.ROLE_ID)
+  const roleName = getCookie(COOKIE_NAMES.ROLE_NAME)
+  const sessionExpiry = getCookie(COOKIE_NAMES.SESSION_EXPIRY)
+
+  if (!userId || !roleId) {
+    return null
+  }
+
+  // Check if session is expired
+  if (sessionExpiry) {
+    const expiry = new Date(sessionExpiry)
+    if (expiry < new Date()) {
+      return null
+    }
+  }
+
+  return {
+    id: userId,
+    name: userName || '',
+    image: userImage || '',
+    role_id: roleId,
+    role: {
+      name: roleName || '',
+      permissions: {
+        dashboard: true,
+        sales: true,
+        inventory: true,
+        customers: true,
+        suppliers: true,
+        invoices: true,
+        expenses: true,
+        profits: true,
+        help: true,
+        admin: true
+      }
+    }
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Initialize with null - NOT 'Admin' to prevent wrong fallback
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // Refs to prevent infinite loops
+  const isInitialized = useRef(false)
+  const isSyncing = useRef(false)
+  const userIdRef = useRef<string | null>(null)
+
+  // Save profile to cookies for persistence
+  const saveProfileToCookies = useCallback((profileData: Profile | null, userData: User | null) => {
+    if (profileData) {
+      setCookie(COOKIE_NAMES.USER_ID, profileData.id)
+      setCookie(COOKIE_NAMES.USER_NAME, profileData.name || '', 30)
+      setCookie(COOKIE_NAMES.USER_IMAGE, profileData.image || '', 30)
+      setCookie(COOKIE_NAMES.ROLE_ID, profileData.role_id)
+      setCookie(COOKIE_NAMES.ROLE_NAME, profileData.role?.name || '', 30)
+      
+      const expiry = new Date()
+      expiry.setDate(expiry.getDate() + 7)
+      setCookie(COOKIE_NAMES.SESSION_EXPIRY, expiry.toISOString(), 7)
+    } else {
+      clearAuthCookies()
+    }
+  }, [])
+
+  // Fetch profile from Supabase
+  const fetchProfile = useCallback(async (userId: string, userEmail?: string): Promise<Profile | null> => {
+    if (!supabase) return null
+
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (profileError || !profileData) {
+        return null
+      }
+
+      let roleData = null
+      if (profileData.role_id) {
+        const { data: roleResult } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('id', profileData.role_id)
+          .single()
+        roleData = roleResult
+      }
+
+      return {
+        id: profileData.id,
+        name: profileData.name || '',
+        image: profileData.image,
+        phone: profileData.phone,
+        location: profileData.location,
+        email: profileData.email || userEmail || '',
+        role_id: profileData.role_id,
+        role: roleData ? {
+          name: roleData.name,
+          permissions: roleData.permissions || {}
+        } : undefined
+      }
+    } catch {
+      return null
+    }
+  }, [])
+
+  // Force restore from cookies - stable, no dependencies
+  const forceRestoreFromCookies = useCallback(() => {
+    const cachedProfile = forceReadProfileFromCookies()
+    
+    if (cachedProfile && cachedProfile.name && cachedProfile.role_id) {
+      console.log('🚀 FORCE RESTORE FROM COOKIES:', cachedProfile.name)
+      setProfile(cachedProfile)
+      setLoading(false)
+      return true
+    }
+    setLoading(false)
+    return false
+  }, [])
+
+  // Refresh session - stable, no dependencies
+  const refreshSession = useCallback(async () => {
+    forceRestoreFromCookies()
+    if (supabase) {
+      try {
+        await supabase.auth.getSession()
+      } catch {
+        // Ignore errors
+      }
+    }
+  }, [forceRestoreFromCookies])
 
   useEffect(() => {
-    // Demo mode: automatically sign in as demo user ONLY if Supabase is not configured
+    // Demo mode
     if (!supabase) {
-      // Create a mock user for demo purposes
       const mockUser = {
         id: 'demo-user-id',
         email: 'demo@example.com',
@@ -49,234 +227,157 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         created_at: new Date().toISOString()
       } as unknown as User
 
-      const mockProfile = {
+      const mockProfile: Profile = {
         id: 'demo-user-id',
+        name: 'Demo User',
+        image: '',
         role_id: 'demo-role-id',
         role: {
           name: 'Admin',
           permissions: {
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: true,
-            payroll: true,
-            profits: true
+            dashboard: true, sales: true, inventory: true, customers: true,
+            suppliers: true, invoices: true, expenses: true, profits: true,
+            help: true, admin: true
           }
         }
-      } as Profile
+      }
 
       setUser(mockUser)
       setProfile(mockProfile)
+      userIdRef.current = mockUser.id
       setLoading(false)
       return
+    }
+
+    // IMMEDIATE: Force restore from cookies first
+    const immediateCachedProfile = forceReadProfileFromCookies()
+    if (immediateCachedProfile && immediateCachedProfile.name) {
+      console.log('🚀 IMMEDIATE cookie restore:', immediateCachedProfile.name)
+      setProfile(immediateCachedProfile)
+      userIdRef.current = immediateCachedProfile.id
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      console.log('🔄 Initial session check:', !!session?.user)
-      setSession(session)
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        // No authenticated user - set loading to false, user remains null
-        setLoading(false)
+        setSession(session)
+        setUser(session.user)
+        userIdRef.current = session.user.id
+        
+        const freshProfile = await fetchProfile(session.user.id, session.user.email || undefined)
+        
+        if (freshProfile) {
+          setProfile(freshProfile)
+          saveProfileToCookies(freshProfile, session.user)
+        }
       }
+      setLoading(false)
+      isInitialized.current = true
     })
 
-    // Listen for auth changes
+    // Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: string, session: Session | null) => {
-        console.log('🔄 Auth state changed:', event, !!session?.user)
+      async (event, session) => {
+        console.log('🔄 Auth state:', event)
         setSession(session)
         setUser(session?.user ?? null)
+        
         if (session?.user) {
-          setProfile(null) // Clear profile while fetching
-          await fetchProfile(session.user.id)
+          userIdRef.current = session.user.id
+          const freshProfile = await fetchProfile(session.user.id, session.user.email || undefined)
+          if (freshProfile) {
+            setProfile(freshProfile)
+            saveProfileToCookies(freshProfile, session.user)
+          }
         } else {
-          // No authenticated user - clear profile and set loading to false
-          setProfile(null)
-          setLoading(false)
+          forceRestoreFromCookies()
         }
+        setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchProfile = async (userId: string) => {
-    console.log('🔍 Fetching profile for userId:', userId)
-    if (!supabase) {
-      console.log('❌ Supabase not available')
-      return
-    }
-
-    try {
-      // First fetch the profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      console.log('📋 Profile data result:', { profileData: !!profileData, profileError: profileError?.message })
-
-      if (profileError || !profileData) {
-        console.log('⚠️ Profile not found, using fallback')
-        const fallbackProfile: Profile = {
-          id: userId,
-          name: user?.email?.split('@')[0] || 'بەکارهێنەر',
-          email: user?.email || '',
-          role_id: 'admin-role',
-          role: {
-            name: 'Admin',
-            permissions: {
-              dashboard: true,
-              sales: true,
-              inventory: true,
-              customers: true,
-              suppliers: true,
-              invoices: true,
-              expenses: true,
-              profits: true,
-              help: true,
-              admin: true
+    // Tab wake-up handler - uses refs, NOT state dependencies
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && !isSyncing.current) {
+        isSyncing.current = true
+        console.log('👁️ Tab became visible')
+        
+        // Step 1: Force restore from cookies immediately
+        forceRestoreFromCookies()
+        
+        // Step 2: Re-establish Supabase connection
+        if (supabase) {
+          try {
+            await supabase.auth.getSession()
+            console.log('💓 Supabase session verified')
+          } catch {
+            console.log('⚠️ Supabase reconnect failed')
+          }
+        }
+        
+        // Step 3: Try to refresh from server if we have a userId
+        if (userIdRef.current) {
+          try {
+            const freshProfile = await fetchProfile(userIdRef.current)
+            if (freshProfile) {
+              console.log('🔄 Fresh profile from server')
+              setProfile(freshProfile)
+              saveProfileToCookies(freshProfile, { id: userIdRef.current } as User)
             }
+          } catch {
+            console.log('⚠️ Server refresh failed')
           }
         }
-        console.log('✅ Using fallback profile:', fallbackProfile)
-        setProfile(fallbackProfile)
-        setLoading(false)
-        return
+        
+        isSyncing.current = false
       }
-
-      // Now fetch the role data separately
-      let roleData = null
-      if (profileData.role_id) {
-        const { data: roleResult, error: roleError } = await supabase
-          .from('roles')
-          .select('*')
-          .eq('id', profileData.role_id)
-          .single()
-
-        if (!roleError && roleResult) {
-          roleData = roleResult
-        }
-        console.log('📋 Role data result:', { roleData: !!roleData, roleError: roleError?.message })
-      }
-
-      // Create the complete profile
-      const completeProfile: Profile = {
-        id: profileData.id,
-        name: profileData.name || user?.email?.split('@')[0] || 'بەکارهێنەر',
-        image: profileData.image,
-        phone: profileData.phone,
-        location: profileData.location,
-        email: profileData.email || user?.email || '',
-        role_id: profileData.role_id,
-        role: roleData ? {
-          name: roleData.name,
-          permissions: roleData.permissions || {}
-        } : {
-          name: 'Admin',
-          permissions: {
-            dashboard: true,
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: true,
-            invoices: true,
-            expenses: true,
-            profits: true,
-            help: true,
-            admin: true
-          }
-        }
-      }
-
-      console.log('✅ Complete profile loaded:', {
-        name: completeProfile.name,
-        image: !!completeProfile.image,
-        role: completeProfile.role?.name,
-        role_id: completeProfile.role_id
-      })
-
-      setProfile(completeProfile)
-    } catch (error) {
-      console.error('❌ Error fetching profile:', error)
-      // Final fallback
-      const fallbackProfile: Profile = {
-        id: userId,
-        name: user?.email?.split('@')[0] || 'بەکارهێنەر',
-        email: user?.email || '',
-        role_id: 'admin-role',
-        role: {
-          name: 'Admin',
-          permissions: {
-            dashboard: true,
-            sales: true,
-            inventory: true,
-            customers: true,
-            suppliers: true,
-            invoices: true,
-            expenses: true,
-            profits: true,
-            help: true,
-            admin: true
-          }
-        }
-      }
-      setProfile(fallbackProfile)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    // Window focus handler
+    const handleFocus = () => {
+      if (!isSyncing.current) {
+        console.log('🎯 Window focus')
+        forceRestoreFromCookies()
+        if (supabase) {
+          supabase.auth.getSession().catch(() => {})
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, []) // Empty dependency array - runs once on mount
 
   const signIn = async (email: string, password: string) => {
-    console.log('🔐 Attempting login with:', email)
     if (!supabase) throw new Error('Supabase not configured')
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    console.log('🔑 Login result:', { user: data.user, error })
-
-    if (error) {
-      console.error('❌ Login error:', error)
-      throw error
-    }
-
-    console.log('✅ Login successful for user:', data.user?.email)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
   }
 
   const signUp = async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase not configured')
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+    const { error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
   }
 
   const signOut = async () => {
     if (!supabase) throw new Error('Supabase not configured')
+    clearAuthCookies()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   }
 
-  const value = {
-    user,
-    session,
-    profile,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshSession }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

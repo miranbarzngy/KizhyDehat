@@ -396,10 +396,6 @@ export default function SuppliersPage() {
     }
   }
 
-  if (loading) {
-    return <div className="text-center py-12">چاوەڕوانبە...</div>
-  }
-
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>

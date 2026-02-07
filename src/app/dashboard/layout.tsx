@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Store } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
+import UserProfilePopup from '@/components/UserProfilePopup'
 
 interface ShopSettings {
   id: string
@@ -42,6 +43,7 @@ export default function DashboardLayout({
   const [showInstallButton, setShowInstallButton] = useState(false)
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
   const [showUserSidebar, setShowUserSidebar] = useState(false)
+  const [showProfilePopup, setShowProfilePopup] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   const fetchShopSettings = async () => {
@@ -209,77 +211,185 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen" style={{ background: 'var(--theme-background)', color: 'var(--theme-foreground)' }}>
       <div className="flex flex-col">
-        {/* Top Navigation Bar */}
-        <div className="w-full h-20 mt-0.5 flex items-center justify-between border-b" style={{ background: 'var(--theme-sidebar-bg)', borderColor: 'var(--theme-border)', marginRight: '2px' }}>
-          {/* Shop Logo - Left Side */}
-          <div className="flex items-center flex-shrink-0">
-            <button
-              onClick={() => setShowUserSidebar(true)}
-              className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105"
-              title={shopSettings?.shopname || 'زانیاری فرۆشگا'}
-            >
-              <div
-                className="flex items-center justify-center w-12 h-12 rounded-full mb-1 shadow-lg transition-all duration-200 hover:scale-110 overflow-hidden"
+        {/* Top Navigation Bar with Glassmorphism */}
+        <div 
+          className="w-full sticky top-0 z-50"
+          dir="rtl"
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          {/* Single Row: RTL - Branding first (right), Navigation second (left) */}
+          <div className="relative flex items-center px-2 py-3">
+            {/* Branding - Far Right (Vertical Stack - First in DOM for RTL) */}
+            <div className="flex flex-col items-center flex-shrink-0">
+              <button
+                onClick={() => setShowProfilePopup(true)}
+                className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg overflow-hidden transition-transform hover:scale-105"
                 style={{
-                  background: 'var(--theme-sidebar-hover)',
-                  color: 'var(--theme-sidebar-text)'
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3))',
+                  border: '2px solid rgba(255, 255, 255, 0.4)'
                 }}
               >
                 {shopSettings?.icon && shopSettings.icon.trim() !== '' ? (
                   <img
                     src={shopSettings.icon}
                     alt="Shop Logo"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback to store icon
-                      const fallback = e.currentTarget.nextElementSibling as HTMLElement
-                      if (fallback) fallback.style.display = 'flex'
-                      e.currentTarget.style.display = 'none'
-                    }}
+                    className="w-full h-full object-cover rounded-full"
                   />
-                ) : null}
-                <Store className="w-6 h-6" style={{ display: shopSettings?.icon && shopSettings.icon.trim() !== '' ? 'none' : 'flex' }} />
-              </div>
-              <span
-                className="text-xs text-center font-medium max-w-20 sm:max-w-24"
-                style={{
+                ) : (
+                  <Store 
+                    className="w-6 h-6" 
+                    style={{ 
+                      color: 'var(--theme-sidebar-text)'
+                    }} 
+                  />
+                )}
+              </button>
+              <h2 
+                className="text-sm md:text-base font-bold leading-tight mt-1"
+                style={{ 
                   color: 'var(--theme-sidebar-text)',
                   fontFamily: 'var(--font-uni-salar)'
                 }}
               >
-                {shopSettings?.shopname || 'فرۆشگا'}
-              </span>
-            </button>
-          </div>
+                {shopSettings?.shopname || 'فرۆشگای کوردستان'}
+              </h2>
+              <p 
+                className="text-xs opacity-70 leading-tight"
+                style={{ 
+                  color: 'var(--theme-sidebar-text)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
+                {profile?.name || user?.email?.split('@')[0] || 'بەڕێوەبەر'}
+              </p>
+            </div>
 
-          {/* Navigation Menu - Fill Space */}
-          <div className="flex items-center justify-around flex-1 overflow-hidden">
-            <div className="flex items-center justify-around w-full gap-x-8 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {/* Navigation - Second in DOM (appears to the left in RTL) */}
+            <div className="hidden lg:flex items-center justify-center gap-3 absolute left-1/2 -translate-x-1/2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {filteredMenuItems.map((item) => {
                 const isActive = pathname === item.href
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex flex-col items-center justify-center transition-all duration-200 hover:scale-105 flex-shrink-0 mt-0.5"
+                    className="flex flex-col items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 flex-shrink-0"
+                    style={{
+                      background: isActive 
+                        ? 'rgba(99, 102, 241, 0.15)' 
+                        : 'transparent',
+                      border: isActive 
+                        ? '1px solid rgba(99, 102, 241, 0.3)' 
+                        : '1px solid transparent'
+                    }}
                   >
-                    <div
-                      className={`flex items-center justify-center w-12 h-12 rounded-full mb-1 transition-all duration-200 ${
-                        isActive ? 'bg-blue-600 text-white shadow-lg scale-110' : ''
-                      }`}
+                    <div 
+                      className="flex items-center justify-center w-10 h-10 rounded-full mb-1 transition-all duration-200"
                       style={{
-                        background: isActive ? '#2563eb' : 'var(--theme-sidebar-hover)',
+                        background: isActive 
+                          ? 'linear-gradient(135deg, #6366f1, #a855f7)' 
+                          : 'rgba(255, 255, 255, 0.05)',
+                        color: isActive ? '#ffffff' : 'var(--theme-sidebar-text)',
+                        boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.4)' : 'none'
+                      }}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                    </div>
+                    <span
+                      className="text-xs font-medium transition-colors duration-200"
+                      style={{
+                        color: isActive ? '#6366f1' : 'var(--theme-sidebar-text)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      {item.name}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Tablet Navigation - Compact with labels (md breakpoint for Samsung A9+) */}
+            <div className="hidden md:flex lg:hidden flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide px-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {filteredMenuItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex flex-col items-center px-2 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 flex-shrink-0"
+                    style={{
+                      background: isActive 
+                        ? 'rgba(99, 102, 241, 0.15)' 
+                        : 'transparent',
+                      border: isActive 
+                        ? '1px solid rgba(99, 102, 241, 0.3)' 
+                        : '1px solid transparent'
+                    }}
+                  >
+                    <div 
+                      className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200"
+                      style={{
+                        background: isActive 
+                          ? 'linear-gradient(135deg, #6366f1, #a855f7)' 
+                          : 'rgba(255, 255, 255, 0.05)',
                         color: isActive ? '#ffffff' : 'var(--theme-sidebar-text)'
                       }}
                     >
-                      <span className="text-xl mt-1">{item.icon}</span>
+                      <span className="text-sm">{item.icon}</span>
                     </div>
                     <span
-                      className={`text-xs text-center font-medium transition-colors duration-200 ${
-                        isActive ? 'text-blue-600' : ''
-                      }`}
+                      className="text-xs font-medium transition-colors duration-200 mt-0.5"
                       style={{
-                        color: isActive ? '#2563eb' : 'var(--theme-sidebar-text)',
+                        color: isActive ? '#6366f1' : 'var(--theme-sidebar-text)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      {item.name}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Mobile Navigation - Icons with text below */}
+            <div className="md:hidden flex-1 flex items-center gap-1 overflow-x-auto scrollbar-hide px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {filteredMenuItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex flex-col items-center px-1.5 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 flex-shrink-0"
+                    style={{
+                      background: isActive 
+                        ? 'rgba(99, 102, 241, 0.15)' 
+                        : 'transparent',
+                      border: isActive 
+                        ? '1px solid rgba(99, 102, 241, 0.3)' 
+                        : '1px solid transparent'
+                    }}
+                  >
+                    <div 
+                      className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200"
+                      style={{
+                        background: isActive 
+                          ? 'linear-gradient(135deg, #6366f1, #a855f7)' 
+                          : 'rgba(255, 255, 255, 0.05)',
+                        color: isActive ? '#ffffff' : 'var(--theme-sidebar-text)'
+                      }}
+                    >
+                      <span className="text-xs">{item.icon}</span>
+                    </div>
+                    <span
+                      className="text-[10px] font-medium transition-colors duration-200 mt-0.5"
+                      style={{
+                        color: isActive ? '#6366f1' : 'var(--theme-sidebar-text)',
                         fontFamily: 'var(--font-uni-salar)'
                       }}
                     >
@@ -451,6 +561,13 @@ export default function DashboardLayout({
           </>
         )}
       </div>
+      
+      {/* User Profile Popup */}
+      <UserProfilePopup 
+        isOpen={showProfilePopup} 
+        onClose={() => setShowProfilePopup(false)}
+        shopSettings={shopSettings}
+      />
     </div>
   )
 }

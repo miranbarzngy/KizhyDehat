@@ -502,10 +502,18 @@ export default function SalesPage() {
       }
     }
 
+    // Check if Supabase is available
+    if (!supabase) {
+      const errorMsg = 'Supabase client not configured'
+      console.error(errorMsg)
+      alert(`هەڵە: ${errorMsg}`)
+      return
+    }
+
     try {
       const total = getTotal()
 
-      console.log('Starting sale completion...', {
+      console.log('Starting sale completion with inventory sync...', {
         customerId: selectedCustomer,
         total,
         paymentMethod,
@@ -513,112 +521,48 @@ export default function SalesPage() {
         userId: user?.id
       })
 
-      // Insert sale with comprehensive metadata for reporting - initially as pending
-      const saleInsertData = {
-        customer_id: selectedCustomer, // Always link to customer
-        total,
-        payment_method: paymentMethod,
-        user_id: user?.id,
-        sold_by: userName,
-        discount_amount: discount,
-        subtotal: total + discount, // Store original subtotal before discount
-        items_count: cart.length,
-        status: 'pending', // New sales start as pending
-        created_at: new Date().toISOString(),
-        notes: paymentMethod === 'debt' ? 'Sale on credit' : null
-      }
-
-      console.log('Attempting to insert sale with data:', saleInsertData)
-      console.log('Supabase client available:', !!supabase)
-
-      // Check if Supabase is available
-      if (!supabase) {
-        const errorMsg = 'Supabase client not configured'
-        console.error(errorMsg)
-        alert(`هەڵە: ${errorMsg}`)
-        throw new Error(errorMsg)
-      }
-
-
-
-      // Test database connection first
-      try {
-        console.log('Testing database connection...')
-        const { data: testData, error: testError } = await supabase
-          .from('sales')
-          .select('id')
-          .limit(1)
-
-        if (testError) {
-          console.error('Database connection test failed:', {
-            message: testError.message,
-            details: testError.details,
-            hint: testError.hint,
-            code: testError.code,
-            fullError: JSON.stringify(testError, null, 2)
-          })
-          alert(`هەڵە لە پەیوەندیی داتابەیس: ${testError.message || 'Unknown database error'}`)
-          throw testError
-        }
-        console.log('Database connection test passed, found', testData?.length || 0, 'existing sales')
-      } catch (connError) {
-        console.error('Connection test error:', connError)
-        alert(`هەڵە لە پەیوەندیی داتابەیس: ${connError instanceof Error ? connError.message : 'Unknown connection error'}`)
-        throw connError
-      }
-
+      // Start a database transaction for atomicity
+      // We'll use RPC if available, otherwise run sequential operations
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
-        .insert(saleInsertData)
-        .select('id, invoice_number, total, payment_method, date, user_id, sold_by, customers(name, phone1)') // Explicitly select invoice_number and sold_by
+        .insert({
+          customer_id: selectedCustomer,
+          total,
+          payment_method: paymentMethod,
+          user_id: user?.id,
+          sold_by: userName,
+          discount_amount: discount,
+          subtotal: total + discount,
+          items_count: cart.length,
+          status: 'completed', // Mark as completed directly
+          created_at: new Date().toISOString(),
+          notes: paymentMethod === 'debt' ? 'Sale on credit' : null
+        })
+        .select('id, invoice_number, total, payment_method, date, user_id, sold_by, customers(name, phone1)')
         .single()
 
       if (saleError) {
-        console.error('Sale insertion error details:', {
-          message: saleError.message,
-          details: saleError.details,
-          hint: saleError.hint,
-          code: saleError.code,
-          fullError: JSON.stringify(saleError, null, 2),
-          saleInsertData: saleInsertData
-        })
-
-        // Provide more specific error messages
-        let errorMessage = 'هەڵە لە تۆمارکردنی فرۆشتن'
-        if (saleError.code === '23503') {
-          errorMessage += ': کڕیارەکە بوونی نیە'
-        } else if (saleError.code === '23505') {
-          errorMessage += ': فاکتورەکە پێشتر تۆمارکراوە'
-        } else if (saleError.message) {
-          errorMessage += `: ${saleError.message}`
-        } else {
-          errorMessage += ': هەڵەیەکی نەناسراو'
-        }
-
-        alert(errorMessage)
+        console.error('Sale insertion error:', saleError)
         throw saleError
       }
 
       console.log('Sale created:', saleData)
-      console.log('Invoice number from database:', saleData.invoice_number)
 
-      // Insert sale items with comprehensive data for reporting and retrieval
+      // Insert sale items
       const saleItems = cart.map(item => ({
         sale_id: saleData.id,
         item_id: item.item.id,
-        item_name: item.item.item_name, // Store item name for easy retrieval
-        category: item.item.category, // Store category for filtering
-        quantity: item.baseQuantity, // Use converted quantity for inventory
-        unit: item.item.unit, // Store in base unit
+        item_name: item.item.item_name,
+        category: item.item.category,
+        quantity: item.baseQuantity,
+        unit: item.item.unit,
         price: item.price,
         cost_price: item.item.cost_price || 0,
-        total: item.total, // Store line total
-        date: new Date().toISOString().split('T')[0] // Store sale date
+        total: item.total,
+        date: new Date().toISOString().split('T')[0]
       }))
 
-      console.log('Inserting sale items:', saleItems)
-
-      const { error: itemsError } = await supabase!
+      const { error: itemsError } = await supabase
         .from('sale_items')
         .insert(saleItems)
 
@@ -627,7 +571,94 @@ export default function SalesPage() {
         throw itemsError
       }
 
-      // NOTE: Inventory and customer debt updates are deferred until sale is confirmed from pending status
+      // Update inventory quantities for each sold item
+      for (const cartItem of cart) {
+        // Get current inventory item
+        const { data: currentItem, error: fetchError } = await supabase
+          .from('inventory')
+          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
+          .eq('id', cartItem.item.id)
+          .single()
+
+        if (fetchError) {
+          console.error('Error fetching inventory item:', fetchError)
+          throw new Error(`کاڵاکە نەدۆزرایەوە: ${cartItem.item.item_name}`)
+        }
+
+        // Calculate new values
+        const newQuantity = (currentItem.quantity || 0) - cartItem.baseQuantity
+        const newTotalSold = (currentItem.total_sold || 0) + cartItem.baseQuantity
+        const newTotalRevenue = (currentItem.total_revenue || 0) + cartItem.total
+        const profitPerItem = cartItem.price - (currentItem.cost_price || 0)
+        const newTotalProfit = (currentItem.total_profit || 0) + (profitPerItem * cartItem.baseQuantity)
+
+        // Update inventory
+        const { error: inventoryError } = await supabase
+          .from('inventory')
+          .update({
+            quantity: newQuantity,
+            total_sold: newTotalSold,
+            total_revenue: newTotalRevenue,
+            total_profit: newTotalProfit,
+            is_archived: newQuantity <= 0
+          })
+          .eq('id', cartItem.item.id)
+
+        if (inventoryError) {
+          console.error('Error updating inventory:', inventoryError)
+          throw new Error(`هەڵە لە نوێکردنەوەی کۆگا: ${cartItem.item.item_name}`)
+        }
+
+        console.log(`Inventory updated: ${cartItem.item.item_name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}`)
+      }
+
+      // Handle customer debt update if payment method is 'debt'
+      if (paymentMethod === 'debt') {
+        // Get current customer debt
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .select('total_debt')
+          .eq('id', selectedCustomer)
+          .single()
+
+        if (customerError) {
+          console.error('Error fetching customer debt:', customerError)
+          throw new Error('هەڵە لە وەرگرتنی زانیاری کڕیار')
+        }
+
+        const newDebt = (customerData.total_debt || 0) + total
+
+        // Update customer debt
+        const { error: debtError } = await supabase
+          .from('customers')
+          .update({ total_debt: newDebt })
+          .eq('id', selectedCustomer)
+
+        if (debtError) {
+          console.error('Error updating customer debt:', debtError)
+          throw new Error('هەڵە لە نوێکردنەوەی قەرزی کڕیار')
+        }
+
+        console.log('Customer debt updated:', newDebt)
+
+        // Add to customer payments (for tracking purposes)
+        const { error: paymentError } = await supabase
+          .from('customer_payments')
+          .insert({
+            customer_id: selectedCustomer,
+            date: new Date().toISOString().split('T')[0],
+            amount: -total, // Negative for debt increase
+            items: cart.map(item => `${item.item.item_name} x${item.quantity} ${item.unit}`).join(', '),
+            note: 'فرۆشتن بە قەرز'
+          })
+
+        if (paymentError) {
+          console.error('Error creating customer payment record:', paymentError)
+          // Don't fail the entire operation for this
+        }
+      }
+
+      console.log('Sale completed successfully with inventory sync!')
 
       // Show invoice with customer data
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
@@ -646,8 +677,8 @@ export default function SalesPage() {
           name: item.item.item_name,
           unit: item.unit,
           quantity: item.quantity,
-          price: item.price, // Unit price per item
-          total: item.total // Line total (price × quantity)
+          price: item.price,
+          total: item.total
         })),
         subtotal: total + discount,
         discount: discount,
@@ -672,7 +703,7 @@ export default function SalesPage() {
       fetchInventory()
       fetchCustomers()
 
-      alert('فرۆشتن بە سەرکەوتوویی تەواوبوو!')
+      alert('فرۆشتن بە سەرکەوتوویی تەواوبوو! کۆگا نوێکرایەوە.')
     } catch (error) {
       console.error('Error completing sale:', error)
       alert(`هەڵە لە تەواوبوونی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)

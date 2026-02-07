@@ -75,10 +75,6 @@ function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invo
     loadSettings()
   }, [])
 
-  if (loading || !settings) {
-    return <div className="text-center p-4">چاوەڕوانبە...</div>
-  }
-
   // Prepare invoice data for InvoiceTemplate
   const invoiceData = {
     invoiceNumber: invoice.invoice_number,
@@ -1335,14 +1331,6 @@ export default function InvoicesPage() {
       invoice.status.toLowerCase().includes(searchLower)
     )
   })
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-        <div className="text-center">چاوەڕوانبە...</div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 pl-0 md:pl-6">

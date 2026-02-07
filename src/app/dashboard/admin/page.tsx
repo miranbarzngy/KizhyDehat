@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { sanitizePhoneNumber, formatCurrency } from '@/lib/numberUtils'
-import { motion, AnimatePresence } from 'framer-motion'
-import { FaUser, FaUsers, FaCog, FaStore, FaPhone, FaMapMarkerAlt, FaImage, FaQrcode, FaPlus, FaEdit, FaTrash, FaEye, FaShieldAlt, FaArrowUp, FaArrowDown, FaShoppingCart, FaMoneyBillWave, FaChartLine, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { formatCurrency, sanitizePhoneNumber } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { FaArrowDown, FaArrowUp, FaCalendarAlt, FaChartLine, FaCog, FaEdit, FaEye, FaImage, FaMapMarkerAlt, FaMoneyBillWave, FaPhone, FaPlus, FaQrcode, FaShieldAlt, FaShoppingCart, FaStore, FaTrash, FaUser, FaUsers } from 'react-icons/fa'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface User {
   id: string

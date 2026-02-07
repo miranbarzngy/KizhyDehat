@@ -855,10 +855,6 @@ export default function InventoryPage() {
     </div>
   )
 
-  if (loading) {
-    return <div className="text-center">چاوەڕوانبە...</div>
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 pl-0 md:pl-6">
       <div className="w-full max-w-7xl mx-auto">

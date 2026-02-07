@@ -4,7 +4,7 @@ import { useState, useRef, ChangeEvent } from 'react'
 import { uploadFile } from '@/lib/storage'
 import { FaImage, FaTimes, FaSpinner } from 'react-icons/fa'
 
-interface SupplierModalProps {
+interface SupplierFormProps {
   isOpen: boolean
   onClose: () => void
   onSave: (data: {
@@ -24,7 +24,7 @@ interface SupplierModalProps {
   } | null
 }
 
-export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false, initialData = null }: SupplierModalProps) {
+export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, initialData = null }: SupplierFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     company: '',
@@ -37,7 +37,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize form data when modal opens
   if (isOpen && formData.name === '' && initialData) {
     setFormData({
       name: initialData.name || '',
@@ -56,7 +55,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
     if (!file) return
 
     if (!file.type.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
-      alert('تکایە وێنەیەکی دروست هەڵبژێرە (JPG, PNG, GIF, WebP)')
+      alert('تکایە وێنەیەکی دروست هەڵبژێرە')
       return
     }
 
@@ -98,10 +97,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
         }
       }
 
-      await onSave({
-        ...formData,
-        supplier_image: imageUrl || undefined
-      }, selectedFile)
+      await onSave({ ...formData, supplier_image: imageUrl || undefined }, selectedFile)
     } finally {
       setIsUploading(false)
     }
@@ -125,7 +121,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
           </h3>
 
           <div className="space-y-4">
-            {/* Name */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو *</label>
               <input
@@ -134,11 +129,9 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
-                placeholder="ناوی دابینکەر"
               />
             </div>
 
-            {/* Company */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆمپانیا</label>
               <input
@@ -147,11 +140,9 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
                 onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
-                placeholder="ناوی کۆمپانیا"
               />
             </div>
 
-            {/* Phone */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>مۆبایل *</label>
               <input
@@ -160,11 +151,9 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
-                placeholder="0750-123-4567"
               />
             </div>
 
-            {/* Address */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</label>
               <input
@@ -173,20 +162,12 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                 className="w-full px-4 py-3 rounded-lg border"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
-                placeholder="ناونیشان"
               />
             </div>
 
-            {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</label>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileSelect} className="hidden" />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -195,8 +176,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
               >
                 <FaImage /> هەڵبژاردنی وێنە
               </button>
-              
-              {/* Image Preview */}
+
               {imagePreview && (
                 <div className="mt-4 relative inline-block">
                   <div
@@ -204,15 +184,10 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
                     style={{
                       background: 'rgba(255, 255, 255, 0.2)',
                       backdropFilter: 'blur(10px)',
-                      WebkitBackdropFilter: 'blur(10px)',
                       border: '2px solid rgba(255, 255, 255, 0.3)'
                     }}
                   >
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                   <button
                     onClick={clearImage}
@@ -225,7 +200,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-end space-x-4 mt-8">
             <button
               onClick={handleClose}
@@ -240,13 +214,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, isEdit = false,
               className="px-6 py-3 rounded-lg flex items-center gap-2"
               style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
             >
-              {isUploading ? (
-                <>
-                  <FaSpinner className="animate-spin" /> بارکردن...
-                </>
-              ) : (
-                isEdit ? 'نوێکردنەوە' : 'زیادکردن'
-              )}
+              {isUploading ? <><FaSpinner className="animate-spin" /> بارکردن...</> : isEdit ? 'نوێکردنەوە' : 'زیادکردن'}
             </button>
           </div>
         </div>

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { formatCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency, sanitizePhoneNumber } from '@/lib/numberUtils'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { useEffect, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface ProfitItem {
   id: string
@@ -38,14 +38,14 @@ interface ExpenseItem {
   category?: string
 }
 
-interface InventoryExpense {
+interface PurchaseExpense {
   id: string
   item_name: string
-  cost_price: number
-  quantity: number
-  total_cost: number
-  date: string
-  supplier_name?: string
+  total_purchase_price: number
+  total_amount_bought: number
+  unit: string
+  purchase_date: string
+  created_at?: string
 }
 
 interface ChartData {
@@ -65,6 +65,13 @@ interface RefundedItem {
 }
 
 export default function ProfitsPage() {
+  // Add isMounted check to prevent SSR/hydration issues with Recharts
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'profits' | 'expenses' | 'refunds'>('overview')
   const [salesTab, setSalesTab] = useState<'cash' | 'online' | 'paylater'>('cash')
   const [expensesTab, setExpensesTab] = useState<'inventory' | 'general'>('inventory')
@@ -90,8 +97,8 @@ export default function ProfitsPage() {
   const [profits, setProfits] = useState<ProfitItem[]>([])
   const [totalProfit, setTotalProfit] = useState(0)
 
-  // Expenses data
-  const [inventoryExpenses, setInventoryExpenses] = useState<InventoryExpense[]>([])
+  // Purchase expenses data
+  const [purchaseExpenses, setPurchaseExpenses] = useState<PurchaseExpense[]>([])
   const [generalExpenses, setGeneralExpenses] = useState<ExpenseItem[]>([])
 
   // Chart data
@@ -420,59 +427,40 @@ export default function ProfitsPage() {
   const fetchExpensesData = async () => {
     if (!supabase) {
       // No demo data - show empty expenses
-      setInventoryExpenses([])
+      setPurchaseExpenses([])
       setGeneralExpenses([])
       return
     }
 
     try {
-      // Inventory purchases/additions - query inventory table for added items
-      let inventoryQuery = supabase
-        .from('inventory')
-        .select(`
-          id,
-          item_name,
-          cost_price,
-          quantity,
-          unit,
-          created_at
-        `)
-        .order('created_at', { ascending: false }) // Sort by creation date descending (newest first)
+      // Fetch purchase expenses from the purchase_expenses table
+      let purchaseQuery = supabase
+        .from('purchase_expenses')
+        .select('*')
+        .order('purchase_date', { ascending: false }) // Sort by purchase date descending (newest first)
 
-      if (dateFrom) inventoryQuery = inventoryQuery.gte('created_at', dateFrom)
-      if (dateTo) inventoryQuery = inventoryQuery.lte('created_at', dateTo)
+      if (dateFrom) purchaseQuery = purchaseQuery.gte('purchase_date', dateFrom)
+      if (dateTo) purchaseQuery = purchaseQuery.lte('purchase_date', dateTo)
 
-      const { data: inventoryData, error: inventoryError } = await inventoryQuery
+      const { data: purchaseData, error: purchaseError } = await purchaseQuery
 
-      if (inventoryError) {
-        console.warn('Error fetching inventory data:', inventoryError.message)
-        setInventoryExpenses([])
+      if (purchaseError) {
+        console.warn('Error fetching purchase expenses:', purchaseError.message)
+        // Try to fall back to inventory table if purchase_expenses doesn't exist yet
+        setPurchaseExpenses([])
       } else {
-        const inventoryExpensesData: InventoryExpense[] = (inventoryData || [])
-          .filter((item: any) => item.cost_price && item.quantity) // Only items with cost and quantity
-          .map((item: any) => {
-            // Format date properly from created_at
-            let formattedDate = new Date().toISOString().split('T')[0] // Default fallback
-            try {
-              if (item.created_at) {
-                const date = new Date(item.created_at).toISOString().split('T')[0]
-                formattedDate = date
-              }
-            } catch (e) {
-              console.warn('Error parsing inventory date:', item.created_at)
-            }
+        const purchaseExpensesData: PurchaseExpense[] = (purchaseData || [])
+          .map((item: any) => ({
+            id: item.id,
+            item_name: item.item_name || 'ناوی کاڵا نەناسراو',
+            total_purchase_price: item.total_purchase_price || 0,
+            total_amount_bought: item.total_amount_bought || 0,
+            unit: item.unit || '',
+            purchase_date: item.purchase_date || new Date().toISOString().split('T')[0],
+            created_at: item.created_at
+          }))
 
-            return {
-              id: item.id,
-              item_name: item.item_name || 'ناوی کاڵا نەناسراو',
-              cost_price: item.cost_price || 0,
-              quantity: item.quantity || 0,
-              total_cost: (item.cost_price || 0) * (item.quantity || 0),
-              date: formattedDate
-            }
-          })
-
-        setInventoryExpenses(inventoryExpensesData)
+        setPurchaseExpenses(purchaseExpensesData)
       }
 
       // General expenses
@@ -700,14 +688,15 @@ export default function ProfitsPage() {
                 </div>
               </div>
 
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Profit Trend Chart */}
-                <div className="bg-white border rounded-lg p-6">
-                  <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوەری قازانج</h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
+              {/* Charts Section - Only render on client to prevent hydration mismatch */}
+              {isMounted && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Profit Trend Chart */}
+                  <div className="bg-white border rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوەری قازانج</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis
                           dataKey="date"
@@ -767,12 +756,13 @@ export default function ProfitsPage() {
                           }}
                         />
                         <Bar dataKey="sales" fill="#10b981" name="sales" />
-                        <Bar dataKey="expenses" fill="#ef4444" name="expenses" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                      <Bar dataKey="expenses" fill="#ef4444" name="expenses" />
+                    </BarChart>
+                  </ResponsiveContainer>
                   </div>
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -895,7 +885,7 @@ export default function ProfitsPage() {
                 <nav className="flex flex-row overflow-x-auto whitespace-nowrap scrollbar-hide">
                   {[
                     { id: 'inventory', label: 'کڕینی کاڵا', icon: '📦' },
-                    { id: 'general', label: 'خەرجییەکان', icon: '💰' }
+                    { id: 'general', label: 'خەرجییە گشتییەکان', icon: '💰' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -931,7 +921,7 @@ export default function ProfitsPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-3xl font-bold text-blue-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            {formatCurrency(inventoryExpenses.reduce((sum, expense) => sum + expense.total_cost, 0))}
+                            {formatCurrency(purchaseExpenses.reduce((sum, expense) => sum + expense.total_purchase_price, 0))}
                           </p>
                         </div>
                       </div>
@@ -942,21 +932,32 @@ export default function ProfitsPage() {
                         <tr className="bg-gray-50">
                           <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
                           <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین</th>
-                          <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆگا</th>
-                          <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی خەرجی</th>
+                          <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕی کڕدراو</th>
                           <th className="px-2 py-1 md:px-4 md:py-3 text-right text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {inventoryExpenses.map((expense) => (
-                          <tr key={expense.id} className="border-t">
-                            <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.item_name}</td>
-                            <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{formatCurrency(expense.cost_price)}</td>
-                            <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.quantity}</td>
-                            <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm font-semibold text-red-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>{formatCurrency(expense.total_cost)}</td>
-                            <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.date}</td>
+                        {purchaseExpenses.map((expense) => {
+                          // Format date consistently with other tabs
+                          const formattedDate = expense.purchase_date 
+                            ? new Date(expense.purchase_date).toLocaleDateString('ku-IQ')
+                            : ''
+                          return (
+                            <tr key={expense.id} className="border-t">
+                              <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.item_name}</td>
+                              <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm font-semibold text-red-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>{formatCurrency(expense.total_purchase_price)}</td>
+                              <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.total_amount_bought} {expense.unit}</td>
+                              <td className="px-2 py-1 md:px-4 md:py-3 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>{formattedDate}</td>
+                            </tr>
+                          )
+                        })}
+                        {purchaseExpenses.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-2 py-4 md:px-4 md:py-6 text-center text-gray-500 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              هیچ کڕینێک لەم بەروارەدا نیە
+                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>

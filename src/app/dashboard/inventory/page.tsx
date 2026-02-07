@@ -759,6 +759,27 @@ export default function InventoryPage() {
 
       if (insertError) throw insertError
 
+      // Insert into purchase_expenses table (immutable record of purchase)
+      try {
+        const { error: purchaseError } = await supabase
+          .from('purchase_expenses')
+          .insert({
+            item_name: item.item_name,
+            total_purchase_price: totalPurchasePrice,
+            total_amount_bought: quantity,
+            unit: item.unit,
+            purchase_date: item.created_date || new Date().toISOString().split('T')[0]
+          })
+
+        if (purchaseError) {
+          console.error('Error inserting purchase expense:', purchaseError)
+          // Don't throw - the main item was inserted successfully
+        }
+      } catch (purchaseErr) {
+        console.error('Error creating purchase expense record:', purchaseErr)
+        // Don't throw - the main item was inserted successfully
+      }
+
       alert('کاڵاکە بە سەرکەوتوویی زیادکرا')
       setShowStockEntry(false)
       setSelectedSupplier('')

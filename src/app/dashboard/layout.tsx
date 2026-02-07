@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Store } from 'lucide-react'
@@ -294,8 +294,16 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <div className="flex-1 min-h-screen w-full">
-          <main className="p-4 sm:p-6 lg:p-8 w-full">
-            {children}
+          <main key={pathname} className="p-4 sm:p-6 lg:p-8 w-full">
+            <Suspense fallback={
+              <div className="flex items-center justify-center p-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              </div>
+            }>
+              <div key={pathname}>
+                {children}
+              </div>
+            </Suspense>
           </main>
         </div>
 

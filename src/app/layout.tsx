@@ -147,8 +147,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ku" dir="rtl">
+    <html lang="ku" dir="rtl" translate="no">
       <head>
+        <meta name="google" content="notranslate" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="POS Kurdish" />
@@ -157,7 +158,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
       </head>
-      <body className={`${uniSalar.variable} antialiased font-medium font-uni-salar`}>
+      <body className={`${uniSalar.variable} antialiased font-medium font-uni-salar`} suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
             {children}

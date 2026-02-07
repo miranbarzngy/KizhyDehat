@@ -534,7 +534,7 @@ export default function SalesPage() {
           discount_amount: discount,
           subtotal: total + discount,
           items_count: cart.length,
-          status: 'completed', // Mark as completed directly
+          status: 'pending', // Create as pending so it appears in pending tab for review
           created_at: new Date().toISOString(),
           notes: paymentMethod === 'debt' ? 'Sale on credit' : null
         })
@@ -1172,39 +1172,47 @@ export default function SalesPage() {
 
 
 
+  const groupedInventory = getGroupedInventory()
+  const filteredInventory = getFilteredInventory()
+
+  // Show loading state inline with actual content if still loading
   if (loading) {
     return (
-      <div className="h-screen flex">
-        {/* Left Side - Products Skeleton */}
-        <div className="w-2/3 p-4 bg-gradient-to-br from-blue-50 to-purple-50">
-          <div className="mb-4">
-            <div className="h-8 bg-white/60 rounded-lg mb-4 animate-pulse"></div>
-            <div className="h-12 bg-white/60 rounded-lg animate-pulse"></div>
-          </div>
-          <div className="grid grid-cols-3 gap-6">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <ProductSkeleton key={i} />
-            ))}
+      <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 gap-4 lg:gap-6 lg:flex-row">
+        {/* Products Section */}
+        <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
+          <div className="h-full flex flex-col">
+            <div className="mb-3">
+              <div className="h-8 w-32 bg-gray-200 rounded animate-pulse mb-3"></div>
+              <div className="h-12 w-full bg-white/60 rounded animate-pulse"></div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 animate-pulse">
+                    <div className="w-12 h-12 bg-gray-200 rounded-xl mx-auto mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-6 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Right Side - Cart Skeleton */}
-        <div className="w-1/3 bg-white/60 backdrop-blur-xl border-r border-white/20 shadow-2xl">
-          <div className="p-6">
-            <div className="h-8 bg-white/40 rounded-lg mb-6 animate-pulse"></div>
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 bg-white/40 rounded-lg animate-pulse"></div>
-              ))}
+        {/* Cart Section */}
+        <div className="h-[30vh] lg:h-full lg:w-96 bg-white/60 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-white/20 flex flex-col">
+          <div className="p-3 border-b border-white/20">
+            <div className="h-6 w-20 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+          <div className="flex-1 p-4">
+            <div className="text-center text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              بارکردن...
             </div>
           </div>
         </div>
       </div>
     )
   }
-
-  const groupedInventory = getGroupedInventory()
-  const filteredInventory = getFilteredInventory()
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50 gap-4 lg:gap-6 lg:flex-row">

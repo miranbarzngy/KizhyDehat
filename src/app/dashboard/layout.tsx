@@ -235,13 +235,14 @@ export default function DashboardLayout({
           {/* Single Row: RTL - Branding first (right), Navigation second (left) */}
           <div className="relative flex items-center px-2 py-3">
             {/* Branding - Far Right (Vertical Stack - First in DOM for RTL) */}
-            <div className="flex flex-col items-center flex-shrink-0">
+            {/* PC View - Larger logo */}
+            <div className="hidden lg:flex flex-col items-center flex-shrink-0">
               <button
                 onClick={() => setShowProfilePopup(true)}
-                className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg overflow-hidden transition-transform hover:scale-105"
+                className="flex items-center justify-center w-20 h-20 rounded-full shadow-lg overflow-hidden transition-transform hover:scale-105"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3))',
-                  border: '2px solid rgba(255, 255, 255, 0.4)'
+                  background: 'white',
+                  border: '3px solid rgba(99, 102, 241, 0.2)'
                 }}
               >
                 {shopSettings?.icon && shopSettings.icon.trim() !== '' ? (
@@ -252,15 +253,15 @@ export default function DashboardLayout({
                   />
                 ) : (
                   <Store 
-                    className="w-6 h-6" 
+                    className="w-10 h-10" 
                     style={{ 
-                      color: 'var(--theme-sidebar-text)'
+                      color: 'var(--theme-primary)'
                     }} 
                   />
                 )}
               </button>
               <h2 
-                className="text-sm md:text-base font-bold leading-tight mt-1"
+                className="text-base md:text-lg font-bold leading-tight mt-2"
                 style={{ 
                   color: 'var(--theme-sidebar-text)',
                   fontFamily: 'var(--font-uni-salar)'
@@ -277,6 +278,42 @@ export default function DashboardLayout({
               >
                 {profile?.name || user?.email?.split('@')[0] || 'بەڕێوەبەر'}
               </p>
+            </div>
+
+            {/* Mobile/Tablet View - Smaller logo */}
+            <div className="lg:hidden flex flex-col items-center flex-shrink-0">
+              <button
+                onClick={() => setShowProfilePopup(true)}
+                className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg overflow-hidden transition-transform hover:scale-105"
+                style={{
+                  background: 'white',
+                  border: '2px solid rgba(99, 102, 241, 0.2)'
+                }}
+              >
+                {shopSettings?.icon && shopSettings.icon.trim() !== '' ? (
+                  <img
+                    src={shopSettings.icon}
+                    alt="Shop Logo"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <Store 
+                    className="w-5 h-5" 
+                    style={{ 
+                      color: 'var(--theme-primary)'
+                    }} 
+                  />
+                )}
+              </button>
+              <h2 
+                className="text-xs md:text-sm font-bold leading-tight mt-1"
+                style={{ 
+                  color: 'var(--theme-sidebar-text)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
+                {shopSettings?.shopname || 'فرۆشگای کوردستان'}
+              </h2>
             </div>
 
             {/* Navigation - Second in DOM (appears to the left in RTL) */}

@@ -75,7 +75,7 @@ function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invo
     loadSettings()
   }, [])
 
-  // Prepare invoice data for InvoiceTemplate
+  // Prepare invoice data for InvoiceTemplate - with safety checks for null settings
   const invoiceData = {
     invoiceNumber: invoice.invoice_number,
     customerName: saleData.customers?.name || 'نەناسراو',
@@ -94,12 +94,12 @@ function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invo
     subtotal: saleData.subtotal || invoice.total,
     discount: saleData.discount_amount || 0,
     total: invoice.total,
-    shopName: settings.shop_name,
-    shopPhone: settings.shop_phone,
-    shopAddress: settings.shop_address,
-    shopLogo: settings.shop_logo,
-    qrCodeUrl: settings.qr_code_url,
-    thankYouNote: settings.thank_you_note
+    shopName: settings?.shop_name || 'فرۆشگای کوردستان',
+    shopPhone: settings?.shop_phone || '',
+    shopAddress: settings?.shop_address || '',
+    shopLogo: settings?.shop_logo || '',
+    qrCodeUrl: settings?.qr_code_url || '',
+    thankYouNote: settings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
   }
 
   return (
@@ -1684,9 +1684,9 @@ export default function InvoicesPage() {
                               <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium ${
                                 invoice.status === 'completed' ? 'bg-green-100 text-green-800' :
                                 invoice.status === 'refunded' ? 'bg-red-100 text-red-800' :
-                                invoice.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                invoice.status === 'cancelled' ? 'bg-gray-200 text-gray-600' :
                                 'bg-orange-100 text-orange-800'
-                              }`}>
+                              }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
                                 {invoice.status === 'completed' ? '✅ تەواوکراو' :
                                  invoice.status === 'refunded' ? '↩️ گەڕێندراوە' :
                                  invoice.status === 'cancelled' ? '❌ هەڵوەشێنراوە' :

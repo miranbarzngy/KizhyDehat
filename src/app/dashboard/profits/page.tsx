@@ -150,11 +150,13 @@ export default function ProfitsPage() {
       if (dateFrom) dateFilter = { ...dateFilter, gte: dateFrom }
       if (dateTo) dateFilter = { ...dateFilter, lte: dateTo }
 
-      // Total sales
+      // Total sales - exclude cancelled and refunded items
       const { data: salesData } = await supabase
         .from('sales')
         .select('total, payment_method')
         .match(dateFilter)
+        .neq('status', 'cancelled')
+        .neq('status', 'refunded')
 
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
       const cashSales = salesData?.filter(sale => sale.payment_method === 'cash').reduce((sum, sale) => sum + sale.total, 0) || 0
@@ -221,11 +223,12 @@ export default function ProfitsPage() {
         date.setDate(date.getDate() - i)
         const dateStr = date.toISOString().split('T')[0]
 
-        // Daily sales from sales table
+        // Daily sales from sales table - exclude cancelled and refunded
         const { data: daySales } = await supabase
           .from('sales')
           .select('total')
           .eq('date', dateStr)
+          .neq('status', 'cancelled')
 
         const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
 

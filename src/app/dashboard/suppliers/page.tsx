@@ -10,6 +10,7 @@ interface Supplier {
   company?: string
   phone: string
   address?: string
+  supplier_image?: string
   balance: number
   created_at?: string
 }
@@ -33,13 +34,15 @@ export default function SuppliersPage() {
     name: '',
     company: '',
     phone: '',
-    address: ''
+    address: '',
+    supplier_image: ''
   })
   const [editForm, setEditForm] = useState({
     name: '',
     company: '',
     phone: '',
-    address: ''
+    address: '',
+    supplier_image: ''
   })
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
@@ -135,7 +138,8 @@ export default function SuppliersPage() {
           name: newSupplier.name.trim(),
           company: newSupplier.company.trim() || null,
           phone: newSupplier.phone.trim(),
-          address: newSupplier.address.trim() || null
+          address: newSupplier.address.trim() || null,
+          supplier_image: newSupplier.supplier_image.trim() || null
         })
 
       if (error) throw error
@@ -143,7 +147,7 @@ export default function SuppliersPage() {
       console.log('✅ Supplier added successfully')
       alert('دابینکەرەکە بە سەرکەوتوویی زیادکرا')
       setShowAddSupplier(false)
-      setNewSupplier({ name: '', company: '', phone: '', address: '' })
+      setNewSupplier({ name: '', company: '', phone: '', address: '', supplier_image: '' })
       fetchSuppliers()
     } catch (error) {
       console.error('❌ Error adding supplier:', error)
@@ -158,7 +162,8 @@ export default function SuppliersPage() {
       name: supplier.name,
       company: supplier.company || '',
       phone: supplier.phone,
-      address: supplier.address || ''
+      address: supplier.address || '',
+      supplier_image: supplier.supplier_image || ''
     })
     setShowEditModal(true)
   }
@@ -186,7 +191,8 @@ export default function SuppliersPage() {
           name: editForm.name.trim(),
           company: editForm.company.trim() || null,
           phone: editForm.phone.trim(),
-          address: editForm.address.trim() || null
+          address: editForm.address.trim() || null,
+          supplier_image: editForm.supplier_image.trim() || null
         })
         .eq('id', editingSupplier.id)
 
@@ -468,8 +474,36 @@ export default function SuppliersPage() {
               >
                 {/* Supplier Info */}
                 <div className="text-center mb-4">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-2xl">🏢</span>
+                  {/* Supplier Avatar - Glassmorphism Style */}
+                  <div 
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 overflow-hidden"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    {supplier.supplier_image && supplier.supplier_image.trim() !== '' ? (
+                      <img
+                        src={supplier.supplier_image}
+                        alt={supplier.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          const fallback = target.nextElementSibling as HTMLElement
+                          if (fallback) fallback.style.display = 'flex'
+                        }}
+                      />
+                    ) : null}
+                    <span 
+                      className="text-2xl"
+                      style={{ display: supplier.supplier_image && supplier.supplier_image.trim() !== '' ? 'none' : 'flex' }}
+                    >
+                      🏢
+                    </span>
                   </div>
                   <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-primary)' }}>
                     {supplier.name}
@@ -667,6 +701,18 @@ export default function SuppliersPage() {
                     placeholder="ناونیشانی دابینکەر"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە (URL)</label>
+                  <input
+                    type="text"
+                    value={newSupplier.supplier_image}
+                    onChange={(e) => setNewSupplier(prev => ({ ...prev, supplier_image: e.target.value }))}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-4 mt-8">
@@ -741,6 +787,18 @@ export default function SuppliersPage() {
                     onChange={(e) => updateEditForm('address', e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
                     style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە (URL)</label>
+                  <input
+                    type="text"
+                    value={editForm.supplier_image}
+                    onChange={(e) => updateEditForm('supplier_image', e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border backdrop-blur-sm"
+                    style={{ background: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.1)', fontFamily: 'var(--font-uni-salar)' }}
+                    placeholder="https://example.com/image.jpg"
                   />
                 </div>
               </div>

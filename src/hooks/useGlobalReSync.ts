@@ -8,6 +8,32 @@ export function useGlobalReSync() {
   const isSyncing = useRef(false)
   const lastSyncTime = useRef(0)
 
+  // Navigation wake-up: click listener for frozen Links
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const link = target.closest('a')
+      
+      if (!link) return
+      
+      const href = link.getAttribute('href')
+      if (!href || !href.startsWith('/dashboard')) return
+
+      // Check if navigation is taking too long
+      const startNav = Date.now()
+      const checkNav = () => {
+        if (Date.now() - startNav > 500 && !href.includes('#')) {
+          console.log('🔧 Router frozen, forcing navigation')
+          window.location.href = href
+        }
+      }
+      setTimeout(checkNav, 500)
+    }
+
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [])
+
   const performSync = useCallback(async () => {
     const now = Date.now()
     
@@ -17,7 +43,6 @@ export function useGlobalReSync() {
     }
     lastSyncTime.current = now
 
-    // Don't sync if already syncing
     if (isSyncing.current) {
       return
     }
@@ -27,15 +52,25 @@ export function useGlobalReSync() {
       console.log('🔄 Global re-sync triggered')
       router.refresh()
       console.log('✅ Router refreshed')
+
+      // Force CSS recalculation
+      const html = document.documentElement
+      void html.offsetHeight
+      console.log('🎨 CSS recalculated')
+      
+      // Ensure font
+      document.documentElement.style.setProperty('--font-uni-salar', 'UniSalar')
+      document.body.style.fontFamily = 'var(--font-uni-salar), sans-serif'
+      console.log('🔤 Font re-applied')
+      
     } catch (error) {
       console.error('❌ Sync error:', error)
     } finally {
-      // Delay resetting isSyncing to prevent rapid re-syncs
       setTimeout(() => {
         isSyncing.current = false
       }, 2000)
     }
-  }, [router]) // Only depends on router, not on changing values
+  }, [router])
 
   useEffect(() => {
     let syncTimeout: NodeJS.Timeout | null = null
@@ -44,30 +79,29 @@ export function useGlobalReSync() {
       if (syncTimeout) {
         clearTimeout(syncTimeout)
       }
-      // Delay to let browser stabilize after focus
       syncTimeout = setTimeout(() => {
         performSync()
       }, 200)
     }
 
-    // Handle tab visibility change
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         scheduleSync()
       }
     }
 
-    // Handle window focus
     const handleFocus = () => {
       scheduleSync()
     }
 
-    // Handle online event
     const handleOnline = () => {
       scheduleSync()
     }
 
-    // Handle popstate
+    const handleOffline = () => {
+      console.log('📴 Network lost')
+    }
+
     const handlePopState = () => {
       scheduleSync()
     }
@@ -75,14 +109,16 @@ export function useGlobalReSync() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', handleFocus)
     window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
     window.addEventListener('popstate', handlePopState)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
       window.removeEventListener('popstate', handlePopState)
       if (syncTimeout) clearTimeout(syncTimeout)
     }
-  }, [performSync]) // Only re-create effect if performSync changes
+  }, [performSync])
 }

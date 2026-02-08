@@ -431,7 +431,8 @@ export default function InventoryPage() {
           image: '',
           expire_date: '2026-12-31',
           supplier_name: 'کۆمپانیای برنجی کوردستان',
-          note: 'برنجی باشی کوردستانی'
+          note: 'برنجی باشی کوردستانی',
+          has_sales: false
         },
         {
           id: '2',
@@ -446,7 +447,8 @@ export default function InventoryPage() {
           image: '',
           expire_date: '2026-06-15',
           supplier_name: 'فرۆشیاری شەکر',
-          note: 'شەکری پاک و خاوێن'
+          note: 'شەکری پاک و خاوێن',
+          has_sales: false
         },
         {
           id: '3',
@@ -461,7 +463,8 @@ export default function InventoryPage() {
           image: '',
           expire_date: '2027-01-20',
           supplier_name: 'کۆمپانیای چای ناوەندی',
-          note: 'چای ڕەسەنی کوردستانی'
+          note: 'چای ڕەسەنی کوردستانی',
+          has_sales: false
         }
       ]
       const demoArchived: InventoryItem[] = [
@@ -478,7 +481,8 @@ export default function InventoryPage() {
           image: '',
           expire_date: '2026-01-15',
           supplier_name: 'فرۆشیاری گۆشت',
-          note: 'گۆشتی پاک و تازە'
+          note: 'گۆشتی پاک و تازە',
+          has_sales: true
         }
       ]
       setInventory(demoInventory)
@@ -499,23 +503,32 @@ export default function InventoryPage() {
 
       if (inventoryError) throw inventoryError
 
-      // Only fetch archived items when archive tab is active (lazy load)
-      // We'll handle this in the archive tab section instead
+      // Check which items have sales
+      let itemsWithSales: string[] = []
+      try {
+        const { data: salesData, error: salesError } = await supabase
+          .from('sale_items')
+          .select('item_id')
 
-      // No longer fetching products table to improve performance
-      // Product data will be fetched separately if needed
+        if (!salesError && salesData) {
+          itemsWithSales = salesData.map(s => s.item_id)
+        }
+      } catch (salesErr) {
+        // sale_items table might not exist, continue without sales check
+        console.log('sale_items table not available')
+      }
 
-      // Process inventory data
+      // Process inventory data - check has_sales for each item
       const mergedInventory = (inventoryData || []).map((inventoryItem: any) => ({
         ...inventoryItem,
         supplier_name: '',
-        note: ''
+        note: '',
+        has_sales: itemsWithSales.includes(inventoryItem.id)
       }))
 
       setInventory(mergedInventory)
       
-      // Only fetch archived items and product data when needed
-      // These will be fetched on-demand to improve initial load time
+      // Only fetch archived items when needed
       
     } catch (error) {
       console.error('Error fetching inventory:', error)

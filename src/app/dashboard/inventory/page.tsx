@@ -780,52 +780,57 @@ export default function InventoryPage() {
     }
   }
 
-  const deleteItem = async () => {
-    if (!itemToDelete) return
+  // Direct delete function - called immediately when user confirms
+  const performDelete = async (item: InventoryItem) => {
+    const itemId = item.id
+    const itemName = item.item_name
 
-    // Debug: Log the ID being deleted
-    console.log('🗑️ Deleting item with ID:', itemToDelete.id, '| Name:', itemToDelete.item_name)
-    console.log('🗑️ Has sales:', itemToDelete.has_sales)
-
-    // Optimistic update: Remove item from local state immediately
-    const itemName = itemToDelete.item_name
-    const itemId = itemToDelete.id
-    setInventory(prev => prev.filter(item => item.id !== itemId))
-    setShowDeleteConfirm(false)
-    setItemToDelete(null)
+    console.log('🗑️ Starting delete for item:', itemId, itemName)
 
     if (!supabase) {
-      alert(`کاڵای "${itemName}" بە سەرکەوتوویی سڕایەوە`)
+      // Demo mode - just remove from UI
+      setInventory(prev => prev.filter(i => i.id !== itemId))
+      alert(`کاڵای "${itemName}" سڕایەوە (دیمۆ)`)
       return
     }
 
     try {
-      // First try to delete directly
+      // Direct delete to database
       const { error } = await supabase
         .from('inventory')
         .delete()
         .eq('id', itemId)
 
       if (error) {
-        // Check if it's a foreign key constraint error
-        if (error.message.includes('foreign key constraint') || error.message.includes('referenced')) {
-          console.error('❌ Foreign key constraint error:', error)
-          alert('هەڵە: ناتوانرێت ئەم کاڵایە بسڕدرێتەوە چونکە پەیوەستە بە فرۆشتنەوە. تکایە سەرەتا کاڵاکە لە فرۆشتنەکان بکەرەوە.')
+        console.error('❌ Delete error:', error)
+        
+        // Check for foreign key constraint
+        if (error.message.includes('foreign key') || error.message.includes('referenced')) {
+          alert('هەڵە: ناتوانرێت ئەم کاڵایە بسڕدرێتەوە چونکە پەیوەستە بە فرۆشتنەوە')
+        } else if (error.code === '42501') {
+          alert('هەڵە: دەستگەیشتن بە سڕینەوە نییە. تکایە بەرپرسی سیستەمەکە بکە.')
         } else {
-          console.error('❌ Delete error:', error)
-          alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message || 'هەڵەی نادیار'}`)
+          alert(`هەڵە لە سڕینەوە: ${error.message}`)
         }
-        fetchInventory() // Refresh to get correct state
         return
       }
 
+      // Success - remove from UI
+      setInventory(prev => prev.filter(i => i.id !== itemId))
       console.log('✅ Item deleted successfully:', itemId)
       alert(`کاڵای "${itemName}" بە سەرکەوتوویی سڕایەوە`)
+      
     } catch (error: any) {
-      console.error('❌ Exception deleting item:', error)
-      alert(`هەڵە لە سڕینەوەی کاڵا: ${error?.message || 'هەڵەی نادیار'}`)
-      fetchInventory() // Refresh to get correct state
+      console.error('❌ Exception:', error)
+      alert(`هەڵە: ${error?.message || 'هەڵەی نادیار'}`)
     }
+  }
+
+  // Old delete function (uses state - kept for reference)
+  const deleteItem = async () => {
+    if (!itemToDelete) return
+    setShowDeleteConfirm(false)
+    setItemToDelete(null)
   }
 
   const isLowStock = (item: InventoryItem) => {
@@ -1027,10 +1032,10 @@ export default function InventoryPage() {
                       {/* Hide delete button if item has sales - prevent data loss */}
                       {!item.has_sales && (
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             if (confirm(`دڵنیایت لە سڕینەوەی کاڵای "${item.item_name}"؟`)) {
-                              setItemToDelete(item)
-                              setShowDeleteConfirm(true)
+                              performDelete(item)
                             }
                           }}
                           className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"

@@ -769,9 +769,13 @@ export default function InventoryPage() {
   const deleteItem = async () => {
     if (!itemToDelete) return
 
+    // Debug: Log the ID being deleted
+    console.log('🗑️ Deleting item with ID:', itemToDelete.id, '| Name:', itemToDelete.item_name)
+
     // Optimistic update: Remove item from local state immediately
     const itemName = itemToDelete.item_name
-    setInventory(prev => prev.filter(item => item.id !== itemToDelete.id))
+    const itemId = itemToDelete.id
+    setInventory(prev => prev.filter(item => item.id !== itemId))
     setShowDeleteConfirm(false)
     setItemToDelete(null)
 
@@ -784,19 +788,21 @@ export default function InventoryPage() {
       const { error } = await supabase
         .from('inventory')
         .delete()
-        .eq('id', itemToDelete.id)
+        .eq('id', itemId)
 
       if (error) {
-        // Revert on error
-        alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message}`)
+        // Detailed error handling
+        console.error('❌ Delete error:', error)
+        alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message || 'هەڵەی نادیار'}`)
         fetchInventory() // Refresh to get correct state
         return
       }
 
+      console.log('✅ Item deleted successfully:', itemId)
       alert(`کاڵای "${itemName}" بە سەرکەوتوویی سڕایەوە`)
-    } catch (error) {
-      console.error('Error deleting item:', error)
-      alert('هەڵە لە سڕینەوەی کاڵا')
+    } catch (error: any) {
+      console.error('❌ Exception deleting item:', error)
+      alert(`هەڵە لە سڕینەوەی کاڵا: ${error?.message || 'هەڵەی نادیار'}`)
       fetchInventory() // Refresh to get correct state
     }
   }

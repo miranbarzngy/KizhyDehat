@@ -258,171 +258,41 @@ export default function SalesPage() {
   }, [profile, user])
 
   const fetchInventory = async () => {
-    // Demo mode: show sample inventory data when Supabase is not configured
-    if (!supabase) {
-      const demoInventory: InventoryItem[] = [
-        {
-          id: '1',
-          item_name: 'برنج',
-          quantity: 25,
-          unit: 'کیلۆ',
-          selling_price: 18.00,
-          cost_price: 15.50,
-          category: 'خۆراك'
-        },
-        {
-          id: '2',
-          item_name: 'شەکر',
-          quantity: 8,
-          unit: 'کیلۆ',
-          selling_price: 14.50,
-          cost_price: 12.00,
-          category: 'خۆراك'
-        },
-        {
-          id: '3',
-          item_name: 'چای',
-          quantity: 45,
-          unit: 'پاکێت',
-          selling_price: 10.00,
-          cost_price: 8.50,
-          category: 'خۆراك'
-        },
-        {
-          id: '4',
-          item_name: 'گۆشت',
-          quantity: 12,
-          unit: 'کیلۆ',
-          selling_price: 35.00,
-          cost_price: 28.00,
-          category: 'گۆشت و ماسی'
-        },
-        {
-          id: '5',
-          item_name: 'پیاز',
-          quantity: 30,
-          unit: 'کیلۆ',
-          selling_price: 5.50,
-          cost_price: 4.00,
-          category: 'میوە و سەوزە'
-        },
-        {
-          id: '6',
-          item_name: 'تەماتە',
-          quantity: 20,
-          unit: 'کیلۆ',
-          selling_price: 8.00,
-          cost_price: 6.50,
-          category: 'میوە و سەوزە'
-        }
-      ]
-      setInventory(demoInventory)
-      setLoading(false)
-      return
-    }
-
+    if (!supabase) return
     try {
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .gt('quantity', 0)
-
+      const { data, error } = await supabase.from('inventory').select('*').gt('quantity', 0)
       if (error) throw error
-      // Add default category if missing
-      const processedData = (data || []).map(item => ({
-        ...item,
-        category: item.category || 'ئەوانی تر'
-      }))
+      const processedData = (data || []).map(item => ({ ...item, category: item.category || 'ئەوانی تر' }))
       setInventory(processedData)
-    } catch (error) {
-      console.error('Error fetching inventory:', error)
-    } finally {
-      setLoading(false)
-    }
+    } catch (error) { console.error('Error fetching inventory:', error) }
+    finally { setLoading(false) }
   }
 
   const fetchCustomers = async () => {
-    // Demo mode: show sample customers data when Supabase is not configured
-    if (!supabase) {
-      const demoCustomers: Customer[] = [
-        { id: '1', name: 'ئەحمەد محەمەد', phone1: '+964 750 123 4567', total_debt: 125.50 },
-        { id: '2', name: 'فاطمە عەلی', phone1: '+964 751 987 6543', total_debt: 0 },
-        { id: '3', name: 'محەمەد کەریم', phone1: '+964 752 456 7890', total_debt: 89.25 },
-        { id: '4', name: 'سارا ئەحمەد', phone1: '+964 753 321 0987', total_debt: 234.75 }
-      ]
-      setCustomers(demoCustomers)
-      return
-    }
-
+    if (!supabase) return
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, name, phone1, phone2, total_debt')
-
+      const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt')
       if (error) throw error
       setCustomers(data || [])
-    } catch (error) {
-      console.error('Error fetching customers:', error)
-    }
+    } catch (error) { console.error('Error fetching customers:', error) }
   }
 
   const fetchShopSettings = async () => {
-    // Demo mode: show sample shop settings data when Supabase is not configured
-    if (!supabase) {
-      const demoSettings: ShopSettings = {
-        id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
-        icon: '',
-        phone: '+964 750 123 4567',
-        location: 'هەولێر، کوردستان',
-        qrcodeimage: ''
-      }
-      setShopSettings(demoSettings)
-      return
-    }
-
+    if (!supabase) return
     try {
-      const { data, error } = await supabase
-        .from('shop_settings')
-        .select('*')
-        .single()
-
+      const { data, error } = await supabase.from('shop_settings').select('*').single()
       if (error && error.code !== 'PGRST116') throw error
       setShopSettings(data || null)
-    } catch (error) {
-      console.error('Error fetching shop settings:', error)
-    }
+    } catch (error) { console.error('Error fetching shop settings:', error) }
   }
 
   const fetchInvoiceSettings = async () => {
-    // Demo mode: show sample invoice settings data when Supabase is not configured
-    if (!supabase) {
-      const demoSettings: InvoiceSettings = {
-        id: 'demo-invoice',
-        shop_name: 'فرۆشگای کوردستان',
-        shop_phone: '+964 750 123 4567',
-        shop_address: 'هەولێر، کوردستان',
-        shop_logo: '',
-        thank_you_note: 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.',
-        qr_code_url: '',
-        starting_invoice_number: 1000,
-        current_invoice_number: 1000
-      }
-      setInvoiceSettings(demoSettings)
-      return
-    }
-
+    if (!supabase) return
     try {
-      const { data, error } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .single()
-
+      const { data, error } = await supabase.from('invoice_settings').select('*').single()
       if (error && error.code !== 'PGRST116') throw error
       setInvoiceSettings(data || null)
-    } catch (error) {
-      console.error('Error fetching invoice settings:', error)
-    }
+    } catch (error) { console.error('Error fetching invoice settings:', error) }
   }
 
   // Auto-unit add to cart function - automatically uses item's base unit

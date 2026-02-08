@@ -39,15 +39,7 @@ export default function SuppliersPage() {
   useEffect(() => { fetchSuppliers() }, [])
 
   const fetchSuppliers = async () => {
-    if (!supabase) {
-      setSuppliers([
-        { id: '1', name: 'کۆمپانیای برنجی کوردستان', company: 'برنجی', phone: '0750-123-4567', balance: 1250.75 },
-        { id: '2', name: 'فرۆشیاری شەکر', company: 'شەکر', phone: '0750-987-6543', balance: 890.50 },
-        { id: '3', name: 'کۆمپانیای چای', company: 'چای', phone: '0770-555-1234', balance: 2340.25 }
-      ])
-      setLoading(false)
-      return
-    }
+    if (!supabase) return
     const { data, error } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
     if (!error) setSuppliers(data || [])
     setLoading(false)

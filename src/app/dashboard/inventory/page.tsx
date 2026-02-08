@@ -170,18 +170,7 @@ export default function InventoryPage() {
   }
 
   const fetchInventory = async () => {
-    console.log('🔄 Fetching inventory data...')
     if (!supabase) {
-      const demoInventory: InventoryItem[] = [
-        { id: '1', item_name: 'برنج', quantity: 25, unit: 'کیلۆ', low_stock_threshold: 10, cost_price: 15.50, selling_price: 18.00, category: 'خۆراك', is_online_visible: true, image: '', expire_date: '2026-12-31', supplier_name: 'کۆمپانیای برنجی کوردستان', note: 'برنجی باشی کوردستانی', has_sales: false },
-        { id: '2', item_name: 'شەکر', quantity: 8, unit: 'کیلۆ', low_stock_threshold: 15, cost_price: 12.00, selling_price: 14.50, category: 'خۆراك', is_online_visible: false, image: '', expire_date: '2026-06-15', supplier_name: 'فرۆشیاری شەکر', note: 'شەکری پاک و خاوێن', has_sales: false },
-        { id: '3', item_name: 'چای', quantity: 45, unit: 'پاکێت', low_stock_threshold: 20, cost_price: 8.50, selling_price: 10.00, category: 'خۆراك', is_online_visible: true, image: '', expire_date: '2027-01-20', supplier_name: 'کۆمپانیای چای ناوەندی', note: 'چای ڕەسەنی کوردستانی', has_sales: false }
-      ]
-      const demoArchived: InventoryItem[] = [
-        { id: '4', item_name: 'گۆشت', quantity: 0, unit: 'کیلۆ', low_stock_threshold: 5, cost_price: 28.00, selling_price: 35.00, category: 'گۆشت و ماسی', is_online_visible: false, image: '', expire_date: '2026-01-15', supplier_name: 'فرۆشیاری گۆشت', note: 'گۆشتی پاک و تازە', has_sales: true }
-      ]
-      setInventory(demoInventory)
-      setArchivedItems(demoArchived)
       setLoading(false)
       return
     }
@@ -206,7 +195,7 @@ export default function InventoryPage() {
   }
 
   const fetchSuppliers = async () => {
-    if (!supabase) { setSuppliers([{ id: '1', name: 'کۆمپانیای برنجی کوردستان', balance: 1250.75 }, { id: '2', name: 'فرۆشیاری شەکر', balance: 890.50 }, { id: '3', name: 'کۆمپانیای چای ناوەندی', balance: 2340.25 }]); return }
+    if (!supabase) return
     const { data, error } = await supabase.from('suppliers').select('id, name, balance')
     if (error) console.error('Error fetching suppliers:', error)
     else setSuppliers(data || [])

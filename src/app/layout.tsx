@@ -150,6 +150,7 @@ export default function RootLayout({
     <html lang="ku" dir="rtl" translate="no">
       <head>
         <meta name="google" content="notranslate" />
+        <meta name="format-detection" content="telephone=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="POS Kurdish" />

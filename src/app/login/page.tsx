@@ -68,7 +68,7 @@ export default function LoginPage() {
               <img
                 src={shopLogo}
                 alt="Shop Logo"
-                className="w-24 h-24 rounded-full object-cover shadow-lg border-4 border-white/50 dark:border-gray-600/50"
+                className="w-24 h-24 rounded-full object-cover shadow-lg border-4 border-white/50 dark:border-gray-600/50 bg-white"
               />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg flex items-center justify-center">
@@ -142,7 +142,7 @@ export default function LoginPage() {
 
         {/* Footer Text */}
         <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 font-uni-salar">
-            سیستەمی فرۆشتن<br />گەشپێدراوە لەلایەن کلیک گروپ <br/>٠٧٧٠١٤٦٦٧٨٧        </p>
+            سیستەمی فرۆشتن<br />گەشپێدراوە لەلایەن کلیک گروپ <br/><span className="font-uni-salar" suppressHydrationWarning>٠٧٧٠١٤٦٦٧٨٧</span></p>
       </div>
     </div>
   )

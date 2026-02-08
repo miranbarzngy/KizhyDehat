@@ -856,9 +856,9 @@ export default function InventoryPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 pl-0 md:pl-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 md:p-6 pl-0 md:pl-6">
       <div className="w-full max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        <h1 className="text-2xl md:text-4xl font-bold mb-6 md:mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
           بەڕێوەبردنی کاڵاکان
         </h1>
 
@@ -1410,41 +1410,41 @@ export default function InventoryPage() {
                 <>
                   {/* Summary Header */}
                   {filteredArchivedItems.length > 0 && (
-                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-emerald-200">
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 backdrop-blur-xl rounded-2xl p-4 md:p-6 shadow-lg border border-emerald-200">
                       <div className="text-center">
-                        <h3 className="text-lg font-bold text-emerald-800 mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        <h3 className="text-base md:text-lg font-bold text-emerald-800 mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                           کۆی قازانجی {getFilterLabel()}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="bg-white/60 rounded-xl p-4">
-                            <div className="text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                          <div className="bg-white/60 rounded-xl p-3 md:p-4">
+                            <div className="text-xs md:text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               کۆی قازانج
                             </div>
-                            <div className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(totalProfit)} IQD
+                            <div className={`text-lg md:text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(totalProfit)}
                             </div>
                           </div>
-                          <div className="bg-white/60 rounded-xl p-4">
-                            <div className="text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <div className="bg-white/60 rounded-xl p-3 md:p-4">
+                            <div className="text-xs md:text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               کۆی داهات
                             </div>
-                            <div className="text-2xl font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(totalRevenue)} IQD
+                            <div className="text-lg md:text-2xl font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(totalRevenue)}
                             </div>
                           </div>
-                          <div className="bg-white/60 rounded-xl p-4">
-                            <div className="text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <div className="bg-white/60 rounded-xl p-3 md:p-4">
+                            <div className="text-xs md:text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               کۆی تێچوو
                             </div>
-                            <div className="text-2xl font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                              {formatCurrency(totalCost)} IQD
+                            <div className="text-lg md:text-2xl font-bold text-red-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {formatCurrency(totalCost)}
                             </div>
                           </div>
-                          <div className="bg-white/60 rounded-xl p-4">
-                            <div className="text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              ڕێژەی قازانج
+                          <div className="bg-white/60 rounded-xl p-3 md:p-4">
+                            <div className="text-xs md:text-sm text-emerald-700 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              ڕێژە
                             </div>
-                            <div className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <div className={`text-lg md:text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
                               {totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : '0%'}
                             </div>
                           </div>
@@ -2183,17 +2183,17 @@ export default function InventoryPage() {
                   </h3>
 
                   {/* Step Indicator */}
-                  <div className="mb-8">
-                    <div className="flex justify-center items-center space-x-4">
+                  <div className="mb-4 md:mb-8">
+                    <div className="flex justify-center items-center space-x-2 md:space-x-4 overflow-x-auto px-1">
                       {steps.map((step, index) => {
                         const IconComponent = step.icon
                         const isActive = currentStep === step.id
                         const isCompleted = currentStep > step.id
 
                         return (
-                          <div key={step.id} className="flex items-center">
-                            <div className={`flex flex-col items-center ${index < steps.length - 1 ? 'w-24' : ''}`}>
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                          <div key={step.id} className="flex items-center flex-shrink-0">
+                            <div className={`flex flex-col items-center ${index < steps.length - 1 ? 'w-16 md:w-24' : ''}`}>
+                              <div className={`sm:w-10 sm:h-10 w-8 h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all duration-300 ${
                                 isCompleted
                                   ? 'bg-green-500 text-white'
                                   : isActive
@@ -2202,17 +2202,17 @@ export default function InventoryPage() {
                               }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
                                 {isCompleted ? '✓' : step.id}
                               </div>
-                              <div className="text-center mt-2">
-                                <div className={`text-xs font-semibold ${isActive ? `text-${step.color}-600` : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              <div className="text-center mt-1 md:mt-2">
+                                <div className={`text-[10px] sm:text-xs font-semibold ${isActive ? `text-${step.color}-600` : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
                                   {step.title}
                                 </div>
-                                <div className={`text-xs ${isActive ? `text-${step.color}-500` : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                <div className={`hidden sm:block text-[10px] ${isActive ? `text-${step.color}-500` : 'text-gray-400'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
                                   {step.subtitle}
                                 </div>
                               </div>
                             </div>
                             {index < steps.length - 1 && (
-                              <div className={`flex-1 h-0.5 mx-2 transition-all duration-300 ${
+                              <div className={`flex-1 h-0.5 mx-1 md:mx-2 transition-all duration-300 ${
                                 isCompleted ? 'bg-green-500' : 'bg-gray-200'
                               }`}></div>
                             )}
@@ -2228,12 +2228,12 @@ export default function InventoryPage() {
                   </div>
 
                   {/* Navigation Buttons */}
-                  <div className="mt-8 flex justify-between items-center">
-                    <div>
+                  <div className="mt-4 md:mt-8 flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div className="order-2 sm:order-1">
                       {currentStep > 1 && (
                         <button
                           onClick={prevStep}
-                          className="px-6 py-3 bg-gray-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-500 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                           style={{ fontFamily: 'var(--font-uni-salar)' }}
                         >
                           <span>پێشوو</span>
@@ -2241,13 +2241,13 @@ export default function InventoryPage() {
                       )}
                     </div>
 
-                    <div className="flex space-x-4">
+                    <div className="order-1 sm:order-2 flex gap-2 sm:space-x-4 w-full sm:w-auto">
                       <button
                         onClick={() => {
                           setShowStockEntry(false)
                           setCurrentStep(1)
                         }}
-                        className="px-6 py-3 bg-gray-400 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                        className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gray-400 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                         style={{ fontFamily: 'var(--font-uni-salar)' }}
                       >
                         پاشگەزبوونەوە
@@ -2257,7 +2257,7 @@ export default function InventoryPage() {
                         <button
                           onClick={nextStep}
                           disabled={!canProceed()}
-                          className={`px-6 py-3 font-bold rounded-2xl shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2 ${
+                          className={`flex-1 sm:flex-none px-6 sm:px-6 py-2 sm:py-3 font-bold rounded-xl sm:rounded-2xl shadow-lg transition-all duration-300 hover:scale-105 flex items-center justify-center space-x-2 ${
                             canProceed()
                               ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -2276,7 +2276,7 @@ export default function InventoryPage() {
                             }
                             setCurrentStep(1)
                           }}
-                          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                          className="flex-1 sm:flex-none px-6 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                           style={{ fontFamily: 'var(--font-uni-salar)' }}
                         >
                           تۆمارکردن

@@ -12,7 +12,7 @@ WHERE relname = 'inventory';
 
 -- 2. List all RLS policies on inventory table
 SELECT
-  policy_name,
+  policyname as policy_name,
   action,
   roles,
   CASE

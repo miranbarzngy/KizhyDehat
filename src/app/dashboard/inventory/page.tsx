@@ -785,6 +785,7 @@ export default function InventoryPage() {
 
     // Debug: Log the ID being deleted
     console.log('🗑️ Deleting item with ID:', itemToDelete.id, '| Name:', itemToDelete.item_name)
+    console.log('🗑️ Has sales:', itemToDelete.has_sales)
 
     // Optimistic update: Remove item from local state immediately
     const itemName = itemToDelete.item_name
@@ -799,15 +800,21 @@ export default function InventoryPage() {
     }
 
     try {
+      // First try to delete directly
       const { error } = await supabase
         .from('inventory')
         .delete()
         .eq('id', itemId)
 
       if (error) {
-        // Detailed error handling
-        console.error('❌ Delete error:', error)
-        alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message || 'هەڵەی نادیار'}`)
+        // Check if it's a foreign key constraint error
+        if (error.message.includes('foreign key constraint') || error.message.includes('referenced')) {
+          console.error('❌ Foreign key constraint error:', error)
+          alert('هەڵە: ناتوانرێت ئەم کاڵایە بسڕدرێتەوە چونکە پەیوەستە بە فرۆشتنەوە. تکایە سەرەتا کاڵاکە لە فرۆشتنەکان بکەرەوە.')
+        } else {
+          console.error('❌ Delete error:', error)
+          alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message || 'هەڵەی نادیار'}`)
+        }
         fetchInventory() // Refresh to get correct state
         return
       }

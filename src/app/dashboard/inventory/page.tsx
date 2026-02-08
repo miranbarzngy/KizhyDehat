@@ -23,6 +23,7 @@ interface InventoryItem {
   total_sold?: number
   total_revenue?: number
   total_profit?: number
+  has_sales?: boolean  // Flag to check if item has sales history
 }
 
 interface Supplier {
@@ -1003,16 +1004,19 @@ export default function InventoryPage() {
                         <FaEdit size={14} />
                         <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
                       </button>
-                      <button
-                        onClick={() => {
-                          setItemToDelete(item)
-                          setShowDeleteConfirm(true)
-                        }}
-                        className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
-                      >
-                        <FaTrash size={14} />
-                        <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
-                      </button>
+                      {/* Hide delete button if item has sales - prevent data loss */}
+                      {!item.has_sales && (
+                        <button
+                          onClick={() => {
+                            setItemToDelete(item)
+                            setShowDeleteConfirm(true)
+                          }}
+                          className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
+                        >
+                          <FaTrash size={14} />
+                          <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

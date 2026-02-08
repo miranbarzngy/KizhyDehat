@@ -6,28 +6,27 @@
 -- 1. Check if RLS is enabled on inventory table
 SELECT
   'RLS Status' as check_name,
-  CASE WHEN relrowsecurity = true THEN '✅ RLS ENABLED' ELSE '❌ RLS DISABLED' END as status
+  CASE WHEN relrowsecurity = true THEN 'RLS ENABLED' ELSE 'RLS DISABLED' END as status
 FROM pg_class
 WHERE relname = 'inventory';
 
 -- 2. List all RLS policies on inventory table
 SELECT
   policyname as policy_name,
-  action,
-  roles,
   CASE
-    WHEN operation = 'DELETE' THEN '✅ DELETE ALLOWED'
-    WHEN operation = '*' THEN '✅ ALL OPERATIONS'
-    ELSE '❌ MISSING DELETE'
-  END as delete_status
+    WHEN cmd = 'DELETE' THEN 'DELETE'
+    WHEN cmd = '*' THEN 'ALL'
+    ELSE cmd
+  END as operation,
+  roles
 FROM pg_policies
 WHERE tablename = 'inventory';
 
 -- 3. Check current authenticated user role
 SELECT
   'Current User' as info,
-  current_setting('app.current_tenant') as tenant_id,
-  current_setting('request.jwt.claim.sub') as user_id,
+  current_setting('app.current_tenant', true) as tenant_id,
+  current_setting('request.jwt.claim.sub', true) as user_id,
   current_user as pg_user;
 
 -- 4. FIX: Create DELETE policy if it doesn't exist
@@ -63,29 +62,13 @@ USING (
 );
 */
 
--- 5. Test DELETE permissions
--- Run this to see if you can delete a specific record:
--- Replace 'YOUR_ITEM_UUID' with an actual item ID
-/*
-DO $$
-DECLARE
-  test_id uuid := 'YOUR_ITEM_UUID'; -- Replace with actual ID
-BEGIN
-  DELETE FROM inventory WHERE id = test_id;
-  RAISE NOTICE '✅ Delete successful - RLS allows this action';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE '❌ Delete failed: %', SQLERRM;
-END $$;
-*/
-
--- 6. Grant table permissions (if using service role)
+-- 5. Grant table permissions (if using service role)
 GRANT DELETE ON inventory TO authenticated;
 GRANT DELETE ON inventory TO service_role;
 
--- 7. Check for foreign key constraints that might block deletion
+-- 6. Check for foreign key constraints that might block deletion
 SELECT
   conname as constraint_name,
-  conrelid::regclass as referencing_table,
-  pg_get_constraintdef(oid) as constraint_definition
+  confrelid::regclass as referenced_table
 FROM pg_constraint
 WHERE confrelid = 'inventory'::regclass;

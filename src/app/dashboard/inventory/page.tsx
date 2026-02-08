@@ -1021,8 +1021,10 @@ export default function InventoryPage() {
                       {!item.has_sales && (
                         <button
                           onClick={() => {
-                            setItemToDelete(item)
-                            setShowDeleteConfirm(true)
+                            if (confirm(`دڵنیایت لە سڕینەوەی کاڵای "${item.item_name}"؟`)) {
+                              setItemToDelete(item)
+                              setShowDeleteConfirm(true)
+                            }
                           }}
                           className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors flex items-center space-x-1"
                         >

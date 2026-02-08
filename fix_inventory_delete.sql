@@ -1,36 +1,37 @@
 -- ============================================
--- FIX FOREIGN KEY CONSTRAINT BLOCKING DELETES
+-- FIX FOREIGN KEY CONSTRAINT - SET NULL
 -- Run this in Supabase SQL Editor
 -- ============================================
 
--- The issue: sale_items table references inventory.id
--- When you try to delete inventory items that have sales, it fails
+-- This preserves sales history while allowing inventory deletion
+-- When an inventory item is deleted, sale_items.item_id becomes NULL
+-- but the price and quantity remain intact
 
--- OPTION 1: Drop the constraint (use if you don't need to track sales history)
--- Run this to allow deletion without foreign key restrictions:
+-- STEP 1: Check if item_id column is nullable
+SELECT
+  column_name,
+  is_nullable,
+  data_type
+FROM information_schema.columns
+WHERE table_name = 'sale_items'
+AND column_name = 'item_id';
 
-ALTER TABLE sale_items DROP CONSTRAINT sale_items_item_id_fkey;
+-- STEP 2: If item_id is NOT NULL, make it nullable first
+ALTER TABLE sale_items ALTER COLUMN item_id DROP NOT NULL;
 
--- OPTION 2: CASCADE delete (deletes sale items when inventory is deleted)
-/*
--- First drop the existing constraint
-ALTER TABLE sale_items DROP CONSTRAINT sale_items_item_id_fkey;
+-- STEP 3: Drop the existing constraint
+ALTER TABLE sale_items DROP CONSTRAINT IF EXISTS sale_items_item_id_fkey;
 
--- Then add it back with CASCADE
-ALTER TABLE sale_items
-ADD CONSTRAINT sale_items_item_id_fkey
-FOREIGN KEY (item_id) REFERENCES inventory(id)
-ON DELETE CASCADE;
-*/
-
--- OPTION 3: SET NULL (keeps sale record but removes reference)
-/*
-ALTER TABLE sale_items DROP CONSTRAINT sale_items_item_id_fkey;
-
+-- STEP 4: Add the constraint with SET NULL
 ALTER TABLE sale_items
 ADD CONSTRAINT sale_items_item_id_fkey
 FOREIGN KEY (item_id) REFERENCES inventory(id)
 ON DELETE SET NULL;
-*/
 
--- After running this, the delete should work!
+-- VERIFY: Check the constraint was created correctly
+SELECT
+  conname as constraint_name,
+  confdeltype as on_delete_action
+FROM pg_constraint
+WHERE conname = 'sale_items_item_id_fkey';
+-- Should show 's' for SET NULL

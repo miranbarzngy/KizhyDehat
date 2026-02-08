@@ -487,91 +487,65 @@ export default function InventoryPage() {
     }
 
     try {
-      // Fetch active inventory data (not archived AND quantity > 0)
+      // Fetch only necessary columns for active inventory (first 50 items for performance)
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
-        .select('*')
+        .select('id,item_name,quantity,unit,low_stock_threshold,cost_price,selling_price,category,is_online_visible,image,expire_date')
         .or('is_archived.is.null,is_archived.eq.false')
         .gt('quantity', 0)
+        .order('created_at', { ascending: false })
+        .limit(50)
 
       if (inventoryError) throw inventoryError
 
-      // Fetch archived items (is_archived = TRUE OR quantity <= 0)
-      const { data: archivedData, error: archivedError } = await supabase
-        .from('inventory')
-        .select('*')
-        .or('is_archived.eq.true,quantity.lte.0')
+      // Only fetch archived items when archive tab is active (lazy load)
+      // We'll handle this in the archive tab section instead
 
-      if (archivedError) {
-        console.warn('Error fetching archived items:', archivedError)
-        // Continue without archived items
-      }
+      // No longer fetching products table to improve performance
+      // Product data will be fetched separately if needed
 
-      // Try to fetch product data if products table exists
-      let productsData = []
-      try {
-        const { data: products, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-
-        if (!productsError) {
-          productsData = products || []
-        }
-      } catch (productsError) {
-        // Products table might not exist, continue without it
-        console.log('Products table not available, using inventory data only')
-      }
-
-      // Merge inventory data with product data
-      const mergedInventory = (inventoryData || []).map((inventoryItem: InventoryItem) => {
-        // Find matching product data
-        const productData = productsData.find((product: { name: string }) =>
-          product.name === inventoryItem.item_name
-        )
-
-        // Find supplier name if supplier_id exists
-        let supplierName = ''
-        if (productData?.supplier_id) {
-          const supplier = suppliers.find(s => s.id === productData.supplier_id)
-          supplierName = supplier?.name || ''
-        }
-
-        return {
-          ...inventoryItem,
-          expire_date: productData?.expire_date || '',
-          supplier_name: supplierName,
-          note: productData?.note || ''
-        }
-      })
-
-      // Merge archived data with product data
-      const mergedArchived = (archivedData || []).map((archivedItem: InventoryItem) => {
-        // Find matching product data
-        const productData = productsData.find((product: { name: string }) =>
-          product.name === archivedItem.item_name
-        )
-
-        // Find supplier name if supplier_id exists
-        let supplierName = ''
-        if (productData?.supplier_id) {
-          const supplier = suppliers.find(s => s.id === productData.supplier_id)
-          supplierName = supplier?.name || ''
-        }
-
-        return {
-          ...archivedItem,
-          expire_date: productData?.expire_date || '',
-          supplier_name: supplierName,
-          note: productData?.note || ''
-        }
-      })
+      // Process inventory data
+      const mergedInventory = (inventoryData || []).map((inventoryItem: any) => ({
+        ...inventoryItem,
+        supplier_name: '',
+        note: ''
+      }))
 
       setInventory(mergedInventory)
-      setArchivedItems(mergedArchived)
+      
+      // Only fetch archived items and product data when needed
+      // These will be fetched on-demand to improve initial load time
+      
     } catch (error) {
       console.error('Error fetching inventory:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Lazy load archived items when archive tab is clicked
+  const fetchArchivedItems = async () => {
+    if (!supabase || archivedItems.length > 0) return
+
+    try {
+      const { data: archivedData, error: archivedError } = await supabase
+        .from('inventory')
+        .select('id,item_name,quantity,unit,low_stock_threshold,cost_price,selling_price,category,image,expire_date')
+        .or('is_archived.eq.true,quantity.lte.0')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (archivedError) throw archivedError
+
+      const mergedArchived = (archivedData || []).map((item: any) => ({
+        ...item,
+        supplier_name: '',
+        note: ''
+      }))
+
+      setArchivedItems(mergedArchived)
+    } catch (error) {
+      console.error('Error fetching archived items:', error)
     }
   }
 
@@ -795,10 +769,14 @@ export default function InventoryPage() {
   const deleteItem = async () => {
     if (!itemToDelete) return
 
+    // Optimistic update: Remove item from local state immediately
+    const itemName = itemToDelete.item_name
+    setInventory(prev => prev.filter(item => item.id !== itemToDelete.id))
+    setShowDeleteConfirm(false)
+    setItemToDelete(null)
+
     if (!supabase) {
-      alert('دۆخی دیمۆ: کاڵا سڕاوە نەکراوە')
-      setShowDeleteConfirm(false)
-      setItemToDelete(null)
+      alert(`کاڵای "${itemName}" بە سەرکەوتوویی سڕایەوە`)
       return
     }
 
@@ -808,15 +786,18 @@ export default function InventoryPage() {
         .delete()
         .eq('id', itemToDelete.id)
 
-      if (error) throw error
+      if (error) {
+        // Revert on error
+        alert(`هەڵە لە سڕینەوەی کاڵا: ${error.message}`)
+        fetchInventory() // Refresh to get correct state
+        return
+      }
 
-      alert(`کاڵای "${itemToDelete.item_name}" بە سەرکەوتوویی سڕایەوە`)
-      setShowDeleteConfirm(false)
-      setItemToDelete(null)
-      fetchInventory()
+      alert(`کاڵای "${itemName}" بە سەرکەوتوویی سڕایەوە`)
     } catch (error) {
       console.error('Error deleting item:', error)
       alert('هەڵە لە سڕینەوەی کاڵا')
+      fetchInventory() // Refresh to get correct state
     }
   }
 

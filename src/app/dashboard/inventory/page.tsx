@@ -211,14 +211,28 @@ export default function InventoryPage() {
 
   const openEditItem = (item: Product) => {
     setEditingItem(item)
+    // Calculate total purchase price from cost_per_unit * total_amount_bought
+    const totalPurchasePrice = (item.cost_per_unit || 0) * item.total_amount_bought
     setFormData({
-      supplier_id: item.supplier_id || '', price_of_bought: 0, is_not_fully_paid: false, remain_amount: 0,
-      quantity: item.total_amount_bought, unit: item.unit || 'دانە', name: item.name, image: item.image || '',
-      expire_date: item.expire_date || '', added_date: item.added_date || new Date().toISOString().split('T')[0], note: item.note || '',
-      barcode1: item.barcode1 || '', barcode2: item.barcode2 || '', barcode3: item.barcode3 || '', barcode4: item.barcode4 || '', 
-      selling_price: item.selling_price_per_unit, category: item.category || ''
+      supplier_id: item.supplier_id || '', 
+      price_of_bought: totalPurchasePrice, // Calculate from product data
+      is_not_fully_paid: false, 
+      remain_amount: 0,
+      quantity: item.total_amount_bought, 
+      unit: item.unit || 'دانە', 
+      name: item.name, 
+      image: item.image || '',
+      expire_date: item.expire_date || '', 
+      added_date: item.added_date || new Date().toISOString().split('T')[0], 
+      note: item.note || '',
+      barcode1: item.barcode1 || '', 
+      barcode2: item.barcode2 || '', 
+      barcode3: item.barcode3 || '', 
+      barcode4: item.barcode4 || '', 
+      selling_price: item.selling_price_per_unit, 
+      category: item.category || ''
     })
-    setCurrentStep(4)
+    setCurrentStep(1) // Reset to step 1 for editing
     setShowStockEntry(true)
   }
 

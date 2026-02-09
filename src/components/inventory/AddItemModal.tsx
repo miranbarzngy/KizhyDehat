@@ -64,7 +64,9 @@ export default function AddItemModal({
     fetchCategories()
   }, [])
 
-  const unitCost = formData.quantity > 0 ? formData.price_of_bought / formData.quantity : 0
+  // Calculate unit cost from price_of_bought and quantity
+  // When editing, formData.price_of_bought is already calculated from cost_per_unit * total_amount_bought
+  const unitCost = formData.quantity > 0 ? formData.price_of_bought / formData.quantity : formData.price_of_bought
   const profitAmount = formData.selling_price - unitCost
   const profitRate = unitCost > 0 ? (profitAmount / unitCost) * 100 : 0
 

@@ -176,7 +176,8 @@ export default function ProfitsPage() {
       if (dateFrom) dateFilter = { ...dateFilter, gte: dateFrom }
       if (dateTo) dateFilter = { ...dateFilter, lte: dateTo }
       
-      const { data: salesData } = await supabase.from('sales').select('total, payment_method, status, discount_amount').match(dateFilter).or('status.eq.completed,status.eq.approved')
+      // Only include COMPLETED sales in financial reports
+      const { data: salesData } = await supabase.from('sales').select('total, payment_method, status, discount_amount').match(dateFilter).eq('status', 'completed')
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
       const cashSales = salesData?.filter(sale => sale.payment_method === 'cash').reduce((sum, sale) => sum + sale.total, 0) || 0
       const onlineSales = salesData?.filter(sale => sale.payment_method === 'fib').reduce((sum, sale) => sum + sale.total, 0) || 0
@@ -185,7 +186,8 @@ export default function ProfitsPage() {
       const { data: refundedData } = await supabase.from('sales').select('total').match(dateFilter).eq('status', 'refunded')
       const totalReturns = refundedData?.reduce((sum, sale) => sum + sale.total, 0) || 0
       
-      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').match(dateFilter).filter('sales.status', 'in', '("completed","approved")')
+      // Only calculate expenses from completed sales
+      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').match(dateFilter).eq('sales.status', 'completed')
       const inventoryExpenses = inventoryData?.reduce((sum, item) => sum + (item.cost_price * item.quantity), 0) || 0
       
       const { data: generalExpensesData } = await supabase.from('expenses').select('amount').match(dateFilter)
@@ -209,7 +211,8 @@ export default function ProfitsPage() {
         const date = new Date()
         date.setDate(date.getDate() - i)
         const dateStr = date.toISOString().split('T')[0]
-        const { data: daySales } = await supabase.from('sales').select('total').eq('date', dateStr).or('status.eq.completed,status.eq.approved')
+        // Only include COMPLETED sales in charts
+        const { data: daySales } = await supabase.from('sales').select('total').eq('date', dateStr).eq('status', 'completed')
         const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
         const { data: dayExpenses } = await supabase.from('expenses').select('amount').eq('date', dateStr)
         const dayExpensesTotal = dayExpenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0
@@ -222,7 +225,8 @@ export default function ProfitsPage() {
   const fetchSalesData = async () => {
     if (!supabase) { setCashSales([]); setOnlineSales([]); setPayLaterSales([]); return }
     try {
-      let salesQuery = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, products!inner(name))').order('date', { ascending: false })
+      // Only fetch COMPLETED sales
+      let salesQuery = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
       if (dateFrom) salesQuery = salesQuery.gte('date', dateFrom)
       if (dateTo) salesQuery = salesQuery.lte('date', dateTo)
       const { data: salesData, error } = await salesQuery
@@ -248,8 +252,8 @@ export default function ProfitsPage() {
   const fetchProfitsData = async () => {
     if (!supabase) { setProfits([]); setTotalProfit(0); return }
     try {
-      // Use the new item_id relation to products table
-      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').filter('sales.status', 'in', '("completed","approved")')
+      // Only fetch profits from COMPLETED sales
+      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
       if (dateFrom) query = query.gte('sales.date', dateFrom)
       if (dateTo) query = query.lte('sales.date', dateTo)
       const { data, error } = await query

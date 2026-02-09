@@ -119,6 +119,7 @@ interface PendingSale {
   customer_name: string
   customer_phone: string
   total: number
+  discount_amount: number
   date: string
   items: Array<{
     name: string
@@ -192,6 +193,7 @@ export default function InvoicesPage() {
         .select(`
           id,
           total,
+          discount_amount,
           payment_method,
           date,
           customer_id,
@@ -244,6 +246,7 @@ export default function InvoicesPage() {
             customer_name: customerName,
             customer_phone: customerPhone,
             total: sale.total,
+            discount_amount: sale.discount_amount || 0,
             date: sale.date,
             items: sale.sale_items?.map((item: any) => ({
               name: item.products?.name || 'نەناسراو',
@@ -329,13 +332,16 @@ export default function InvoicesPage() {
         const newTotalSold = (currentProduct.total_sold || 0) + item.quantity
         const newTotalRevenue = (currentProduct.total_revenue || 0) + item.total
         
-        // Calculate discount portion for this item
+        // Calculate discount portion for this item (proportional to item's share of cart)
         const cartSubtotal = pendingSale.items.reduce((sum, i) => sum + i.total, 0)
-        const itemDiscountPortion = cartSubtotal > 0 ? (item.total / cartSubtotal) * 0 : 0 // Discount is 0 for now
+        const itemDiscountPortion = cartSubtotal > 0 ? (item.total / cartSubtotal) * (pendingSale.discount_amount || 0) : 0
         const newTotalDiscounts = (currentProduct.total_discounts || 0) + itemDiscountPortion
         
-        const profitPerItem = item.price - (currentProduct.cost_per_unit || 0)
-        const newTotalProfit = (currentProduct.total_profit || 0) + (profitPerItem * item.quantity)
+        // Real profit = (sale price - cost price - item's discount share) * quantity
+        const itemNetRevenue = item.total - itemDiscountPortion
+        const itemCost = (currentProduct.cost_per_unit || 0) * item.quantity
+        const profitPerItem = itemNetRevenue - itemCost
+        const newTotalProfit = (currentProduct.total_profit || 0) + profitPerItem
 
         // Update products table
         const { error: productError } = await supabase

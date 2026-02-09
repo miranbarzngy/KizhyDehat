@@ -25,6 +25,9 @@ interface Product {
   note: string
   supplier_id: string
   is_archived?: boolean
+  total_sold?: number
+  total_revenue?: number
+  total_profit?: number
 }
 
 interface Category { id: string; name: string; created_at: string }
@@ -414,22 +417,74 @@ export default function InventoryPage() {
                 <div className="text-6xl mb-4">📦</div>
                 <p style={{ fontFamily: 'var(--font-uni-salar)' }}>هیچ کاڵایەک لە ئەرشیڤدا نییە</p>
               </div>
-            ) : filteredArchived.map(item => (
-              <div key={item.id} className="p-6 rounded-2xl bg-gray-100/60 backdrop-blur-md border border-gray-200 shadow-lg">
-                <h3 className="text-lg font-bold text-center mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
-                <div className="text-center mb-4">
-                  <span className="text-xl font-bold text-red-500">{item.total_amount_bought} {item.unit}</span>
+            ) : filteredArchived.map(item => {
+              // Calculate financial data
+              const totalSold = item.total_sold || 0
+              const totalRevenue = item.total_revenue || 0
+              const totalPurchasePrice = (item.cost_per_unit || 0) * (totalSold + (item.total_amount_bought || 0))
+              const totalProfit = item.total_profit || 0
+              const purchaseDate = item.added_date || item.created_at || '-'
+              
+              return (
+                <div key={item.id} className="p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all">
+                  {/* Item Name */}
+                  <h3 className="text-lg font-bold text-center mb-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
+                  
+                  {/* Financial Summary */}
+                  <div className="space-y-2 mb-4">
+                    {/* Total Purchase Price */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی نرخی کڕین:</span>
+                      <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {totalPurchasePrice.toLocaleString()} IQD
+                      </span>
+                    </div>
+                    
+                    {/* Total Sold */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی فرۆشراو:</span>
+                      <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {totalSold} {item.unit}
+                      </span>
+                    </div>
+                    
+                    {/* Total Revenue */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی داهات:</span>
+                      <span className="font-bold text-green-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {totalRevenue.toLocaleString()} IQD
+                      </span>
+                    </div>
+                    
+                    {/* Total Profit */}
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج:</span>
+                      <span className={`font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {totalProfit.toLocaleString()} IQD
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Purchase Date */}
+                  <div className="text-center py-2 mb-3 bg-gray-100/50 rounded-lg">
+                    <span className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەرواری کڕین: </span>
+                    <span className="text-sm font-bold text-gray-700" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {new Date(purchaseDate).toLocaleDateString('ku')}
+                    </span>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex justify-center space-x-2">
+                    <button onClick={() => restoreItem(item)} className="px-3 py-2 bg-green-100 text-green-600 rounded-lg flex items-center">
+                      <FaPlus className="ml-1" /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>گەڕاندنەوە</span>
+                    </button>
+                    <button onClick={() => confirmDelete(item)} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg flex items-center">
+                      <FaTrash className="ml-1" /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-center space-x-2">
-                  <button onClick={() => restoreItem(item)} className="px-3 py-2 bg-green-100 text-green-600 rounded-lg flex items-center">
-                    <FaPlus className="ml-1" /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>گەڕاندنەوە</span>
-                  </button>
-                  <button onClick={() => confirmDelete(item)} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg flex items-center">
-                    <FaTrash className="ml-1" /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </motion.div>
         )}
 

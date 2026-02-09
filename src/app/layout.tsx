@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SyncPauseProvider } from "@/contexts/SyncPauseContext";
+import { ShopSettingsProvider } from "@/contexts/ShopSettingsContext";
+import { ToastProvider } from "@/components/Toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import localFont from 'next/font/local'
 import "./globals.css";
@@ -164,8 +166,12 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <SyncPauseProvider>
-              {children}
-              <ThemeToggle />
+              <ShopSettingsProvider>
+                <ToastProvider>
+                  {children}
+                  <ThemeToggle />
+                </ToastProvider>
+              </ShopSettingsProvider>
             </SyncPauseProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -11,6 +11,7 @@ import {
   toEnglishDigits
 } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 import { AnimatePresence, motion } from 'framer-motion'
 import html2canvas from 'html2canvas'
 import { Package } from 'lucide-react'
@@ -136,6 +137,8 @@ export default function SalesPage() {
   const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null)
   const [showInvoice, setShowInvoice] = useState(false)
   const [completedSaleData, setCompletedSaleData] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Group inventory by categories
   const getGroupedInventory = (): CategoryGroup[] => {
@@ -192,37 +195,86 @@ export default function SalesPage() {
     alert('زیادکردنی کڕیاری نوێ لە بەشی کڕیاران بکە')
   }
 
-  useEffect(() => {
-    // Test Supabase connection on component mount
-    const testSupabaseConnection = async () => {
+  // Helper function for retry with delay
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+  // Fetch with retry mechanism
+  const fetchWithRetry = async <T>(
+    fetchFn: () => Promise<T>,
+    maxRetries: number = 3,
+    delayMs: number = 1000
+  ): Promise<T | null> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log('🧪 Testing Supabase connection...')
-        if (!supabase) {
-          console.error('❌ Supabase client is not available')
-          alert('Supabase client is not configured. Please check your environment variables.')
-          return
-        }
-
-        // Try a simple query to test connection
-        const { data, error } = await supabase.from('products').select('count').limit(1).single()
-
-        if (error) {
-          console.error('❌ Supabase connection test failed:', error)
-          alert(`Database connection failed: ${error.message}`)
-        } else {
-          console.log('✅ Supabase connection test passed')
-        }
+        return await fetchFn()
       } catch (err) {
-        console.error('❌ Supabase test error:', err)
-        alert(`Supabase test failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        console.log(`Attempt ${attempt}/${maxRetries} failed:`, err)
+        if (attempt < maxRetries) {
+          await wait(delayMs)
+        }
       }
     }
+    return null
+  }
 
-    testSupabaseConnection()
-    fetchInventory()
-    fetchCustomers()
-    fetchShopSettings()
-    fetchInvoiceSettings()
+  // Main data fetching function with retry
+  const fetchAllData = async () => {
+    setError(null)
+    setRetryCount(0)
+
+    // Fetch inventory with retry
+    const inventoryResult = await fetchWithRetry(async () => {
+      if (!supabase) throw new Error('Supabase not configured')
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .gt('total_amount_bought', 0)
+        .or('is_archived.is.null,is_archived.eq.false')
+      if (error) throw error
+      return data
+    }, 3, 1000)
+
+    if (inventoryResult) {
+      const processedData = inventoryResult.map(item => ({ 
+        ...item, 
+        category: item.category || 'ئەوانی تر',
+        name: item.name,
+        total_amount_bought: item.total_amount_bought,
+        selling_price_per_unit: item.selling_price_per_unit,
+        cost_per_unit: item.cost_per_unit
+      }))
+      setInventory(processedData)
+    }
+
+    // Fetch customers with retry
+    const customersResult = await fetchWithRetry(async () => {
+      if (!supabase) throw new Error('Supabase not configured')
+      const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt')
+      if (error) throw error
+      return data
+    }, 3, 1000)
+
+    if (customersResult) {
+      setCustomers(customersResult)
+    }
+
+    // Fetch shop settings (non-critical, no retry needed)
+    if (supabase) {
+      const { data } = await supabase.from('shop_settings').select('*').single()
+      setShopSettings(data || null)
+    }
+
+    // Fetch invoice settings (non-critical, no retry needed)
+    if (supabase) {
+      const { data } = await supabase.from('invoice_settings').select('*').single()
+      setInvoiceSettings(data || null)
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchAllData()
 
     // Add click outside handler
     const handleClickOutside = (event: MouseEvent) => {
@@ -260,57 +312,6 @@ export default function SalesPage() {
     setUserName(finalUserName)
   }, [profile, user])
 
-  const fetchInventory = async () => {
-    if (!supabase) return
-    try {
-      // Fetch from products table with items that have positive quantity
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .gt('total_amount_bought', 0)
-        .or('is_archived.is.null,is_archived.eq.false')
-      
-      if (error) throw error
-      const processedData = (data || []).map(item => ({ 
-        ...item, 
-        category: item.category || 'ئەوانی تر',
-        // Map products columns to inventory interface
-        name: item.name,
-        total_amount_bought: item.total_amount_bought,
-        selling_price_per_unit: item.selling_price_per_unit,
-        cost_per_unit: item.cost_per_unit
-      }))
-      setInventory(processedData)
-    } catch (error) { console.error('Error fetching inventory:', error) }
-    finally { setLoading(false) }
-  }
-
-  const fetchCustomers = async () => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt')
-      if (error) throw error
-      setCustomers(data || [])
-    } catch (error) { console.error('Error fetching customers:', error) }
-  }
-
-  const fetchShopSettings = async () => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase.from('shop_settings').select('*').single()
-      if (error && error.code !== 'PGRST116') throw error
-      setShopSettings(data || null)
-    } catch (error) { console.error('Error fetching shop settings:', error) }
-  }
-
-  const fetchInvoiceSettings = async () => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase.from('invoice_settings').select('*').single()
-      if (error && error.code !== 'PGRST116') throw error
-      setInvoiceSettings(data || null)
-    } catch (error) { console.error('Error fetching invoice settings:', error) }
-  }
 
   // Auto-unit add to cart function - automatically uses item's base unit
   const addToCart = (item: InventoryItem) => {
@@ -491,8 +492,6 @@ export default function SalesPage() {
       setSelectedCustomer('')
       setDiscount(0)
       setCustomerRequired(false)
-      fetchInventory()
-      fetchCustomers()
 
       alert('فرۆشتنەکەتۆمارکرا و چاوەڕوانی پشتڕاستکردنەوەیە لە پسوڵەکان.')
     } catch (error) {

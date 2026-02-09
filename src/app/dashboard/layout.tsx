@@ -1,13 +1,12 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useShopSettings } from '@/contexts/ShopSettingsContext'
 import { useEffect, useState, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
 import { useGlobalReSync } from '@/hooks/useGlobalReSync'
-import { supabase } from '@/lib/supabase'
 
 // Dynamic import for better code splitting
 const UserProfilePopup = dynamic(
@@ -15,23 +14,13 @@ const UserProfilePopup = dynamic(
   { loading: () => null, ssr: false }
 )
 
-interface ShopSettings {
-  id: string
-  shopname: string
-  icon: string
-  phone: string
-  location: string
-  qrcodeimage: string
-}
-
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile, loading, signOut, syncKey } = useAuth()
-  const router = useRouter()
-  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
+  const { user, profile, loading } = useAuth()
+  const { shopSettings } = useShopSettings()
   const [showProfilePopup, setShowProfilePopup] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
   const [isClientReady, setIsClientReady] = useState(false)
@@ -44,52 +33,62 @@ export default function DashboardLayout({
     setIsClientReady(true)
   }, [])
 
-  const fetchShopSettings = async () => {
-    if (!supabase) {
-      setShopSettings({
-        id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
-        icon: '',
-        phone: '+964 750 123 4567',
-        location: 'هەولێر، کوردستان',
-        qrcodeimage: ''
-      })
-      return
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('shop_settings')
-        .select('*')
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        throw error
-      }
-      setShopSettings(data || null)
-    } catch {
-      setShopSettings({
-        id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
-        icon: '',
-        phone: '+964 750 123 4567',
-        location: 'هەولێر، کوردستان',
-        qrcodeimage: ''
-      })
-    }
-  }
-
+  // Force reload when user returns to tab (ensures fresh Supabase session)
   useEffect(() => {
-    if (!loading && user) {
-      fetchShopSettings()
+    let lastVisibilityTime = Date.now()
+    const MIN_AWAY_TIME = 1000 // 1 second minimum away time
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const awayTime = Date.now() - lastVisibilityTime
+        
+        if (awayTime >= MIN_AWAY_TIME) {
+          console.log(`👁️ User returned after ${awayTime}ms, forcing page refresh...`)
+          
+          // Show loading state before reload
+          setIsClientReady(false)
+          
+          // Small delay to show loading state
+          setTimeout(() => {
+            window.location.reload()
+          }, 100)
+        }
+      } else {
+        lastVisibilityTime = Date.now()
+      }
     }
-  }, [user, loading])
+
+    const handleFocus = () => {
+      const awayTime = Date.now() - lastVisibilityTime
+      
+      if (awayTime >= MIN_AWAY_TIME) {
+        console.log(`🎯 Window focused after ${awayTime}ms, forcing page refresh...`)
+        
+        setIsClientReady(false)
+        
+        setTimeout(() => {
+          window.location.reload()
+        }, 100)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
 
   // Loading state
   if (loading || !isClientReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p style={{ fontFamily: 'var(--font-uni-salar)' }}>خەریکی بارکردنەوە...</p>
+        </div>
       </div>
     )
   }
@@ -108,9 +107,8 @@ export default function DashboardLayout({
         fontFamily: 'var(--font-uni-salar)'
       }}
     >
-      {/* Header with key to force re-mount on tab wake-up */}
+      {/* Header - no key prop to prevent re-mounting */}
       <Header 
-        key={`header-${syncKey}`}
         shopSettings={shopSettings}
         onProfileClick={() => setShowSidebar(true)}
       />
@@ -130,9 +128,8 @@ export default function DashboardLayout({
         </main>
       </div>
 
-      {/* User Profile Sidebar with key to force re-mount */}
+      {/* User Profile Sidebar - no key prop to prevent re-mounting */}
       <Sidebar
-        key={`sidebar-${syncKey}`}
         shopSettings={shopSettings}
         isOpen={showSidebar}
         onClose={() => setShowSidebar(false)}

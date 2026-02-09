@@ -35,9 +35,25 @@ export default function AddItemModal({
   units,
   onSuccess
 }: AddItemModalProps) {
-  const { pauseSync } = useSyncPause()
+  const { pauseSync, resumeSync } = useSyncPause()
   const [categories, setCategories] = useState<Category[]>([])
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Block browser refresh during submission
+  useEffect(() => {
+    if (isSubmitting) {
+      const handler = (e: BeforeUnloadEvent) => {
+        e.preventDefault()
+        e.returnValue = 'تۆمارکردن لە پڕۆسەدایە، تکایە چاوەڕوانبە!'
+        return e.returnValue
+      }
+      window.addEventListener('beforeunload', handler)
+      return () => {
+        window.removeEventListener('beforeunload', handler)
+      }
+    }
+  }, [isSubmitting])
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -131,28 +147,55 @@ export default function AddItemModal({
       return
     }
     
+    setIsSubmitting(true)
+    
+    // 1. WAKE LOCK - Prevent browser from sleeping
+    let wakeLock: any = null
     try {
-      pauseSync(10000)
-      
-      // Prepare products data
-      const productsData = {
-        name: formData.name.trim(),
-        total_amount_bought: Number(formData.quantity),
-        unit: formData.unit,
-        total_purchase_price: Number(formData.price_of_bought),
-        selling_price_per_unit: Number(formData.selling_price),
-        cost_per_unit: unitCost,
-        category: formData.category || null,
-        image: formData.image || null,
-        barcode1: formData.barcode1 || null,
-        barcode2: formData.barcode2 || null,
-        barcode3: formData.barcode3 || null,
-        barcode4: formData.barcode4 || null,
-        added_date: formData.added_date,
-        expire_date: formData.expire_date || null,
-        supplier_id: formData.supplier_id || null,
-        note: formData.note || null
+      if ('wakeLock' in navigator) {
+        wakeLock = await (navigator as any).wakeLock?.request('screen')
+        console.log('🔒 WakeLock acquired')
       }
+    } catch (e) {
+      console.warn('WakeLock not supported:', e)
+    }
+    
+    // 2. PREPARE DATA
+    const productsData = {
+      name: formData.name.trim(),
+      total_amount_bought: Number(formData.quantity),
+      unit: formData.unit,
+      total_purchase_price: Number(formData.price_of_bought),
+      selling_price_per_unit: Number(formData.selling_price),
+      cost_per_unit: unitCost,
+      category: formData.category || null,
+      image: formData.image || null,
+      barcode1: formData.barcode1 || null,
+      barcode2: formData.barcode2 || null,
+      barcode3: formData.barcode3 || null,
+      barcode4: formData.barcode4 || null,
+      added_date: formData.added_date,
+      expire_date: formData.expire_date || null,
+      supplier_id: formData.supplier_id || null,
+      note: formData.note || null
+    }
+    
+    // 3. LOCAL STORAGE BACKUP - Zombie proof!
+    const backupData = {
+      productsData,
+      formData: {
+        supplier_id: formData.supplier_id,
+        is_not_fully_paid: formData.is_not_fully_paid,
+        remain_amount: formData.remain_amount
+      },
+      timestamp: Date.now(),
+      editingItemId: editingItem?.id || null
+    }
+    localStorage.setItem('zombie_submission', JSON.stringify(backupData))
+    console.log('💾 Zombie submission backup saved')
+    
+    try {
+      pauseSync('AddItemModal.submitItem')
       
       // Step 1: Insert into products table FIRST (atomic)
       let error
@@ -219,11 +262,20 @@ export default function AddItemModal({
       
       // Success
       console.log('✅ All records saved successfully')
+      localStorage.removeItem('zombie_submission')
+      console.log('💾 Zombie backup cleared')
+      setIsSubmitting(false)
       setShowStockEntry(false)
       onSuccess()
     } catch (e: any) {
       console.error('❌ Error saving:', e.message, e.details, e.hint)
       setErrorMessage(`هەڵە: ${e?.message || 'نادیار'}`)
+      setIsSubmitting(false)
+    } finally {
+      resumeSync('AddItemModal.submitItem')
+      if (wakeLock) {
+        wakeLock.release().catch(() => {})
+      }
     }
   }
 

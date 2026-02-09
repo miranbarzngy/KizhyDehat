@@ -7,8 +7,7 @@ import {
   userProfileStore,
   setUserProfile,
   clearUserProfile,
-  getUserProfile,
-  isUserAuthenticated
+  getUserProfile
 } from '@/lib/persistentStore'
 
 interface Profile {
@@ -34,7 +33,6 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
-  syncKey: number
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -44,10 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncKey, setSyncKey] = useState(0)
   
-  const isSyncing = useRef(false)
-  const userIdRef = useRef<string | null>(null)
+  const isInitialized = useRef(false)
 
   // Build Profile from persistent store (SYNCHRONOUS)
   const buildProfileFromStore = useCallback((): Profile | null => {
@@ -87,7 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
         lastSync: Date.now()
       })
-      console.log('💾 Profile persisted to localStorage')
     }
   }, [])
 
@@ -130,35 +125,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Force refresh from persistent store - SYNCHRONOUS
-  const forceRestoreFromStore = useCallback(() => {
-    console.log('🚀 FORCE RESTORE FROM STORE')
+  // Initial restore from store (only once)
+  const initialRestore = useCallback(() => {
+    if (isInitialized.current) return
+    isInitialized.current = true
     
     const cachedProfile = buildProfileFromStore()
     if (cachedProfile) {
-      console.log('✅ Profile restored:', cachedProfile.name)
       setProfile(cachedProfile)
-      userIdRef.current = cachedProfile.id
-    } else {
-      console.log('⚠️ No cached profile in store')
-      userIdRef.current = null
     }
     setLoading(false)
   }, [buildProfileFromStore])
 
   // Refresh session with Supabase
   const refreshSession = useCallback(async () => {
-    forceRestoreFromStore()
+    initialRestore()
     
     if (supabase) {
       try {
         await supabase.auth.getUser()
-        console.log('💓 Supabase getUser()')
-      } catch (e) {
-        console.log('⚠️ Supabase getUser failed:', e)
+      } catch {
+        // Silently fail - we have cached data
       }
     }
-  }, [forceRestoreFromStore])
+  }, [initialRestore])
 
   useEffect(() => {
     // DEMO MODE
@@ -189,21 +179,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(mockUser)
       setProfile(mockProfile)
-      userIdRef.current = mockUser.id
       persistProfile(mockUser, mockProfile)
       setLoading(false)
       return
     }
 
-    // STEP 1: SYNCHRONOUS restore from persistent store FIRST
-    forceRestoreFromStore()
+    // Initial restore from persistent store
+    initialRestore()
 
-    // STEP 2: Get session from Supabase
+    // Get session from Supabase (only once on mount)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setSession(session)
         setUser(session.user)
-        userIdRef.current = session.user.id
         
         // Fetch fresh profile and persist
         const freshProfile = await fetchFreshProfile(session.user.id)
@@ -215,81 +203,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    // STEP 3: Listen for auth changes
+    // Listen for auth changes (only for actual sign in/out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 Auth state:', event)
-        setSession(session)
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          userIdRef.current = session.user.id
-          const freshProfile = await fetchFreshProfile(session.user.id)
-          if (freshProfile) {
-            setProfile(freshProfile)
-            persistProfile(session.user, freshProfile)
+        // Only react to actual auth events, not visibility changes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setSession(session)
+          setUser(session?.user ?? null)
+          
+          if (session?.user) {
+            const freshProfile = await fetchFreshProfile(session.user.id)
+            if (freshProfile) {
+              setProfile(freshProfile)
+              persistProfile(session.user, freshProfile)
+            }
+          } else {
+            // On sign out, clear profile but keep cached
+            setProfile(null)
           }
-        } else {
-          forceRestoreFromStore()
+          setLoading(false)
         }
-        setLoading(false)
       }
     )
 
-    // STEP 4: TAB WAKE-UP - Handle visibility change
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && !isSyncing.current) {
-        isSyncing.current = true
-        console.log('👁️ Tab became visible')
-        
-        // Increment syncKey to force UI re-render
-        setSyncKey(prev => prev + 1)
-        
-        // IMMEDIATE synchronous restore
-        forceRestoreFromStore()
-        
-        // Refresh Supabase session
-        if (supabase) {
-          try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.user) {
-              setUser(session.user)
-              userIdRef.current = session.user.id
-              
-              // Fetch fresh profile
-              const freshProfile = await fetchFreshProfile(session.user.id)
-              if (freshProfile) {
-                setProfile(freshProfile)
-                persistProfile(session.user, freshProfile)
-              }
-            }
-          } catch (e) {
-            console.log('⚠️ Supabase refresh failed, using cached')
-          }
-        }
-        
-        isSyncing.current = false
-      }
-    }
-
-    // STEP 5: Window focus
-    const handleFocus = async () => {
-      console.log('🎯 Window focus')
-      forceRestoreFromStore()
-      
-      if (!supabase) return
-      try {
-        await supabase.auth.getSession()
-      } catch {}
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
     return () => {
       subscription.unsubscribe()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
@@ -323,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshSession, syncKey }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   )

@@ -4,8 +4,8 @@ import React, { createContext, useContext, useRef, useCallback, ReactNode } from
 
 interface SyncPauseContextType {
   isPaused: () => boolean
-  pauseSync: (duration?: number) => void
-  resumeSync: () => void
+  pauseSync: (caller?: string) => void
+  resumeSync: (caller?: string) => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -18,23 +18,16 @@ export function SyncPauseProvider({ children }: { children: ReactNode }) {
     return pauseCountRef.current > 0
   }, [])
 
-  const pauseSync = useCallback((duration: number = 5000) => {
+  const pauseSync = useCallback((caller: string = 'unknown') => {
     pauseCountRef.current++
-    console.log('🔇 Sync paused (count:', pauseCountRef.current, ')')
-    
-    // Auto-resume after duration
-    setTimeout(() => {
-      if (pauseCountRef.current > 0) {
-        pauseCountRef.current--
-        console.log('🔊 Sync auto-resumed (count:', pauseCountRef.current, ')')
-      }
-    }, duration)
+    console.log(`🔇 Sync PAUSED by "${caller}" (count: ${pauseCountRef.current})`)
+    // NO auto-resume - caller MUST call resumeSync() manually
   }, [])
 
-  const resumeSync = useCallback(() => {
+  const resumeSync = useCallback((caller: string = 'unknown') => {
     if (pauseCountRef.current > 0) {
       pauseCountRef.current--
-      console.log('🔊 Sync resumed (count:', pauseCountRef.current, ')')
+      console.log(`🔊 Sync RESUMED by "${caller}" (count: ${pauseCountRef.current})`)
     }
   }, [])
 

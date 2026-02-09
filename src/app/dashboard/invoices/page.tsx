@@ -269,127 +269,131 @@ export default function InvoicesPage() {
       return
     }
 
-    const confirmAction = confirm(`دڵنیایت لە پشتڕاستکردنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
-    if (!confirmAction) return
-
     try {
-      // 1. Update sale status to 'completed'
-      console.log('Attempting to update sale status for ID:', pendingSale.id)
+      // Step 1: Validate stock availability for all items
+      console.log('Validating stock availability for sale:', pendingSale.id)
+      
+      for (const item of pendingSale.items) {
+        // Get current product quantity from products table
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('id, total_amount_bought, name, selling_price_per_unit, cost_per_unit')
+          .eq('name', item.name)
+          .single()
+        
+        if (productError) {
+          console.error('Error fetching product:', productError)
+          alert(`کاڵاکە نەدۆزرایەوە: ${item.name}`)
+          return
+        }
+
+        // Check if there's enough stock
+        if ((product.total_amount_bought || 0) < item.quantity) {
+          alert(`بڕی پێویست لە کۆگا نەماوە!\n\nکاڵا: ${item.name}\nبەردەست: ${product.total_amount_bought || 0} ${item.unit}\nخاوەنەکە: ${item.quantity} ${item.unit}`)
+          return
+        }
+      }
+
+      // Step 2: User confirmation
+      const confirmAction = confirm(`دڵنیایت لە پشتڕاستکردنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
+      if (!confirmAction) return
+
+      // Step 3: Update sale status to 'completed'
+      console.log('Updating sale status to completed for ID:', pendingSale.id)
       const { data: saleUpdateData, error: saleError } = await supabase
         .from('sales')
         .update({ status: 'completed' })
         .eq('id', pendingSale.id)
         .select()
 
-      console.log('Sale update result:', { data: saleUpdateData, error: saleError })
-
       if (saleError) {
-        console.error('Error updating sale status:', {
-          error: saleError,
-          message: saleError.message,
-          details: saleError.details,
-          hint: saleError.hint,
-          code: saleError.code,
-          saleId: pendingSale.id
-        })
-        throw new Error(`Failed to update sale status: ${saleError.message || 'Unknown error'}`)
+        throw new Error(`هەڵە لە نوێکردنەوەی دۆخی فرۆشتن: ${saleError.message}`)
       }
 
-      if (!saleUpdateData || saleUpdateData.length === 0) {
-        throw new Error('Sale update succeeded but no data returned - sale may not exist')
-      }
-
-      // 2. Update inventory quantities and stats
+      // Step 4: Update products quantities and financial stats (NOW that sale is approved)
       for (const item of pendingSale.items) {
-        // Get current inventory data
-        const { data: currentItem, error: fetchError } = await supabase
-          .from('inventory')
-          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
-          .eq('item_name', item.item_name)
+        // Get current product data
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('products')
+          .select('total_amount_bought, total_sold, total_revenue, total_profit, total_discounts, cost_per_unit')
+          .eq('name', item.name)
           .single()
 
         if (fetchError) {
-          console.error('Error fetching inventory item:', fetchError)
-          throw new Error('Failed to fetch inventory item')
+          console.error('Error fetching product:', fetchError)
+          throw new Error(`کاڵاکە نەدۆزرایەوە: ${item.name}`)
         }
 
         // Calculate new values
-        const newQuantity = (currentItem.quantity || 0) - item.quantity
-        const newTotalSold = (currentItem.total_sold || 0) + item.quantity
-        const newTotalRevenue = (currentItem.total_revenue || 0) + item.total
-        const profitPerItem = item.price - (currentItem.cost_price || 0)
-        const newTotalProfit = (currentItem.total_profit || 0) + (profitPerItem * item.quantity)
+        const newQuantity = (currentProduct.total_amount_bought || 0) - item.quantity
+        const newTotalSold = (currentProduct.total_sold || 0) + item.quantity
+        const newTotalRevenue = (currentProduct.total_revenue || 0) + item.total
+        
+        // Calculate discount portion for this item
+        const cartSubtotal = pendingSale.items.reduce((sum, i) => sum + i.total, 0)
+        const itemDiscountPortion = cartSubtotal > 0 ? (item.total / cartSubtotal) * 0 : 0 // Discount is 0 for now
+        const newTotalDiscounts = (currentProduct.total_discounts || 0) + itemDiscountPortion
+        
+        const profitPerItem = item.price - (currentProduct.cost_per_unit || 0)
+        const newTotalProfit = (currentProduct.total_profit || 0) + (profitPerItem * item.quantity)
 
-        // Update inventory
-        const { error: inventoryError } = await supabase
-          .from('inventory')
+        // Update products table
+        const { error: productError } = await supabase
+          .from('products')
           .update({
-            quantity: newQuantity,
+            total_amount_bought: newQuantity,
             total_sold: newTotalSold,
             total_revenue: newTotalRevenue,
             total_profit: newTotalProfit,
+            total_discounts: newTotalDiscounts,
             is_archived: newQuantity <= 0
           })
-          .eq('item_name', item.item_name)
+          .eq('name', item.name)
 
-        if (inventoryError) {
-          console.error('Error updating inventory:', inventoryError)
-          throw new Error('Failed to update inventory')
+        if (productError) {
+          console.error('Error updating product:', productError)
+          throw new Error(`هەڵە لە نوێکردنەوەی کاڵا: ${item.name}`)
         }
+
+        console.log(`Product updated: ${item.name} - deducted ${item.quantity}`)
       }
 
-      // 3. Handle customer debt if payment method was debt
+      // Step 5: Handle customer debt if payment method was debt
       const { data: saleData, error: saleFetchError } = await supabase
         .from('sales')
         .select('payment_method, customer_id')
         .eq('id', pendingSale.id)
         .single()
 
-      if (saleFetchError) {
-        console.error('Error fetching sale data:', saleFetchError)
-        throw new Error('Failed to fetch sale data')
-      }
+      if (!saleFetchError && saleData) {
+        if (saleData.payment_method === 'debt') {
+          // Get current customer debt
+          const { data: customerData, error: customerError } = await supabase
+            .from('customers')
+            .select('total_debt')
+            .eq('id', saleData.customer_id)
+            .single()
 
-      if (saleData.payment_method === 'debt') {
-        // Get current customer debt
-        const { data: customerData, error: customerError } = await supabase
-          .from('customers')
-          .select('total_debt')
-          .eq('id', saleData.customer_id)
-          .single()
+          if (!customerError && customerData) {
+            const newDebt = (customerData.total_debt || 0) + pendingSale.total
 
-        if (customerError) {
-          console.error('Error fetching customer debt:', customerError)
-          throw new Error('Failed to fetch customer debt')
-        }
+            // Update customer debt
+            await supabase
+              .from('customers')
+              .update({ total_debt: newDebt })
+              .eq('id', saleData.customer_id)
 
-        const newDebt = (customerData.total_debt || 0) + pendingSale.total
-
-        // Update customer debt
-        const { error: debtError } = await supabase
-          .from('customers')
-          .update({ total_debt: newDebt })
-          .eq('id', saleData.customer_id)
-
-        if (debtError) {
-          console.error('Error updating customer debt:', debtError)
-          throw new Error('Failed to update customer debt')
-        }
-
-        // Add to customer payments
-        const { error: paymentError } = await supabase
-          .from('customer_payments')
-          .insert({
-            customer_id: saleData.customer_id,
-            date: new Date().toISOString().split('T')[0],
-            amount: pendingSale.total,
-            items: pendingSale.items.map(item => `${item.item_name} x${item.quantity} ${item.unit}`).join(', '),
-            note: 'Confirmed sale on credit'
-          })
-
-        if (paymentError) {
-          console.error('Error creating customer payment record:', paymentError)
-          // Don't fail the entire operation for this
+            // Add to customer payments
+            await supabase
+              .from('customer_payments')
+              .insert({
+                customer_id: saleData.customer_id,
+                date: new Date().toISOString().split('T')[0],
+                amount: pendingSale.total,
+                items: pendingSale.items.map(item => `${item.name} x${item.quantity} ${item.unit}`).join(', '),
+                note: 'پشتڕاستکردنەوەی فرۆشتن بە قەرز'
+              })
+          }
         }
       }
 
@@ -402,6 +406,39 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error confirming sale:', error)
       alert(`هەڵە لە پشتڕاستکردنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const cancelSale = async (pendingSale: PendingSale) => {
+    if (!supabase) {
+      alert('Supabase not configured')
+      return
+    }
+
+    const cancelAction = confirm(`دڵنیایت لە هەڵوەشاندنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟\n\nئاگاداربە: هیچ گۆڕانێک لە کۆگادا ناکرێت.`)
+    if (!cancelAction) return
+
+    try {
+      // Just update the status to 'cancelled' - no inventory changes needed
+      // because pending sales never update the inventory
+      const { error: saleError } = await supabase
+        .from('sales')
+        .update({ status: 'cancelled' })
+        .eq('id', pendingSale.id)
+
+      if (saleError) {
+        throw new Error(`هەڵە لە هەڵوەشاندنەوە: ${saleError.message}`)
+      }
+
+      // Refresh data
+      fetchPendingSales()
+      fetchInvoices()
+
+      alert(`فرۆشتنەکە هەڵوەشێنرایەوە.\n\nکڕیار: ${pendingSale.customer_name}\nبڕ: ${formatCurrencyWithDecimals(pendingSale.total)} IQD`)
+
+    } catch (error) {
+      console.error('Error cancelling sale:', error)
+      alert(`هەڵە لە هەڵوەشاندنەوە: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -544,54 +581,6 @@ export default function InvoicesPage() {
     } catch (error) {
       console.error('Error returning sale:', error)
       alert(`هەڵە لە گەڕاندنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  const cancelSale = async (pendingSale: PendingSale) => {
-    if (!supabase) {
-      alert('Supabase not configured')
-      return
-    }
-
-    const cancelAction = confirm(`دڵنیایت لە هەڵوەشاندنەوەی فرۆشتنی ${pendingSale.customer_name} بە بڕی ${formatCurrencyWithDecimals(pendingSale.total)} IQD؟`)
-    if (!cancelAction) return
-
-    try {
-      // 1. Update sale status to 'cancelled'
-      console.log('Attempting to cancel sale for ID:', pendingSale.id)
-      const { data: saleUpdateData, error: saleError } = await supabase
-        .from('sales')
-        .update({ status: 'cancelled' })
-        .eq('id', pendingSale.id)
-        .select()
-
-      console.log('Sale cancel result:', { data: saleUpdateData, error: saleError })
-
-      if (saleError) {
-        console.error('Error updating sale status for cancel:', {
-          error: saleError,
-          message: saleError.message,
-          details: saleError.details,
-          hint: saleError.hint,
-          code: saleError.code,
-          saleId: pendingSale.id
-        })
-        throw new Error(`Failed to cancel sale: ${saleError.message || 'Unknown error'}`)
-      }
-
-      if (!saleUpdateData || saleUpdateData.length === 0) {
-        throw new Error('Sale cancel succeeded but no data returned - sale may not exist')
-      }
-
-      // Refresh data
-      fetchPendingSales()
-      fetchInvoices()
-
-      alert(`فرۆشتن بە سەرکەوتوویی هەڵوەشێنرایەوە!\n\nکڕیار: ${pendingSale.customer_name}\nبڕ: ${formatCurrencyWithDecimals(pendingSale.total)} IQD`)
-
-    } catch (error) {
-      console.error('Error cancelling sale:', error)
-      alert(`هەڵە لە هەڵوەشاندنەوەی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

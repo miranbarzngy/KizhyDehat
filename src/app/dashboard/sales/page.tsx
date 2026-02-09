@@ -381,14 +381,6 @@ export default function SalesPage() {
       return
     }
 
-    // Check stock availability using converted quantities
-    for (const cartItem of cart) {
-      if (cartItem.baseQuantity > cartItem.item.total_amount_bought) {
-        alert(`بڕی پێویست لە کۆگا نەماوە: ${cartItem.item.name}`)
-        return
-      }
-    }
-
     // Check if Supabase is available
     if (!supabase) {
       const errorMsg = 'Supabase client not configured'
@@ -400,7 +392,7 @@ export default function SalesPage() {
     try {
       const total = getTotal()
 
-      console.log('Starting sale completion with inventory sync...', {
+      console.log('Creating pending sale...', {
         customerId: selectedCustomer,
         total,
         paymentMethod,
@@ -408,8 +400,8 @@ export default function SalesPage() {
         userId: user?.id
       })
 
-      // Start a database transaction for atomicity
-      // We'll use RPC if available, otherwise run sequential operations
+      // Step 1: Insert sale record with status 'pending'
+      // NO inventory updates at this stage
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -421,11 +413,11 @@ export default function SalesPage() {
           discount_amount: discount,
           subtotal: total + discount,
           items_count: cart.length,
-          status: 'pending', // Create as pending so it appears in pending tab for review
+          status: 'pending', // Sale is pending approval
           created_at: new Date().toISOString(),
           notes: paymentMethod === 'debt' ? 'Sale on credit' : null
         })
-        .select('id, invoice_number, total, payment_method, date, user_id, sold_by, customers(name, phone1)')
+        .select('id, total, payment_method, date, user_id, sold_by, customers(name, phone1)')
         .single()
 
       if (saleError) {
@@ -433,9 +425,9 @@ export default function SalesPage() {
         throw saleError
       }
 
-      console.log('Sale created:', saleData)
+      console.log('Pending sale created:', saleData)
 
-      // Insert sale items
+      // Step 2: Insert sale items (without updating products table)
       const saleItems = cart.map(item => ({
         sale_id: saleData.id,
         item_id: item.item.id,
@@ -458,113 +450,14 @@ export default function SalesPage() {
         throw itemsError
       }
 
-      // Update products quantities for each sold item
-      for (const cartItem of cart) {
-        // Debug: Log the product ID being searched
-        console.log('Searching for Product ID:', cartItem.item.id, 'Name:', cartItem.item.name)
-        
-        // Get current product by ID
-        const { data: currentProduct, error: fetchError } = await supabase
-          .from('products')
-          .select('total_amount_bought, total_sold, total_revenue, total_profit, total_discounts, cost_per_unit')
-          .eq('id', cartItem.item.id)
-          .single()
+      console.log('Sale items inserted. Sale is now pending approval.')
 
-        if (fetchError) {
-          console.error('Error fetching product:', fetchError.code, fetchError.message)
-          console.error('Product ID not found:', cartItem.item.id)
-          throw new Error(`کاڵاکە نەدۆزرایەوە: ${cartItem.item.name}`)
-        }
-
-        // Calculate new values
-        const newQuantity = (currentProduct.total_amount_bought || 0) - cartItem.baseQuantity
-        const newTotalSold = (currentProduct.total_sold || 0) + cartItem.baseQuantity
-        const newTotalRevenue = (currentProduct.total_revenue || 0) + cartItem.total
-        
-        // Calculate this item's portion of the discount (proportional to its contribution to subtotal)
-        const cartSubtotal = cart.reduce((sum, item) => sum + item.total, 0)
-        const itemDiscountPortion = cartSubtotal > 0 ? (cartItem.total / cartSubtotal) * discount : 0
-        const newTotalDiscounts = (currentProduct.total_discounts || 0) + itemDiscountPortion
-        
-        const profitPerItem = cartItem.price - (currentProduct.cost_per_unit || 0)
-        const newTotalProfit = (currentProduct.total_profit || 0) + (profitPerItem * cartItem.baseQuantity)
-
-        // Update products table
-        const { error: productError } = await supabase
-          .from('products')
-          .update({
-            total_amount_bought: newQuantity,
-            total_sold: newTotalSold,
-            total_revenue: newTotalRevenue,
-            total_profit: newTotalProfit,
-            total_discounts: newTotalDiscounts,
-            is_archived: newQuantity <= 0
-          })
-          .eq('id', cartItem.item.id)
-
-        if (productError) {
-          console.error('Error updating product:', productError)
-          throw new Error(`هەڵە لە نوێکردنەوەی کاڵا: ${cartItem.item.name}`)
-        }
-
-        console.log(`Product updated: ${cartItem.item.name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}, added discount: ${itemDiscountPortion}`)
-      }
-
-      // Handle customer debt update if payment method is 'debt'
-      if (paymentMethod === 'debt') {
-        // Get current customer debt
-        const { data: customerData, error: customerError } = await supabase
-          .from('customers')
-          .select('total_debt')
-          .eq('id', selectedCustomer)
-          .single()
-
-        if (customerError) {
-          console.error('Error fetching customer debt:', customerError)
-          throw new Error('هەڵە لە وەرگرتنی زانیاری کڕیار')
-        }
-
-        const newDebt = (customerData.total_debt || 0) + total
-
-        // Update customer debt
-        const { error: debtError } = await supabase
-          .from('customers')
-          .update({ total_debt: newDebt })
-          .eq('id', selectedCustomer)
-
-        if (debtError) {
-          console.error('Error updating customer debt:', debtError)
-          throw new Error('هەڵە لە نوێکردنەوەی قەرزی کڕیار')
-        }
-
-        console.log('Customer debt updated:', newDebt)
-
-        // Add to customer payments (for tracking purposes)
-        const { error: paymentError } = await supabase
-          .from('customer_payments')
-          .insert({
-            customer_id: selectedCustomer,
-            date: new Date().toISOString().split('T')[0],
-            amount: -total, // Negative for debt increase
-            items: cart.map(item => `${item.item.name} x${item.quantity} ${item.unit}`).join(', '),
-            note: 'فرۆشتن بە قەرز'
-          })
-
-        if (paymentError) {
-          console.error('Error creating customer payment record:', paymentError)
-          // Don't fail the entire operation for this
-        }
-      }
-
-      console.log('Sale completed successfully with inventory sync!')
-
-      // Show invoice with customer data
+      // Show invoice preview with customer data
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
       const customerPhone = customers.find(c => c.id === selectedCustomer)?.phone1
-      const actualInvoiceNumber = saleData.invoice_number
 
       const invoiceData = {
-        invoiceNumber: actualInvoiceNumber,
+        invoiceNumber: 0, // Pending sales don't have invoice numbers yet
         customerName: customerName || 'نەناسراو',
         customerPhone: customerPhone,
         sellerName: userName,
@@ -601,10 +494,10 @@ export default function SalesPage() {
       fetchInventory()
       fetchCustomers()
 
-      alert('فرۆشتن بە سەرکەوتوویی تەواوبوو! کۆگا نوێکرایەوە.')
+      alert('فرۆشتنەکەتۆمارکرا و چاوەڕوانی پشتڕاستکردنەوەیە لە پسوڵەکان.')
     } catch (error) {
-      console.error('Error completing sale:', error)
-      alert(`هەڵە لە تەواوبوونی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error creating pending sale:', error)
+      alert(`هەڵە لە تۆمارکردنی فرۆشتن: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

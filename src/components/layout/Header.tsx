@@ -163,17 +163,17 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
                 }}
               >
                 <div 
-                  className="flex items-center justify-center w-10 h-10 rounded-full mb-1 transition-all duration-200"
+                  className="flex items-center justify-center w-16 h-16 rounded-full mb-1 transition-all duration-200"
                   style={{
                     background: isActive ? 'linear-gradient(135deg, #6366f1, #a855f7)' : 'rgba(255, 255, 255, 0.05)',
                     color: isActive ? '#ffffff' : 'var(--theme-sidebar-text)',
                     boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.4)' : 'none'
                   }}
                 >
-                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-4xl">{item.icon}</span>
                 </div>
                 <span
-                  className="text-xs font-medium transition-colors duration-200"
+                  className="text-sm font-medium transition-colors duration-200"
                   style={{
                     color: isActive ? '#6366f1' : 'var(--theme-sidebar-text)',
                     fontFamily: 'var(--font-uni-salar)'

@@ -5,11 +5,11 @@
 
 import React from 'react'
 
-type Listener = (state: unknown) => void
+type Listener<T> = (state: T) => void
 
-class PersistentStore<T extends Record<string, unknown>> {
+class PersistentStore<T extends Record<string, any>> {
   private state: T
-  private listeners: Set<Listener> = new Set()
+  private listeners: Set<Listener<T>> = new Set()
   private storageKey: string
 
   constructor(initialState: T, storageKey: string) {
@@ -60,7 +60,7 @@ class PersistentStore<T extends Record<string, unknown>> {
     })
   }
 
-  subscribe(listener: Listener): () => void {
+  subscribe(listener: Listener<T>): () => void {
     this.listeners.add(listener)
     // Immediately call with current state
     listener(this.state)
@@ -77,7 +77,7 @@ class PersistentStore<T extends Record<string, unknown>> {
 
   // Set specific value synchronously
   set<K extends keyof T>(key: K, value: T[K]): void {
-    this.setState({ [key]: value })
+    this.setState({ [key]: value } as unknown as Partial<T>)
   }
 }
 

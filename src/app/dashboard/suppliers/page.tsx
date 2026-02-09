@@ -12,9 +12,9 @@ const SupplierForm = dynamic(() => import('@/components/suppliers/SupplierForm')
 interface Supplier {
   id: string
   name: string
-  company?: string
+  company: string
   phone: string
-  address?: string
+  address: string
   supplier_image?: string
   balance: number
   created_at?: string
@@ -41,7 +41,15 @@ export default function SuppliersPage() {
   const fetchSuppliers = async () => {
     if (!supabase) return
     const { data, error } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
-    if (!error) setSuppliers(data || [])
+    if (!error) {
+      // Ensure all required fields have default values
+      const suppliersWithDefaults = (data || []).map(s => ({
+        ...s,
+        company: s.company || '',
+        address: s.address || ''
+      }))
+      setSuppliers(suppliersWithDefaults)
+    }
     setLoading(false)
   }
 
@@ -148,8 +156,8 @@ export default function SuppliersPage() {
         )}
 
         {viewMode === 'table' && <SupplierTable suppliers={filteredSuppliers}
-          onEdit={s => { setEditingSupplier(s); setShowEditModal(true) }}
-          onDelete={s => setSupplierToDelete(s)}
+          onEdit={s => { setEditingSupplier(s as Supplier); setShowEditModal(true) }}
+          onDelete={s => setSupplierToDelete(s as Supplier)}
         />}
 
         {filteredSuppliers.length === 0 && (

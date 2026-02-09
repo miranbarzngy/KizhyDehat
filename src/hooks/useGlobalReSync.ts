@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSyncPause } from '@/contexts/SyncPauseContext'
 
 export function useGlobalReSync() {
   const router = useRouter()
+  
+  // Debug log to check if hook is being called
+  console.log('🔄 useGlobalReSync hook initializing...')
+  
+  // Use the custom hook which has safety checks built-in
+  const { isPaused } = useSyncPause()
+  
   const isSyncing = useRef(false)
   const lastSyncTime = useRef(0)
 
@@ -35,6 +43,12 @@ export function useGlobalReSync() {
   }, [])
 
   const performSync = useCallback(async () => {
+    // Skip if sync is paused (deletion in progress)
+    if (isPaused()) {
+      console.log('⏸️ Sync skipped - paused for deletion')
+      return
+    }
+    
     const now = Date.now()
     
     // Throttle: only sync once per 2 seconds
@@ -70,7 +84,7 @@ export function useGlobalReSync() {
         isSyncing.current = false
       }, 2000)
     }
-  }, [router])
+  }, [router, isPaused])
 
   useEffect(() => {
     let syncTimeout: NodeJS.Timeout | null = null

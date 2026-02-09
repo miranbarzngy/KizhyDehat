@@ -76,8 +76,13 @@ function InvoicePreview({ saleData, invoice, invoiceRef }: { saleData: any, invo
   }, [])
 
   // Prepare invoice data for InvoiceTemplate - with safety checks for null settings
+  // For pending sales (invoice_number === 0), show placeholder instead of #0
+  const displayInvoiceNumber = invoice.invoice_number && invoice.invoice_number > 0 
+    ? invoice.invoice_number 
+    : undefined // Will show placeholder in template
+
   const invoiceData = {
-    invoiceNumber: invoice.invoice_number,
+    invoiceNumber: displayInvoiceNumber || 0,
     customerName: saleData.customers?.name || 'نەناسراو',
     customerPhone: saleData.customers?.phone1 || '',
     sellerName: saleData.sold_by || 'فرۆشیار',
@@ -116,7 +121,7 @@ interface PendingSale {
   total: number
   date: string
   items: Array<{
-    item_name: string
+    name: string
     quantity: number
     unit: string
     price: number
@@ -197,14 +202,14 @@ export default function InvoicesPage() {
             quantity,
             price,
             unit,
-            inventory(item_name, unit)
+            products(name, unit)
           )
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Error fetching pending sales:', error)
+        console.error('Error fetching pending sales:', error.message, error.details)
         setPendingSales([])
         return
       }
@@ -217,7 +222,7 @@ export default function InvoicesPage() {
           let customerPhone = sale.customers?.phone1 || ''
 
           // If customer data is missing from join, fetch it separately
-          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id) {
+          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id && supabase) {
             try {
               const { data: customerData, error: customerError } = await supabase
                 .from('customers')
@@ -241,9 +246,9 @@ export default function InvoicesPage() {
             total: sale.total,
             date: sale.date,
             items: sale.sale_items?.map((item: any) => ({
-              item_name: item.inventory?.item_name || 'نەناسراو',
+              name: item.products?.name || 'نەناسراو',
               quantity: item.quantity,
-              unit: item.inventory?.unit || item.unit || 'دانە',
+              unit: item.products?.unit || item.unit || 'دانە',
               price: item.price,
               total: item.price * item.quantity
             })) || []
@@ -651,7 +656,7 @@ export default function InvoicesPage() {
           continue // Skip this item
         }
 
-        const costPrice = item.inventory?.cost_price || currentItem?.cost_price || 0
+        const costPrice = (item as any).inventory?.cost_price || (currentItem as any)?.cost_price || 0
         const itemTotal = item.price * item.quantity
 
         // Calculate new values (reverse the original sale logic)
@@ -869,7 +874,7 @@ export default function InvoicesPage() {
           let customerName = sale.customers?.name || 'نەناسراو'
 
           // If customer data is missing from join, fetch it separately
-          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id) {
+          if ((!customerName || customerName === 'نەناسراو') && sale.customer_id && supabase) {
             try {
               const { data: customerData, error: customerError } = await supabase
                 .from('customers')
@@ -1019,43 +1024,49 @@ export default function InvoicesPage() {
     if (!invoiceRef.current || !invoiceDetails || !selectedInvoice) return
 
     try {
-      // Wait for fonts to load
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Wait for fonts and images to fully render
+      await new Promise(resolve => setTimeout(resolve, 800))
 
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 4, // Higher resolution for sharper Kurdish letters
-        useCORS: true,
-        allowTaint: false,
+      // Create a temporary container with fixed width for consistent capture
+      const tempContainer = document.createElement('div')
+      tempContainer.style.cssText = 'width: 800px; margin: 0 auto; background-color: white; direction: rtl; font-family: var(--font-uni-salar);'
+      
+      // Clone the invoice content
+      const clone = invoiceRef.current.cloneNode(true) as HTMLElement
+      clone.id = 'invoice-container'
+      clone.style.width = '800px'
+      clone.style.margin = '0 auto'
+      clone.style.backgroundColor = 'white'
+      clone.style.padding = '20px'
+      tempContainer.appendChild(clone)
+      
+      // Temporarily add to body (hidden)
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '-9999px'
+      tempContainer.style.top = '0'
+      document.body.appendChild(tempContainer)
+
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        width: 800,
+        windowWidth: 800,
+        logging: false,
         backgroundColor: '#ffffff',
-        width: invoiceRef.current.offsetWidth,
-        height: invoiceRef.current.offsetHeight,
+        useCORS: true,
+        allowTaint: true,
         onclone: (clonedDoc) => {
-          // Ensure the cloned document has the same styles as the original
-          const clonedElement = clonedDoc.querySelector('[data-invoice-ref]') || clonedDoc.body
-
-          // Add font face declaration to ensure UniSalar font is available
-          const style = clonedDoc.createElement('style')
-          style.textContent = `
-            @font-face {
-              font-family: 'UniSalar';
-              src: url('/fonts/UniSalar_F_007.otf') format('truetype');
-              font-weight: normal;
-              font-style: normal;
-            }
-
-            /* Ensure proper text rendering for Kurdish text */
-            * {
-              -webkit-font-smoothing: antialiased;
-              -moz-osx-font-smoothing: grayscale;
-              text-rendering: optimizeLegibility;
-            }
-          `
-          clonedDoc.head.appendChild(style)
-
-          // Force layout recalculation
-          clonedDoc.body.offsetHeight
+          const clonedContainer = clonedDoc.getElementById('invoice-container')
+          if (clonedContainer) {
+            clonedContainer.style.display = 'block'
+            clonedContainer.style.width = '800px'
+            clonedContainer.style.margin = '0 auto'
+            clonedContainer.style.backgroundColor = 'white'
+          }
         }
       })
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer)
 
       // Convert to blob and download
       canvas.toBlob((blob) => {
@@ -1063,7 +1074,7 @@ export default function InvoicesPage() {
           const url = URL.createObjectURL(blob)
           const link = document.createElement('a')
           link.href = url
-          link.download = `Invoice_${selectedInvoice.invoice_number}.png`
+          link.download = `Invoice_${selectedInvoice.invoice_number || 'temp'}.png`
           document.body.appendChild(link)
           link.click()
           document.body.removeChild(link)
@@ -1135,9 +1146,9 @@ export default function InvoicesPage() {
 
       setSelectedInvoice(mockInvoice)
       setInvoiceDetails({
-        ...saleData,
+        ...(saleData as any || {}),
         sale_items: saleItemsWithNames,
-        payment_method: saleData.payment_method || 'cash' // Ensure payment method is available
+        payment_method: (saleData as any)?.payment_method || 'cash'
       })
       setShowInvoiceModal(true)
     } catch (error) {
@@ -1270,9 +1281,9 @@ export default function InvoicesPage() {
 
       setSelectedInvoice(invoice)
       setInvoiceDetails({
-        ...saleData,
+        ...(saleData as any),
         sale_items: saleItemsWithNames,
-        discount_amount: saleData.discount_amount || 0
+        discount_amount: (saleData as any)?.discount_amount || 0
       })
       setShowInvoiceModal(true)
     } catch (error) {

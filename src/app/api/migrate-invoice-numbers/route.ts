@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const { error: createError } = await supabase
         .from('invoice_settings')
         .insert({
-          shop_name: 'فرۆشگای کوردستان',
+          shop_name: 'کلیک گروپ',
           shop_phone: '',
           shop_address: '',
           shop_logo: '',

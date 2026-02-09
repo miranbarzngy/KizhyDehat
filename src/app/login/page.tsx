@@ -21,6 +21,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const fetchShopLogo = async () => {
+      if (!supabase) return
       try {
         const { data } = await supabase
           .from('invoice_settings')

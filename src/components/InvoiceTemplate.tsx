@@ -38,6 +38,14 @@ interface InvoiceTemplateProps {
 }
 
 export default function InvoiceTemplate({ data, isPrint = false, className = "" }: InvoiceTemplateProps) {
+  // Safety check - return null if data is undefined or missing
+  if (!data) {
+    return (
+      <div className="p-8 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        <p className="text-gray-500">پسوڵە بەردەست نیە</p>
+      </div>
+    )
+  }
   const containerClasses = isPrint
     ? "w-full max-w-sm mx-auto bg-white"
     : `w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 ${className}`
@@ -47,6 +55,7 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
       case 'cash': return 'نەختینە'
       case 'fib': return 'ئۆنلاین (FIB)'
       case 'debt': return 'قەرز'
+      case 'purchase': return 'کڕین'
       default: return 'نەپارەدراو'
     }
   }
@@ -54,68 +63,62 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
   return (
     <div className={containerClasses} style={{ fontFamily: 'var(--font-uni-salar)', direction: 'rtl' }} data-invoice-ref>
       <div className={isPrint ? "p-4" : "p-8"}>
-        {/* Header Section */}
-        <div className="text-center mb-6">
-          {/* Shop Logo - Circular */}
-          {data.shopLogo && (
-            <div className="w-40 h-40 mx-auto mb-4 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
-              <img
-                src={data.shopLogo}
-                alt={data.shopName}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-
-          {/* Shop Name */}
-          <h1 className="text-2xl font-bold text-black mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-            {data.shopName}
-          </h1>
-
-          {/* Shop Contact Info */}
-          <div className="space-y-1 text-sm text-black">
-            {data.shopPhone && (
-              <div className="flex items-center justify-center gap-2">
-                <FaPhone className="text-gray-400" size={12} />
-                <span>{data.shopPhone}</span>
-              </div>
-            )}
-            {data.shopAddress && (
-              <div className="flex items-center justify-center gap-2">
-                <FaMapMarkerAlt className="text-gray-400" size={12} />
-                <span>{data.shopAddress}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Separator */}
-        <div className="text-center mb-4 text-gray-400 text-xl">--------------------------</div>
-
-        {/* Information Grid */}
+        {/* 3-Column Information Grid */}
         <div className="mb-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {/* Right Column */}
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            {/* Right Column - Invoice Number & Customer */}
             <div className="space-y-3">
               <div className="text-center">
                 <div className="font-semibold text-black space-y-1">
-                  <div>ژمارەی فاکتور</div>
+                  <div>ژمارەی پسوڵە</div>
                   <div className="font-mono font-bold text-black text-lg" style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}>
-                    #{toEnglishDigits(data.invoiceNumber.toString())}
+                    {data.invoiceNumber && data.invoiceNumber > 0 
+                      ? `#${toEnglishDigits(data.invoiceNumber.toString())}`
+                      : <span className="text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>پسوڵەی کاتی</span>
+                    }
                   </div>
                 </div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-black space-y-1">
                   <div>کڕیار</div>
-                  <div className="font-bold text-black text-sm min-w-[150px] break-words">
+                  <div className="font-bold text-black text-sm min-w-[120px] break-words">
                     {data.customerName}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Left Column */}
+            {/* Center Column - Shop Branding */}
+            <div className="space-y-2">
+              {/* Shop Logo - Circular */}
+              {data.shopLogo && (
+                <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-3 border-gray-200 shadow-lg">
+                  <img
+                    src={data.shopLogo}
+                    alt={data.shopName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <h1 className="text-xl font-bold text-black text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                {data.shopName}
+              </h1>
+              {data.shopAddress && (
+                <div className="flex items-center justify-center gap-1 text-xs text-black">
+                  <FaMapMarkerAlt className="text-gray-400" size={10} />
+                  <span>{data.shopAddress}</span>
+                </div>
+              )}
+              {data.shopPhone && (
+                <div className="flex items-center justify-center gap-1 text-xs text-black">
+                  <FaPhone className="text-gray-400" size={10} />
+                  <span>{data.shopPhone}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Left Column - Date/Time, Phone, Cashier */}
             <div className="space-y-3">
               <div className="text-center">
                 <div className="font-semibold text-black space-y-1">
@@ -142,7 +145,7 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
                 <div className="text-center">
                   <div className="font-semibold text-black space-y-1">
                     <div>فرۆشیار</div>
-                    <div className="font-bold text-black text-sm min-w-[150px] break-words">
+                    <div className="font-bold text-black text-sm">
                       {data.sellerName}
                     </div>
                   </div>
@@ -152,7 +155,7 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
           </div>
 
           {/* Payment Method - Full Width */}
-          <div className="mt-4 pt-3 border-t border-gray-200">
+          <div className="mt-4 pt-3 border-t border-gray-300">
             <div className="text-center">
               <div className="font-semibold text-black space-y-1">
                 <div>شێوازی پارەدان</div>
@@ -171,7 +174,7 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
         <div className="mb-6">
           <table className="w-full border-collapse border border-gray-300 text-sm">
             <thead>
-              <tr className="bg-gray-50">
+              <tr className="bg-gray-100">
                 <th className="border border-gray-300 px-3 py-2 text-right font-bold text-black">
                   ناوی کاڵا
                 </th>
@@ -189,7 +192,7 @@ export default function InvoiceTemplate({ data, isPrint = false, className = "" 
             <tbody>
               {data.items.map((item, index) => (
                 <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-right font-medium max-w-[140px] truncate">
+                  <td className="border border-gray-300 px-3 py-2 text-right font-medium max-w-[120px] truncate">
                     {item.name}
                   </td>
                   <td className="border border-gray-300 px-3 py-2 text-center font-medium">

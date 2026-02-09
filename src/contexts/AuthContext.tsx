@@ -249,21 +249,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         forceRestoreFromStore()
         
         // Refresh Supabase session
-        try {
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user) {
-            setUser(session.user)
-            userIdRef.current = session.user.id
-            
-            // Fetch fresh profile
-            const freshProfile = await fetchFreshProfile(session.user.id)
-            if (freshProfile) {
-              setProfile(freshProfile)
-              persistProfile(session.user, freshProfile)
+        if (supabase) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+              setUser(session.user)
+              userIdRef.current = session.user.id
+              
+              // Fetch fresh profile
+              const freshProfile = await fetchFreshProfile(session.user.id)
+              if (freshProfile) {
+                setProfile(freshProfile)
+                persistProfile(session.user, freshProfile)
+              }
             }
+          } catch (e) {
+            console.log('⚠️ Supabase refresh failed, using cached')
           }
-        } catch (e) {
-          console.log('⚠️ Supabase refresh failed, using cached')
         }
         
         isSyncing.current = false
@@ -275,11 +277,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🎯 Window focus')
       forceRestoreFromStore()
       
-      if (supabase) {
-        try {
-          await supabase.auth.getSession()
-        } catch {}
-      }
+      if (!supabase) return
+      try {
+        await supabase.auth.getSession()
+      } catch {}
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)

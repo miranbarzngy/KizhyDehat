@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { SyncPauseProvider } from "@/contexts/SyncPauseContext";
 import ThemeToggle from "@/components/ThemeToggle";
 import localFont from 'next/font/local'
 import "./globals.css";
@@ -162,8 +163,10 @@ export default function RootLayout({
       <body className={`${uniSalar.variable} antialiased font-medium font-uni-salar`} suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
-            {children}
-            <ThemeToggle />
+            <SyncPauseProvider>
+              {children}
+              <ThemeToggle />
+            </SyncPauseProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

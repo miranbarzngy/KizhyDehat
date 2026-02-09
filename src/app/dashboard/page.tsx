@@ -69,18 +69,30 @@ export default function DashboardPage() {
       // Total Sales: Sum of total from sales table (all completed sales)
       const { data: salesData } = await supabase
         .from('sales')
-        .select('total')
+        .select('total, subtotal, discount_amount')
 
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+
+      // Inventory Expenses (Cost of Goods Sold): Sum of cost_price * quantity from sale_items
+      const { data: inventoryData } = await supabase
+        .from('sale_items')
+        .select('quantity, cost_price')
+
+      const inventoryExpenses = inventoryData?.reduce((sum, item) => 
+        sum + (item.cost_price || 0) * (item.quantity || 0), 0) || 0
 
       // Total Expenses: Sum of amount from the expenses table (includes all categories)
       const { data: expensesData } = await supabase
         .from('expenses')
         .select('amount')
 
-      const totalExpenses = expensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
+      const generalExpenses = expensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
+
+      // Total Expenses includes inventory (COGS) + general expenses
+      const totalExpenses = inventoryExpenses + generalExpenses
 
       // Net Profit: Calculate (Total Sales - Total Expenses)
+      // Note: totalSales already has discount subtracted (total = subtotal - discount)
       const netProfit = totalSales - totalExpenses
 
       // Today's sales (for additional stats)
@@ -97,12 +109,12 @@ export default function DashboardPage() {
         .from('customers')
         .select('*', { count: 'exact', head: true })
 
-      // Low stock count
-      const { data: inventoryData } = await supabase
+      // Low stock count (use a different variable name)
+      const { data: inventoryThresholdData } = await supabase
         .from('inventory')
         .select('quantity, low_stock_threshold')
 
-      const lowStockCount = inventoryData?.filter(item =>
+      const lowStockCount = inventoryThresholdData?.filter(item =>
         item.quantity <= item.low_stock_threshold
       ).length || 0
 

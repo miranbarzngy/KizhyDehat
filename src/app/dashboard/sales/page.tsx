@@ -18,14 +18,17 @@ import { useEffect, useRef, useState } from 'react'
 
 interface InventoryItem {
   id: string
-  item_name: string
-  quantity: number
+  name: string
+  total_amount_bought: number
   unit: string
-  selling_price: number
-  cost_price: number
+  selling_price_per_unit: number
+  cost_per_unit: number
   category: string
   image?: string
-  image_url?: string
+  barcode1?: string
+  barcode2?: string
+  barcode3?: string
+  barcode4?: string
   total_sold?: number
   total_revenue?: number
   total_profit?: number
@@ -86,7 +89,7 @@ const ProductImage = ({ item, className = "" }: { item: InventoryItem, className
       {item.image ? (
         <img
           src={item.image}
-          alt={item.item_name}
+          alt={item.name}
           className="w-full h-full object-cover rounded-2xl"
         />
       ) : (
@@ -201,7 +204,7 @@ export default function SalesPage() {
         }
 
         // Try a simple query to test connection
-        const { data, error } = await supabase.from('inventory').select('count').limit(1).single()
+        const { data, error } = await supabase.from('products').select('count').limit(1).single()
 
         if (error) {
           console.error('❌ Supabase connection test failed:', error)
@@ -260,9 +263,23 @@ export default function SalesPage() {
   const fetchInventory = async () => {
     if (!supabase) return
     try {
-      const { data, error } = await supabase.from('inventory').select('*').gt('quantity', 0)
+      // Fetch from products table with items that have positive quantity
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .gt('total_amount_bought', 0)
+        .or('is_archived.is.null,is_archived.eq.false')
+      
       if (error) throw error
-      const processedData = (data || []).map(item => ({ ...item, category: item.category || 'ئەوانی تر' }))
+      const processedData = (data || []).map(item => ({ 
+        ...item, 
+        category: item.category || 'ئەوانی تر',
+        // Map products columns to inventory interface
+        name: item.name,
+        total_amount_bought: item.total_amount_bought,
+        selling_price_per_unit: item.selling_price_per_unit,
+        cost_per_unit: item.cost_per_unit
+      }))
       setInventory(processedData)
     } catch (error) { console.error('Error fetching inventory:', error) }
     finally { setLoading(false) }
@@ -311,7 +328,7 @@ export default function SalesPage() {
     if (quantity <= 0) return
 
     // Calculate price based on unit conversion
-    const unitPrice = calculateUnitPrice(selectedItem.selling_price, selectedItem.unit, selectedSaleUnit, quantity)
+    const unitPrice = calculateUnitPrice(selectedItem.selling_price_per_unit, selectedItem.unit, selectedSaleUnit, quantity)
     const totalPrice = unitPrice
 
     // Convert quantity to base unit for inventory tracking
@@ -366,8 +383,8 @@ export default function SalesPage() {
 
     // Check stock availability using converted quantities
     for (const cartItem of cart) {
-      if (cartItem.baseQuantity > cartItem.item.quantity) {
-        alert(`بڕی پێویست لە کۆگا نەماوە: ${cartItem.item.item_name}`)
+      if (cartItem.baseQuantity > cartItem.item.total_amount_bought) {
+        alert(`بڕی پێویست لە کۆگا نەماوە: ${cartItem.item.name}`)
         return
       }
     }
@@ -422,12 +439,12 @@ export default function SalesPage() {
       const saleItems = cart.map(item => ({
         sale_id: saleData.id,
         item_id: item.item.id,
-        item_name: item.item.item_name,
+        item_name: item.item.name,
         category: item.item.category,
         quantity: item.baseQuantity,
         unit: item.item.unit,
         price: item.price,
-        cost_price: item.item.cost_price || 0,
+        cost_price: item.item.cost_per_unit || 0,
         total: item.total,
         date: new Date().toISOString().split('T')[0]
       }))
@@ -441,32 +458,36 @@ export default function SalesPage() {
         throw itemsError
       }
 
-      // Update inventory quantities for each sold item
+      // Update products quantities for each sold item
       for (const cartItem of cart) {
-        // Get current inventory item
-        const { data: currentItem, error: fetchError } = await supabase
-          .from('inventory')
-          .select('quantity, total_sold, total_revenue, total_profit, cost_price')
+        // Debug: Log the product ID being searched
+        console.log('Searching for Product ID:', cartItem.item.id, 'Name:', cartItem.item.name)
+        
+        // Get current product by ID
+        const { data: currentProduct, error: fetchError } = await supabase
+          .from('products')
+          .select('total_amount_bought, total_sold, total_revenue, total_profit, cost_per_unit')
           .eq('id', cartItem.item.id)
           .single()
 
         if (fetchError) {
-          console.error('Error fetching inventory item:', fetchError)
-          throw new Error(`کاڵاکە نەدۆزرایەوە: ${cartItem.item.item_name}`)
+          console.error('Error fetching product:', fetchError.code, fetchError.message)
+          console.error('Product ID not found:', cartItem.item.id)
+          throw new Error(`کاڵاکە نەدۆزرایەوە: ${cartItem.item.name}`)
         }
 
         // Calculate new values
-        const newQuantity = (currentItem.quantity || 0) - cartItem.baseQuantity
-        const newTotalSold = (currentItem.total_sold || 0) + cartItem.baseQuantity
-        const newTotalRevenue = (currentItem.total_revenue || 0) + cartItem.total
-        const profitPerItem = cartItem.price - (currentItem.cost_price || 0)
-        const newTotalProfit = (currentItem.total_profit || 0) + (profitPerItem * cartItem.baseQuantity)
+        const newQuantity = (currentProduct.total_amount_bought || 0) - cartItem.baseQuantity
+        const newTotalSold = (currentProduct.total_sold || 0) + cartItem.baseQuantity
+        const newTotalRevenue = (currentProduct.total_revenue || 0) + cartItem.total
+        const profitPerItem = cartItem.price - (currentProduct.cost_per_unit || 0)
+        const newTotalProfit = (currentProduct.total_profit || 0) + (profitPerItem * cartItem.baseQuantity)
 
-        // Update inventory
-        const { error: inventoryError } = await supabase
-          .from('inventory')
+        // Update products table
+        const { error: productError } = await supabase
+          .from('products')
           .update({
-            quantity: newQuantity,
+            total_amount_bought: newQuantity,
             total_sold: newTotalSold,
             total_revenue: newTotalRevenue,
             total_profit: newTotalProfit,
@@ -474,12 +495,12 @@ export default function SalesPage() {
           })
           .eq('id', cartItem.item.id)
 
-        if (inventoryError) {
-          console.error('Error updating inventory:', inventoryError)
-          throw new Error(`هەڵە لە نوێکردنەوەی کۆگا: ${cartItem.item.item_name}`)
+        if (productError) {
+          console.error('Error updating product:', productError)
+          throw new Error(`هەڵە لە نوێکردنەوەی کاڵا: ${cartItem.item.name}`)
         }
 
-        console.log(`Inventory updated: ${cartItem.item.item_name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}`)
+        console.log(`Product updated: ${cartItem.item.name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}`)
       }
 
       // Handle customer debt update if payment method is 'debt'
@@ -518,7 +539,7 @@ export default function SalesPage() {
             customer_id: selectedCustomer,
             date: new Date().toISOString().split('T')[0],
             amount: -total, // Negative for debt increase
-            items: cart.map(item => `${item.item.item_name} x${item.quantity} ${item.unit}`).join(', '),
+            items: cart.map(item => `${item.item.name} x${item.quantity} ${item.unit}`).join(', '),
             note: 'فرۆشتن بە قەرز'
           })
 
@@ -544,7 +565,7 @@ export default function SalesPage() {
         time: new Date().toLocaleTimeString('ku'),
         paymentMethod: paymentMethod,
         items: cart.map(item => ({
-          name: item.item.item_name,
+          name: item.item.name,
           unit: item.unit,
           quantity: item.quantity,
           price: item.price,
@@ -589,15 +610,46 @@ export default function SalesPage() {
       // Wait 800ms for QR image and UniSalar fonts to fully render
       await new Promise(resolve => setTimeout(resolve, 800))
 
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2, // Higher resolution
-        useCORS: true,
-        allowTaint: false,
-        foreignObjectRendering: false,
+      // Create a temporary container with fixed width for consistent capture
+      const tempContainer = document.createElement('div')
+      tempContainer.style.cssText = 'width: 800px; margin: 0 auto; background-color: white; direction: rtl; font-family: var(--font-uni-salar);'
+      
+      // Clone the invoice content
+      const clone = invoiceRef.current.cloneNode(true) as HTMLElement
+      clone.id = 'invoice-container'
+      clone.style.width = '800px'
+      clone.style.margin = '0 auto'
+      clone.style.backgroundColor = 'white'
+      clone.style.padding = '20px'
+      tempContainer.appendChild(clone)
+      
+      // Temporarily add to body (hidden)
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '-9999px'
+      tempContainer.style.top = '0'
+      document.body.appendChild(tempContainer)
+
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        width: 800,
+        windowWidth: 800,
+        logging: false,
         backgroundColor: '#ffffff',
-        width: invoiceRef.current.offsetWidth,
-        height: invoiceRef.current.offsetHeight
+        useCORS: true,
+        allowTaint: true,
+        onclone: (clonedDoc) => {
+          const clonedContainer = clonedDoc.getElementById('invoice-container')
+          if (clonedContainer) {
+            clonedContainer.style.display = 'block'
+            clonedContainer.style.width = '800px'
+            clonedContainer.style.margin = '0 auto'
+            clonedContainer.style.backgroundColor = 'white'
+          }
+        }
       })
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer)
 
       // Convert to blob
       canvas.toBlob((blob) => {
@@ -605,7 +657,7 @@ export default function SalesPage() {
           const url = URL.createObjectURL(blob)
           const link = document.createElement('a')
           link.href = url
-          link.download = `Invoice_${completedSaleData.invoiceNumber}.png`
+          link.download = `Invoice_${completedSaleData.invoiceNumber || 'temp'}.png`
           document.body.appendChild(link)
           link.click()
           document.body.removeChild(link)
@@ -977,7 +1029,7 @@ export default function SalesPage() {
               </div>
               ${items.map(item => `
                 <div class="table-row">
-                  <div class="item-name">${item.item.item_name}</div>
+                  <div class="item-name" style="font-family: 'UniSalar_F_007', sans-serif;">${item.item.name}</div>
                   <div class="item-unit">${item.unit}</div>
                   <div class="item-qty">${item.quantity}</div>
                   <div class="item-price">${formatCurrency(item.total)}</div>
@@ -1296,7 +1348,7 @@ export default function SalesPage() {
                     {/* Center: Name & Category */}
                     <div className="flex-1 text-right mr-3">
                       <h3 className="font-bold text-sm text-gray-800 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {item.item_name}
+                        {item.name}
                       </h3>
                       <p className="text-xs text-gray-600 truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                         {item.category}
@@ -1306,7 +1358,7 @@ export default function SalesPage() {
                     {/* Right: Price */}
                     <div className="flex-shrink-0 text-left">
                       <p className="text-sm font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {formatCurrency(item.selling_price)}
+                        {formatCurrency(item.selling_price_per_unit)}
                       </p>
                       <p className="text-xs text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
                         IQD
@@ -1346,7 +1398,7 @@ export default function SalesPage() {
 
                       {/* Product Name */}
                       <h3 className="font-bold text-sm mb-0.5 text-gray-800 group-hover:text-blue-600 transition-colors duration-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {item.item_name}
+                        {item.name}
                       </h3>
 
                       {/* Price */}
@@ -1355,14 +1407,14 @@ export default function SalesPage() {
                         style={{ fontFamily: 'Inter, sans-serif' }}
                         whileHover={{ scale: 1.05 }}
                       >
-                        {formatCurrency(item.selling_price)} IQD
+                        {formatCurrency(item.selling_price_per_unit)} IQD
                       </motion.p>
 
                       {/* Stock Level */}
                       <div className="flex items-center justify-center space-x-0.5 mb-0.5">
-                        <div className={`w-1 h-1 rounded-full ${item.quantity > 10 ? 'bg-green-400' : item.quantity > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                        <p className="text-xs text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          {toEnglishDigits(item.quantity.toString())} {item.unit}
+                        <div className={`w-1 h-1 rounded-full ${(item.total_amount_bought ?? 0) > 10 ? 'bg-green-400' : (item.total_amount_bought ?? 0) > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                        <p className="text-xs text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          {toEnglishDigits((item.total_amount_bought ?? 0).toString())} {item.unit}
                         </p>
                       </div>
 
@@ -1434,7 +1486,7 @@ export default function SalesPage() {
                 <div className="flex justify-between items-center">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-gray-800 text-xs truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      {item.item.item_name}
+                      {item.item.name}
                     </h4>
                     <p className="text-xs text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                       {toEnglishDigits(item.quantity.toString())} {item.unit} × {formatCurrency(item.price)}
@@ -1686,7 +1738,7 @@ export default function SalesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  زیادکردنی {selectedItem.item_name}
+                  زیادکردنی {selectedItem.name}
                 </motion.h3>
 
                 <div className="space-y-5">
@@ -1725,7 +1777,7 @@ export default function SalesPage() {
                     />
                   </motion.div>
 
-                  {/* Price Preview */}
+                      {/* Price Preview */}
                   <AnimatePresence>
                     {selectedSaleUnit && quantityInput && (
                       <motion.div
@@ -1736,7 +1788,7 @@ export default function SalesPage() {
                         transition={{ delay: 0.4 }}
                       >
                         <p className="text-lg font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          نرخ: {formatCurrency(calculateUnitPrice(selectedItem.selling_price, selectedItem.unit, selectedSaleUnit, safeStringToNumber(quantityInput)))} IQD
+                          نرخ: {formatCurrency(calculateUnitPrice(selectedItem.selling_price_per_unit, selectedItem.unit, selectedSaleUnit, safeStringToNumber(quantityInput)))} IQD
                         </p>
                         <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                           نرخ بەپێی یەکەی {selectedSaleUnit}

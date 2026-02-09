@@ -466,7 +466,7 @@ export default function SalesPage() {
         // Get current product by ID
         const { data: currentProduct, error: fetchError } = await supabase
           .from('products')
-          .select('total_amount_bought, total_sold, total_revenue, total_profit, cost_per_unit')
+          .select('total_amount_bought, total_sold, total_revenue, total_profit, total_discounts, cost_per_unit')
           .eq('id', cartItem.item.id)
           .single()
 
@@ -480,6 +480,12 @@ export default function SalesPage() {
         const newQuantity = (currentProduct.total_amount_bought || 0) - cartItem.baseQuantity
         const newTotalSold = (currentProduct.total_sold || 0) + cartItem.baseQuantity
         const newTotalRevenue = (currentProduct.total_revenue || 0) + cartItem.total
+        
+        // Calculate this item's portion of the discount (proportional to its contribution to subtotal)
+        const cartSubtotal = cart.reduce((sum, item) => sum + item.total, 0)
+        const itemDiscountPortion = cartSubtotal > 0 ? (cartItem.total / cartSubtotal) * discount : 0
+        const newTotalDiscounts = (currentProduct.total_discounts || 0) + itemDiscountPortion
+        
         const profitPerItem = cartItem.price - (currentProduct.cost_per_unit || 0)
         const newTotalProfit = (currentProduct.total_profit || 0) + (profitPerItem * cartItem.baseQuantity)
 
@@ -491,6 +497,7 @@ export default function SalesPage() {
             total_sold: newTotalSold,
             total_revenue: newTotalRevenue,
             total_profit: newTotalProfit,
+            total_discounts: newTotalDiscounts,
             is_archived: newQuantity <= 0
           })
           .eq('id', cartItem.item.id)
@@ -500,7 +507,7 @@ export default function SalesPage() {
           throw new Error(`هەڵە لە نوێکردنەوەی کاڵا: ${cartItem.item.name}`)
         }
 
-        console.log(`Product updated: ${cartItem.item.name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}`)
+        console.log(`Product updated: ${cartItem.item.name} - deducted ${cartItem.baseQuantity} ${cartItem.item.unit}, added discount: ${itemDiscountPortion}`)
       }
 
       // Handle customer debt update if payment method is 'debt'

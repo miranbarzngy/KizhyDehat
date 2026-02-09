@@ -28,6 +28,7 @@ interface Product {
   total_sold?: number
   total_revenue?: number
   total_profit?: number
+  total_discounts?: number
 }
 
 interface Category { id: string; name: string; created_at: string }
@@ -421,12 +422,26 @@ export default function InventoryPage() {
               // Calculate financial data
               const totalSold = item.total_sold || 0
               const totalRevenue = item.total_revenue || 0
+              const totalDiscounts = item.total_discounts || 0
+              // Net Revenue = Total Revenue - Total Discounts
+              const netRevenue = totalRevenue - totalDiscounts
+              // Total Purchase Price = cost_per_unit * original quantity (sold + remaining)
               const totalPurchasePrice = (item.cost_per_unit || 0) * (totalSold + (item.total_amount_bought || 0))
-              const totalProfit = item.total_profit || 0
+              // Real Profit = Net Revenue - Total Purchase Price
+              const realProfit = netRevenue - totalPurchasePrice
               const purchaseDate = item.added_date || item.created_at || '-'
               
               return (
                 <div key={item.id} className="p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all">
+                  {/* Product Image */}
+                  <div className="h-32 bg-gray-200 rounded-lg mb-3 flex items-center justify-center text-4xl overflow-hidden">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      '📦'
+                    )}
+                  </div>
+                  
                   {/* Item Name */}
                   <h3 className="text-lg font-bold text-center mb-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
                   
@@ -456,11 +471,27 @@ export default function InventoryPage() {
                       </span>
                     </div>
                     
-                    {/* Total Profit */}
+                    {/* Total Discounts */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی داشکاندن:</span>
+                      <span className="font-bold text-red-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {totalDiscounts > 0 ? `-${totalDiscounts.toLocaleString()}` : '0'} IQD
+                      </span>
+                    </div>
+                    
+                    {/* Net Revenue (After Discounts) */}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200/50 bg-gray-50/50 rounded-lg px-2">
+                      <span className="text-sm text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>داهاتی خاوەنەکە:</span>
+                      <span className="font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {netRevenue.toLocaleString()} IQD
+                      </span>
+                    </div>
+                    
+                    {/* Real Profit */}
                     <div className="flex justify-between items-center py-2">
-                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج:</span>
-                      <span className={`font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
-                        {totalProfit.toLocaleString()} IQD
+                      <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانجی ڕاست:</span>
+                      <span className={`font-bold ${realProfit > 0 ? 'text-green-600' : realProfit < 0 ? 'text-red-600' : 'text-yellow-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {realProfit >= 0 ? realProfit.toLocaleString() : `(${Math.abs(realProfit).toLocaleString()})`} IQD
                       </span>
                     </div>
                   </div>

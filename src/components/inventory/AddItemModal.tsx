@@ -1,10 +1,10 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
-import { FaCheck, FaArrowLeft, FaArrowRight, FaUpload, FaExclamationTriangle } from 'react-icons/fa'
 import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { FaArrowLeft, FaArrowRight, FaCheck, FaExclamationTriangle, FaUpload } from 'react-icons/fa'
 
 interface AddItemModalProps {
   showStockEntry: boolean
@@ -157,28 +157,35 @@ export default function AddItemModal({
       // Step 1: Insert into products table FIRST (atomic)
       let error
       if (editingItem) {
+        // When editing, ONLY update the products table - don't touch purchase_expenses
         ({ error } = await supabase.from('products').update(productsData).eq('id', editingItem.id))
+        console.log('✅ Product updated in products table:', formData.name)
+        
+        // Show success notification for editing
+        setErrorMessage('کاڵاکە بە سەرکەوتوویی نوێکرایەوە')
+        setTimeout(() => setErrorMessage(''), 3000)
       } else {
+        // When adding new, insert into products and track expense
         ({ error } = await supabase.from('products').insert(productsData))
-      }
-      
-      if (error) throw error
-      console.log('✅ Product saved to products table:', formData.name)
-      
-      // Step 2: Sync to purchase_expenses for expense tracking (only if supplier selected)
-      if (formData.supplier_id && formData.price_of_bought > 0) {
-        const { error: purchaseError } = await supabase.from('purchase_expenses').insert({
-          item_name: formData.name.trim(),
-          total_purchase_price: Number(formData.price_of_bought),
-          total_amount_bought: Number(formData.quantity),
-          unit: formData.unit,
-          purchase_date: formData.added_date
-        })
         
-        if (purchaseError) throw purchaseError
-        console.log('✅ Expense tracked in purchase_expenses:', formData.name)
+        if (error) throw error
+        console.log('✅ Product inserted into products table:', formData.name)
         
-        // Step 3: Track transactions and debts
+        // Step 2: Sync to purchase_expenses for expense tracking (only for NEW items)
+        if (formData.supplier_id && formData.price_of_bought > 0) {
+          const { error: purchaseError } = await supabase.from('purchase_expenses').insert({
+            item_name: formData.name.trim(),
+            total_purchase_price: Number(formData.price_of_bought),
+            total_amount_bought: Number(formData.quantity),
+            unit: formData.unit,
+            purchase_date: formData.added_date
+          })
+          
+          if (purchaseError) throw purchaseError
+          console.log('✅ Expense tracked in purchase_expenses:', formData.name)
+        }
+        
+        // Step 3: Track transactions and debts (only for NEW items)
         if (formData.is_not_fully_paid && formData.remain_amount > 0) {
           // Partial payment - record debt
           await supabase.from('supplier_transactions').insert({
@@ -418,12 +425,12 @@ export default function AddItemModal({
           </button>
           {currentStep > 1 && (
             <button onClick={prevStep} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              <FaArrowLeft className="ml-2" />قۆناغی پێشوو
+              <FaArrowRight className="ml-2" />قۆناغی پێشوو
             </button>
           )}
           {currentStep < 4 ? (
             <button onClick={nextStep} disabled={!canProceed()} className={`px-6 py-3 rounded-xl font-bold flex items-center ${canProceed() ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              قۆناغی داهاتوو <FaArrowRight className="mr-2" />
+              قۆناغی داهاتوو <FaArrowLeft className="mr-2" />
             </button>
           ) : (
             <button onClick={submitItem} disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price} className={`px-6 py-3 rounded-xl font-bold ${formData.name?.trim() && formData.quantity && formData.selling_price ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>

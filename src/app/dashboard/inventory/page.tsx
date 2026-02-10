@@ -29,6 +29,7 @@ interface Product {
   total_revenue?: number
   total_profit?: number
   total_discounts?: number
+  created_at?: string
 }
 
 interface Category { id: string; name: string; created_at: string }
@@ -244,7 +245,7 @@ export default function InventoryPage() {
 
   const executeDelete = async () => {
     if (!itemToDelete) return
-    pauseSync(20000)
+    pauseSync('inventory-delete')
     setShowDeleteConfirm(false)
     const { id: itemId, name: itemName } = itemToDelete
     setProducts(prev => prev.filter(i => i.id !== itemId))

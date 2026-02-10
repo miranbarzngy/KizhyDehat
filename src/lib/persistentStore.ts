@@ -1,6 +1,9 @@
 /**
  * Persistent State Store - Uses localStorage as source of truth
  * Synchronous reads, async writes with pub/sub notifications
+ * 
+ * IMPORTANT: User session data (userId, isAuthenticated) is only cleared
+ * on explicit SIGNED_OUT events to prevent data loss during token refresh.
  */
 
 import React from 'react'
@@ -130,13 +133,27 @@ export function useUserProfile<K extends keyof UserProfileState>(
 }
 
 // Set user profile (persists immediately)
+// Only updates the provided fields, preserves others
 export function setUserProfile(data: Partial<UserProfileState>): void {
   userProfileStore.setState(data)
 }
 
-// Clear user profile
+// Partial update for user data without clearing authentication status
+// Use this for updating user details while keeping them logged in
+export function updateUserData(data: Partial<UserProfileState>): void {
+  const currentState = userProfileStore.getState()
+  // Preserve authentication status during updates
+  userProfileStore.setState({
+    ...data,
+    userId: data.userId || currentState.userId,
+    isAuthenticated: currentState.isAuthenticated
+  })
+}
+
+// Clear user profile - ONLY call on explicit SIGNED_OUT
 export function clearUserProfile(): void {
   userProfileStore.setState(defaultUserState)
+  console.log('🧹 User profile cleared (explicit sign out)')
 }
 
 // Check if authenticated (synchronous)
@@ -147,4 +164,10 @@ export function isUserAuthenticated(): boolean {
 // Get current profile (synchronous)
 export function getUserProfile(): UserProfileState {
   return userProfileStore.getState()
+}
+
+// Check if we have a cached user (for session recovery)
+export function hasCachedUser(): boolean {
+  const state = userProfileStore.getState()
+  return state.isAuthenticated && !!state.userId
 }

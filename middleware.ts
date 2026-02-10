@@ -1,56 +1,70 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/setup', '/api/setup-auth']
-  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+export const runtime = 'edge'
 
-  // If accessing a public route, allow it
-  if (isPublicRoute) {
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Only protect /dashboard routes
+  const isProtectedRoute = pathname.startsWith('/dashboard')
+  const isLoginPage = pathname === '/login'
+  const isSetupPage = pathname === '/setup'
+
+  // Skip for static files, API routes, and setup
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/static') ||
+    isSetupPage
+  ) {
     return NextResponse.next()
   }
 
-  // Check for session cookie to verify user authentication
-  // Supabase stores the session in cookies named sb-[url]-auth-token
-  const supabaseAuthCookie = request.cookies.get('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/https?:\/\//, '') + '-auth-token')
-  const fallbackAuthCookie = request.cookies.get('pos_user_id') // Our custom auth cookie
+  // Create Supabase client with cookie handling
+  let supabaseResponse = NextResponse.next({ request })
 
-  // If no auth cookies found, redirect to login
-  if (!supabaseAuthCookie && !fallbackAuthCookie) {
-    console.log('🔐 No session cookie found, redirecting to login')
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Check session
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // Redirect unauthenticated users from protected routes
+  if (isProtectedRoute && !session) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+    loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Check if the Supabase session cookie is valid (not empty)
-  if (supabaseAuthCookie && supabaseAuthCookie.value === '') {
-    // Try our fallback cookie
-    if (!fallbackAuthCookie) {
-      console.log('🔐 Empty session cookie, redirecting to login')
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
-      return NextResponse.redirect(loginUrl)
-    }
+  // Redirect authenticated users from login page
+  if (isLoginPage && session) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Session is valid, allow the request
-  console.log('✅ Session verified for:', request.nextUrl.pathname)
-  return NextResponse.next()
+  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files with extensions
-     * - manifest.json
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.manifest\\.json$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
   ],
 }

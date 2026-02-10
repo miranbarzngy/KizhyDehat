@@ -1,18 +1,37 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Singleton pattern for Supabase client
+let supabaseInstance: ReturnType<typeof createClient> | null = null
 
-console.log('🔧 Supabase Config:', {
-  url: supabaseUrl,
-  key: supabaseAnonKey ? '***' + supabaseAnonKey.slice(-4) : null,
-  urlValid: supabaseUrl && supabaseUrl !== 'your_supabase_url_here',
-  keyValid: !!supabaseAnonKey
-})
+export function getSupabase() {
+  if (supabaseInstance) return supabaseInstance
 
-// Only create Supabase client if valid credentials are provided
-export const supabase = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'your_supabase_url_here'
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-console.log('🚀 Supabase client created:', !!supabase)
+  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your_supabase_url_here') {
+    console.error('❌ Supabase: Missing environment variables')
+    return null
+  }
+
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      onRefreshToken: (token) => {
+        console.log('🔄 Supabase: Token refreshed', token?.access_token?.slice(0, 10) + '...')
+      }
+    },
+    global: {
+      headers: { 'x-application-name': 'posup' }
+    }
+  })
+
+  console.log('🚀 Supabase: Client initialized')
+  return supabaseInstance
+}
+
+// Export the singleton instance for convenience
+export const supabase = getSupabase()

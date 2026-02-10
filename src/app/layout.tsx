@@ -5,6 +5,7 @@ import { SyncPauseProvider } from "@/contexts/SyncPauseContext";
 import { ShopSettingsProvider } from "@/contexts/ShopSettingsContext";
 import { ToastProvider } from "@/components/Toast";
 import ThemeToggle from "@/components/ThemeToggle";
+import AuthLoadingWrapper from "@/components/providers/AuthLoadingWrapper";
 import localFont from 'next/font/local'
 import "./globals.css";
 
@@ -168,8 +169,10 @@ export default function RootLayout({
             <SyncPauseProvider>
               <ShopSettingsProvider>
                 <ToastProvider>
-                  {children}
-                  <ThemeToggle />
+                  <AuthLoadingWrapper>
+                    {children}
+                    <ThemeToggle />
+                  </AuthLoadingWrapper>
                 </ToastProvider>
               </ShopSettingsProvider>
             </SyncPauseProvider>

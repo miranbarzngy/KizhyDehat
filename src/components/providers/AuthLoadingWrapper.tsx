@@ -13,7 +13,7 @@ function LoadingSpinner() {
           <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-blue-600 border-t-transparent rounded-full absolute top-0 left-0 animate-spin"></div>
         </div>
         <p className="text-lg md:text-xl text-gray-700 dark:text-gray-200 font-uni-salar text-center">
-          جارەکردنەوە...
+          چاوەڕوانبە...
         </p>
       </div>
     </div>

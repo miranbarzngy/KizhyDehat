@@ -181,56 +181,37 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
 
       if (saleError) throw new Error('Sale not found')
 
-      // Fetch sale items with inventory join for item names
-      let saleItems: any[] | null = null
-      let itemsJoinWorked = false
-
-      const { data: joinedItems, error: itemsError } = await supabase
+      // Fetch sale items (no join - no formal FK between sale_items and inventory)
+      const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
-        .select(`id, quantity, price, unit, item_id, inventory!item_id(item_name)`)
+        .select('*')
         .eq('sale_id', order.id)
 
       if (itemsError) {
-        console.error('Error fetching sale items with join:', itemsError.message, itemsError.code, itemsError.hint)
-        // Fallback: fetch without join
-        const { data: plainItems, error: plainError } = await supabase
-          .from('sale_items')
-          .select(`id, quantity, price, unit, item_id`)
-          .eq('sale_id', order.id)
-        if (plainError) {
-          console.error('Error fetching sale items (fallback):', plainError.message, plainError.code, plainError.hint)
-        }
-        saleItems = plainItems
-      } else {
-        saleItems = joinedItems
-        itemsJoinWorked = true
+        console.error('Error fetching sale items:', itemsError.message, itemsError.code, itemsError.hint)
       }
 
-      // Map items with inventory names
-      let saleItemsWithNames: any[]
-      if (itemsJoinWorked && saleItems && saleItems.length > 0) {
-        // Join worked - use inventory.item_name
-        saleItemsWithNames = saleItems.map((item: any) => ({
-          ...item,
-          products: { name: item.inventory?.item_name || 'کاڵای سڕاوە' }
-        }))
-      } else {
-        // Join failed - try individual fetches as fallback
-        saleItemsWithNames = await Promise.all(
-          (saleItems || []).map(async (item: any) => {
-            try {
-              const { data: inventoryData } = await supabase
-                .from('inventory')
-                .select('item_name')
-                .eq('id', item.item_id)
-                .single()
-              return { ...item, products: { name: inventoryData?.item_name || 'کاڵای سڕاوە' } }
-            } catch {
-              return { ...item, products: { name: 'کاڵای سڕاوە' } }
-            }
-          })
-        )
+      // Fetch inventory names separately using item_ids
+      let inventoryData: any[] | null = null
+      const itemIds = (saleItems || []).map((item: any) => item.item_id).filter(Boolean)
+      if (itemIds.length > 0) {
+        const { data: invData, error: invError } = await supabase
+          .from('inventory')
+          .select('id, item_name')
+          .in('id', itemIds)
+        if (invError) {
+          console.error('Error fetching inventory names:', invError.message, invError.code, invError.hint)
+        }
+        inventoryData = invData
       }
+
+      // Manual mapping: match inventory item_name to each sale item
+      const saleItemsWithNames = (saleItems || []).map((item: any) => ({
+        ...item,
+        products: {
+          name: inventoryData?.find((inv: any) => inv.id === item.item_id)?.item_name || 'کاڵای سڕاوە'
+        }
+      }))
 
       setSelectedOrder(order)
       setInvoiceDetails({ ...saleData, sale_items: saleItemsWithNames })

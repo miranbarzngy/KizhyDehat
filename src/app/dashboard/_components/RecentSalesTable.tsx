@@ -182,30 +182,49 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
       if (saleError) throw new Error('Sale not found')
 
       // Fetch sale items with inventory join for item names
-      const { data: saleItems, error: itemsError } = await supabase
+      let saleItems: any[] | null = null
+      let itemsJoinWorked = false
+
+      const { data: joinedItems, error: itemsError } = await supabase
         .from('sale_items')
-        .select(`id, quantity, price, unit, item_id, inventory:item_id(item_name)`)
+        .select(`id, quantity, price, unit, item_id, inventory:item_id(item_name, name)`)
         .eq('sale_id', order.id)
 
       if (itemsError) {
-        console.error('Error fetching sale items:', itemsError.message, itemsError.code, itemsError.hint)
+        console.error('Error fetching sale items with join:', itemsError.message, itemsError.code, itemsError.hint)
+        // Fallback: fetch without join
+        const { data: plainItems, error: plainError } = await supabase
+          .from('sale_items')
+          .select(`id, quantity, price, unit, item_id`)
+          .eq('sale_id', order.id)
+        if (plainError) {
+          console.error('Error fetching sale items (fallback):', plainError.message, plainError.code, plainError.hint)
+        }
+        saleItems = plainItems
+      } else {
+        saleItems = joinedItems
+        itemsJoinWorked = true
       }
 
-      // Map items - use joined inventory name, fallback to individual fetch, then fallback text
+      // Map items with product names
       let saleItemsWithNames: any[]
-      if (saleItems && saleItems.length > 0 && saleItems[0].inventory) {
-        // Join worked - use inventory.item_name
+      if (itemsJoinWorked && saleItems && saleItems.length > 0) {
+        // Join worked - use inventory name (try item_name first, then name)
         saleItemsWithNames = saleItems.map((item: any) => ({
           ...item,
-          products: { name: item.inventory?.item_name || 'کاڵای سڕاوە' }
+          products: { name: item.inventory?.item_name || item.inventory?.name || 'کاڵای سڕاوە' }
         }))
       } else {
-        // Join may have failed or returned null - try individual fetches as fallback
+        // Join failed - try individual fetches as fallback
         saleItemsWithNames = await Promise.all(
           (saleItems || []).map(async (item: any) => {
             try {
-              const { data: inventoryData } = await supabase.from('inventory').select('item_name').eq('id', item.item_id).single()
-              return { ...item, products: { name: inventoryData?.item_name || 'کاڵای سڕاوە' } }
+              const { data: inventoryData } = await supabase
+                .from('inventory')
+                .select('item_name, name')
+                .eq('id', item.item_id)
+                .single()
+              return { ...item, products: { name: inventoryData?.item_name || inventoryData?.name || 'کاڵای سڕاوە' } }
             } catch {
               return { ...item, products: { name: 'کاڵای سڕاوە' } }
             }

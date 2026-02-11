@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import html2canvas from 'html2canvas'
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
-import InvoiceTemplate from '@/components/InvoiceTemplate'
+import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
 import ProfitFilters from './components/ProfitFilters'
 import ProfitStats, { SalesTypeCards } from './components/ProfitStats'
 import ProfitsCharts from './components/ProfitsCharts'
@@ -28,7 +27,7 @@ export default function ProfitsPage() {
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [showInvoice, setShowInvoice] = useState(false)
   const [selectedInvoiceData, setSelectedInvoiceData] = useState<any>(null)
-  const invoiceRef = useRef<HTMLDivElement>(null)
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('')
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -43,32 +42,13 @@ export default function ProfitsPage() {
   }
   useEffect(() => { fetchInvoiceSettings() }, [])
 
-  const downloadInvoice = async () => {
-    if (!invoiceRef.current || !selectedInvoiceData) return
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800))
-      const canvas = await html2canvas(invoiceRef.current, { windowWidth: 800, scale: 3, logging: false, backgroundColor: '#ffffff', useCORS: true, allowTaint: true, width: invoiceRef.current.offsetWidth, height: invoiceRef.current.offsetHeight })
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.href = url
-          link.download = `Invoice_${selectedInvoiceData.invoiceNumber || 'temp'}.png`
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
-        }
-      }, 'image/png', 1.0)
-    } catch (error) { console.error('Error downloading invoice:', error); alert('هەڵە لە داگرتنی وێنەی فاکتور') }
-  }
-
   const handleViewPurchaseInvoice = async (purchaseId: string) => {
     if (!supabase) return
     try {
       const { data: purchaseData, error } = await supabase.from('purchase_expenses').select('*').eq('id', purchaseId).single()
       if (error) throw error
-      const invoiceData = { invoiceNumber: purchaseData.id.slice(0, 8).toUpperCase(), customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر', customerPhone: purchaseData.supplier_phone || '', sellerName: '', date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'), time: '--:--', paymentMethod: 'purchase', items: [{ name: purchaseData.item_name || 'کاڵا', unit: purchaseData.unit || '', quantity: purchaseData.total_amount_bought || 0, price: purchaseData.total_purchase_price / (purchaseData.total_amount_bought || 1), total: purchaseData.total_purchase_price }], subtotal: purchaseData.total_purchase_price || 0, discount: 0, total: purchaseData.total_purchase_price || 0, shopName: invoiceSettings?.shop_name || 'فرۆشگای کوردستان', shopPhone: invoiceSettings?.shop_phone || '', shopAddress: invoiceSettings?.shop_address || '', shopLogo: invoiceSettings?.shop_logo || '', qrCodeUrl: invoiceSettings?.qr_code_url || '', thankYouNote: 'کڕین لە دابینکەر • ' + (invoiceSettings?.thank_you_note || 'سوپاس بۆ هاوکارییەکانتان!') }
+      const invoiceData = { invoiceNumber: 0, customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر', customerPhone: purchaseData.supplier_phone || '', sellerName: '', date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'), time: '--:--', paymentMethod: 'purchase', items: [{ name: purchaseData.item_name || 'کاڵا', unit: purchaseData.unit || '', quantity: purchaseData.total_amount_bought || 0, price: purchaseData.total_amount_bought ? purchaseData.total_purchase_price / purchaseData.total_amount_bought : 0, total: purchaseData.total_purchase_price }], subtotal: purchaseData.total_purchase_price || 0, discount: 0, total: purchaseData.total_purchase_price || 0 }
+      setSelectedInvoiceId(purchaseId)
       setSelectedInvoiceData(invoiceData)
       setShowInvoice(true)
     } catch (error) { console.error('Error fetching purchase invoice:', error); alert('هەڵە لە وەرگرتنی پسوڵەی کڕین') }
@@ -80,7 +60,8 @@ export default function ProfitsPage() {
       const { data: saleData, error } = await supabase.from('sales').select(`id, invoice_number, total, payment_method, date, created_at, discount_amount, subtotal, customers!left(name, phone1), sale_items(quantity, price, total, products!inner(name))`).eq('id', saleId).single()
       if (error) throw error
       const customers = Array.isArray(saleData.customers) ? saleData.customers[0] : saleData.customers
-      const invoiceData = { invoiceNumber: saleData.invoice_number || saleData.id.slice(0, 8).toUpperCase(), customerName: customers?.name || 'نەناسراو', customerPhone: customers?.phone1 || '', sellerName: '', date: new Date(saleData.date).toLocaleDateString('ku'), time: '--:--', paymentMethod: saleData.payment_method, items: (saleData.sale_items || []).map((item: any) => ({ name: item.products?.name || 'ناوی کاڵا نەناسراو', unit: '', quantity: item.quantity, price: item.price, total: item.total })), subtotal: saleData.subtotal || saleData.total + (saleData.discount_amount || 0), discount: saleData.discount_amount || 0, total: saleData.total, shopName: invoiceSettings?.shop_name || 'فرۆشگای کوردستان', shopPhone: invoiceSettings?.shop_phone || '', shopAddress: invoiceSettings?.shop_address || '', shopLogo: invoiceSettings?.shop_logo || '', qrCodeUrl: invoiceSettings?.qr_code_url || '', thankYouNote: invoiceSettings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.' }
+      const invoiceData = { invoiceNumber: saleData.invoice_number || 0, customerName: customers?.name || 'نەناسراو', customerPhone: customers?.phone1 || '', sellerName: '', date: new Date(saleData.date).toLocaleDateString('ku'), time: '--:--', paymentMethod: saleData.payment_method, items: (saleData.sale_items || []).map((item: any) => ({ name: item.products?.name || 'ناوی کاڵا نەناسراو', unit: '', quantity: item.quantity, price: item.price, total: item.total })), subtotal: saleData.subtotal || saleData.total + (saleData.discount_amount || 0), discount: saleData.discount_amount || 0, total: saleData.total }
+      setSelectedInvoiceId(saleId)
       setSelectedInvoiceData(invoiceData)
       setShowInvoice(true)
     } catch (error) { console.error('Error fetching invoice:', error); alert('هەڵە لە وەرگرتنی پسوڵە') }
@@ -245,24 +226,14 @@ export default function ProfitsPage() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showInvoice && selectedInvoiceData && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowInvoice(false)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
-                <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)' }}>پسوڵە</h2>
-                <div className="flex gap-2">
-                  <button onClick={downloadInvoice} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>داگرتن</button>
-                  <button onClick={() => setShowInvoice(false)} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors" style={{ fontFamily: 'var(--font-uni-salar)' }}>داخستن</button>
-                </div>
-              </div>
-              <div className="p-6" ref={invoiceRef}>
-                {selectedInvoiceData && <InvoiceTemplate data={selectedInvoiceData} settings={invoiceSettings} />}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Global Invoice Modal */}
+      <GlobalInvoiceModal
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+        invoiceData={selectedInvoiceData}
+        invoiceId={selectedInvoiceId}
+        title="پسوڵە"
+      />
     </div>
   )
 }

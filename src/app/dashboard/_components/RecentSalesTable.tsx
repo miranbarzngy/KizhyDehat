@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { FaEye, FaShoppingCart } from 'react-icons/fa'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/numberUtils'
-import InvoiceTemplate from '@/components/InvoiceTemplate'
+import GlobalInvoiceModal, { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 
 interface PendingSale {
   id: string
@@ -18,59 +18,16 @@ interface PendingSale {
   display_customer_name?: string
 }
 
-interface InvoiceSettings {
-  id: string
-  shop_name: string
-  shop_phone: string
-  shop_address: string
-  shop_logo: string
-  thank_you_note: string
-  qr_code_url: string
-}
-
 interface RecentSalesTableProps {
   onOrderClick?: (orderId: string) => void
 }
 
-// Invoice Preview Component
-function InvoicePreview({ saleData, invoice, settings }: { saleData: any, invoice: any, settings: any }) {
-  const invoiceData = {
-    invoiceNumber: invoice.invoice_number || 0,
-    customerName: saleData.customers?.name || 'نەناسراو',
-    customerPhone: saleData.customers?.phone1 || '',
-    sellerName: saleData.sold_by || 'فرۆشیار',
-    date: new Date(invoice.date).toLocaleDateString('ku'),
-    time: new Date().toLocaleTimeString('ku'),
-    paymentMethod: invoice.payment_method || 'cash',
-    items: saleData.sale_items?.map((item: any) => ({
-      name: item.products?.name || 'کاڵای سڕاوە',
-      unit: item.products?.unit || item.unit || 'دانە',
-      quantity: item.quantity,
-      price: item.price,
-      total: item.price * item.quantity
-    })) || [],
-    subtotal: saleData.subtotal || invoice.total,
-    discount: saleData.discount_amount || 0,
-    total: invoice.total,
-    shopName: settings?.shop_name || 'فرۆشگای کوردستان',
-    shopPhone: settings?.shop_phone || '',
-    shopAddress: settings?.shop_address || '',
-    shopLogo: settings?.shop_logo || '',
-    qrCodeUrl: settings?.qr_code_url || '',
-    thankYouNote: settings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان!'
-  }
-
-  return <InvoiceTemplate data={invoiceData} />
-}
-
 export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
   const router = useRouter()
-  const invoiceRef = useRef<HTMLDivElement>(null)
   const [recentOrders, setRecentOrders] = useState<PendingSale[]>([])
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PendingSale | null>(null)
   const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchPendingSales = async () => {
@@ -159,16 +116,6 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
     }
   }
 
-  const fetchInvoiceSettings = async () => {
-    if (!supabase) return
-    try {
-      const { data } = await supabase.from('invoice_settings').select('*').single()
-      setInvoiceSettings(data)
-    } catch (error) {
-      console.error('Error fetching invoice settings:', error)
-    }
-  }
-
   const viewOrderDetails = async (order: PendingSale) => {
     if (!supabase) return
 
@@ -181,7 +128,7 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
 
       if (saleError) throw new Error('Sale not found')
 
-      // Fetch sale items (no join - no formal FK between sale_items and inventory)
+      // Fetch sale items
       const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
         .select('*')
@@ -191,7 +138,7 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
         console.error('Error fetching sale items:', itemsError.message, itemsError.code, itemsError.hint)
       }
 
-      // Fetch product names separately using item_ids
+      // Fetch product names separately using item_ids (manual mapping)
       let productsData: any[] | null = null
       const itemIds = (saleItems || []).map((item: any) => item.item_id).filter(Boolean)
       if (itemIds.length > 0) {
@@ -225,7 +172,6 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
   // Setup real-time subscription for pending sales
   useEffect(() => {
     fetchPendingSales()
-    fetchInvoiceSettings()
 
     if (!supabase) return
 
@@ -270,6 +216,11 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
     }
   }
 
+  // Build invoice data using the helper function
+  const getInvoiceData = () => {
+    if (!invoiceDetails || !selectedOrder) return null
+    return buildInvoiceData(invoiceDetails, selectedOrder, null)
+  }
 
   if (loading) {
     return (
@@ -343,9 +294,7 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
                     transition={{ delay: index * 0.1 }}
                   >
                     <td className="px-6 py-4 text-gray-800 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      <span style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {order.display_customer_name || 'کڕیاری گشتی'}
-                      </span>
+                      {order.display_customer_name || 'کڕیاری گشتی'}
                     </td>
                     <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(order.total)}</td>
                     <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.payment_method)}`}>{getStatusText(order.payment_method)}</span></td>
@@ -378,63 +327,14 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
         </div>
       </motion.div>
 
-      {/* Invoice Modal */}
-      <AnimatePresence>
-        {showInvoiceModal && invoiceDetails && selectedOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowInvoiceModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-3">
-                  <FaEye className="text-blue-500 text-2xl" />
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>وردەکارییەکان</h3>
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>{invoiceDetails.customers?.name || 'کڕیاری گشتی'}</p>
-                  </div>
-                </div>
-                <motion.button onClick={() => setShowInvoiceModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </motion.button>
-              </div>
-              <div className="overflow-y-auto max-h-[60vh] p-4 flex justify-center">
-                <div style={{ zoom: 0.5 }}>
-                  <InvoicePreview saleData={invoiceDetails} invoice={selectedOrder} settings={invoiceSettings} />
-                </div>
-              </div>
-              <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی گشتی</p>
-                    <p className="text-xl font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(selectedOrder.total)} IQD</p>
-                  </div>
-                  <motion.button
-                    onClick={() => setShowInvoiceModal(false)}
-                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-xl"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    داخستن
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Global Invoice Modal */}
+      <GlobalInvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        invoiceData={getInvoiceData()}
+        invoiceId={selectedOrder?.id}
+        title="وردەکارییەکانی فاکتور"
+      />
     </>
   )
 }

@@ -226,6 +226,7 @@ export async function GET() {
         location,
         email,
         role_id,
+        is_active,
         roles (
           name,
           permissions

@@ -1,24 +1,33 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaCog, FaImage, FaMapMarkerAlt, FaPhone, FaQrcode, FaStore } from 'react-icons/fa'
+import { FaClock, FaCog, FaImage, FaMapMarkerAlt, FaPhone, FaQrcode, FaStore } from 'react-icons/fa'
 
 interface ShopSettings {
   id: string
-  shopname: string
-  icon: string
-  phone: string
-  location: string
-  qrcodeimage: string
+  shop_name: string
+  shop_logo: string
+  shop_phone: string
+  shop_address: string
+  qr_code_url: string
+  auto_logout_minutes?: number
 }
 
 interface SettingsTabProps {
   shopSettings: ShopSettings | null
   shopSettingsForm: Partial<ShopSettings>
-  onUpdateForm: (field: string, value: string) => void
+  onUpdateForm: (field: string, value: string | number) => void
   onImageUpload: (file: File, field: string) => void
   onSaveAll: () => void
 }
+
+const timeoutOptions = [
+  { value: 1, label: '1 خولەک' },
+  { value: 5, label: '5 خولەک' },
+  { value: 15, label: '15 خولەک' },
+  { value: 30, label: '30 خولەک' },
+  { value: 60, label: '1 کاتژمێر' },
+]
 
 export default function SettingsTab({ 
   shopSettings, 
@@ -55,8 +64,8 @@ export default function SettingsTab({
               <FaStore className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                value={shopSettingsForm.shopname || ''}
-                onChange={(e) => onUpdateForm('shopname', e.target.value)}
+                value={shopSettingsForm.shop_name || ''}
+                onChange={(e) => onUpdateForm('shop_name', e.target.value)}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
                 placeholder="ناوی فرۆشگاکەت"
@@ -76,13 +85,46 @@ export default function SettingsTab({
               <FaPhone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                value={shopSettingsForm.phone || ''}
-                onChange={(e) => onUpdateForm('phone', e.target.value)}
+                value={shopSettingsForm.shop_phone || ''}
+                onChange={(e) => onUpdateForm('shop_phone', e.target.value)}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
                 style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
                 placeholder="+964 XXX XXX XXXX"
               />
             </div>
+          </div>
+
+          {/* Auto Logout Timeout */}
+          <div>
+            <label 
+              className="block text-sm font-semibold mb-3 text-gray-700"
+              style={{ fontFamily: 'var(--font-uni-salar)' }}
+            >
+              <FaClock className="inline ml-2 text-blue-500" />
+              چوونە دەرەوەی خۆکارانە
+            </label>
+            <div className="relative">
+              <FaClock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <select
+                value={shopSettingsForm.auto_logout_minutes || 15}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value)
+                  console.log("Dropdown changed to:", value)
+                  onUpdateForm('auto_logout_minutes', value)
+                }}
+                className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+              >
+                {timeoutOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-gray-500 mt-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              دوای ئەوەی بەکارهێنەر بۆ ماوەی ئەوەی لێی دەرنەچێت، سیستەمەکە بە شێوەیەکی خۆکار دەچێتە دەرەوە
+            </p>
           </div>
 
           {/* Location */}
@@ -96,8 +138,8 @@ export default function SettingsTab({
             <div className="relative">
               <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
               <textarea
-                value={shopSettingsForm.location || ''}
-                onChange={(e) => onUpdateForm('location', e.target.value)}
+                value={shopSettingsForm.shop_address || ''}
+                onChange={(e) => onUpdateForm('shop_address', e.target.value)}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none resize-none"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
                 placeholder="ناونیشانی فرۆشگاکەت"
@@ -122,16 +164,16 @@ export default function SettingsTab({
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) {
-                    onImageUpload(file, 'icon')
+                    onImageUpload(file, 'shop_logo')
                   }
                 }}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
               />
             </div>
-            {shopSettings?.icon && (
+            {shopSettings?.shop_logo && (
               <div className="mt-3">
                 <img
-                  src={shopSettings.icon}
+                  src={shopSettings.shop_logo}
                   alt="Shop Icon"
                   className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
                 />
@@ -155,16 +197,16 @@ export default function SettingsTab({
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) {
-                    onImageUpload(file, 'qrcodeimage')
+                    onImageUpload(file, 'qr_code_url')
                   }
                 }}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
               />
             </div>
-            {shopSettings?.qrcodeimage && (
+            {shopSettings?.qr_code_url && (
               <div className="mt-3">
                 <img
-                  src={shopSettings.qrcodeimage}
+                  src={shopSettings.qr_code_url}
                   alt="QR Code"
                   className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
                 />

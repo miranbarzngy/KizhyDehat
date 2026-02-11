@@ -35,11 +35,12 @@ interface Role {
 
 interface ShopSettings {
   id: string;
-  shopname: string;
-  icon: string;
-  phone: string;
-  location: string;
-  qrcodeimage: string;
+  shop_name: string;
+  shop_logo: string;
+  shop_phone: string;
+  shop_address: string;
+  qr_code_url: string;
+  auto_logout_minutes?: number;
 }
 
 type AdminTab = "users" | "roles" | "settings";
@@ -145,7 +146,7 @@ export default function AdminPage() {
         .select("id, name, permissions");
       const { data: usersData } = await supabase
         .from("profiles")
-        .select("id, name, image, phone, location, email, role_id");
+        .select("id, name, image, phone, location, email, role_id, is_active");
 
       const usersWithRoles: User[] =
         usersData?.map((user) => ({
@@ -233,11 +234,12 @@ export default function AdminPage() {
     if (!supabase) {
       const demoSettings: ShopSettings = {
         id: "demo-shop",
-        shopname: "فرۆشگای کوردستان",
-        icon: "",
-        phone: "+964 750 123 4567",
-        location: "هەولێر، کوردستان",
-        qrcodeimage: "",
+        shop_name: "فرۆشگای کوردستان",
+        shop_logo: "",
+        shop_phone: "+964 750 123 4567",
+        shop_address: "هەولێر، کوردستان",
+        qr_code_url: "",
+        auto_logout_minutes: 15,
       };
       setShopSettings(demoSettings);
       setShopSettingsForm(demoSettings);
@@ -246,12 +248,20 @@ export default function AdminPage() {
 
     try {
       const { data, error } = await supabase
-        .from("shop_settings")
+        .from("invoice_settings")
         .select("*")
         .single();
       if (error && error.code !== "PGRST116") throw error;
+      
+      console.log("Fetched shop settings from DB:", data);
+      
       setShopSettings(data || null);
-      if (data) setShopSettingsForm(data);
+      if (data) {
+        setShopSettingsForm({
+          ...data,
+          auto_logout_minutes: data.auto_logout_minutes ?? 15,
+        });
+      }
     } catch (error) {
       console.error("Error fetching shop settings:", error);
     }
@@ -441,20 +451,30 @@ export default function AdminPage() {
   };
 
   // Settings actions
-  const updateShopSettingsField = async (field: string, value: string) => {
+  const updateShopSettingsField = async (field: string, value: string | number) => {
     if (!supabase) return;
     try {
-      const updateData: any = {
-        [field]: value,
-        updated_at: new Date().toISOString(),
+      const fieldMapping: Record<string, string> = {
+        shop_name: 'shop_name',
+        shop_phone: 'shop_phone', 
+        shop_address: 'shop_address',
+        shop_logo: 'shop_logo',
+        qr_code_url: 'qr_code_url',
+        auto_logout_minutes: 'auto_logout_minutes',
       };
+      
+      const dbField = fieldMapping[field] || field;
+      const updateData: any = {
+        [dbField]: value,
+      };
+      
       if (shopSettings) {
         await supabase
-          .from("shop_settings")
+          .from("invoice_settings")
           .update(updateData)
           .eq("id", shopSettings.id);
       } else {
-        await supabase.from("shop_settings").insert(updateData);
+        await supabase.from("invoice_settings").insert(updateData);
       }
       fetchShopSettings();
     } catch (error) {
@@ -501,17 +521,24 @@ export default function AdminPage() {
       return;
     }
     try {
+      // Map to correct column names
       const updateData = {
-        ...shopSettingsForm,
-        updated_at: new Date().toISOString(),
+        shop_name: shopSettingsForm.shop_name || '',
+        shop_phone: shopSettingsForm.shop_phone || '',
+        shop_address: shopSettingsForm.shop_address || '',
+        shop_logo: shopSettingsForm.shop_logo || '',
+        qr_code_url: shopSettingsForm.qr_code_url || '',
+        auto_logout_minutes: shopSettingsForm.auto_logout_minutes || 15,
       };
+      console.log("Saving settings:", updateData);
+      
       if (shopSettings) {
         await supabase
-          .from("shop_settings")
+          .from("invoice_settings")
           .update(updateData)
           .eq("id", shopSettings.id);
       } else {
-        await supabase.from("shop_settings").insert(updateData);
+        await supabase.from("invoice_settings").insert(updateData);
       }
       alert("ڕێکخستنەکان بە سەرکەوتوویی نوێکرانەوە");
       fetchShopSettings();

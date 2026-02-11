@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -34,6 +35,13 @@ export default function LoginPage() {
       } catch (err) {
         console.error('Error fetching shop logo:', err)
       }
+    }
+
+    // Check for auto logout message
+    const autoLogoutMessage = localStorage.getItem('authError')
+    if (autoLogoutMessage) {
+      setError(autoLogoutMessage)
+      localStorage.removeItem('authError')
     }
 
     fetchShopLogo()
@@ -101,6 +109,7 @@ export default function LoginPage() {
                 className="block w-full px-4 py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-left font-sans"
                 placeholder="example@email.com"
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
 
@@ -120,30 +129,58 @@ export default function LoginPage() {
                 className="block w-full px-4 py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-left font-sans"
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
 
-            {/* Error Message */}
+            {/* Error Message - Styled nicely for blocked users */}
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-400 text-sm text-center font-uni-salar">
-                {error}
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-red-600 dark:text-red-400 text-sm font-uni-salar text-center">
+                    {error}
+                  </p>
+                </div>
+              </motion.div>
             )}
 
             {/* Submit Button */}
-            <button
+            <motion.button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 font-uni-salar"
+              whileHover={{ scale: loading ? 1 : 1.02 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 font-uni-salar flex items-center justify-center gap-2"
             >
-              {loading ? 'چاوەڕوان بە...' : 'چوونە ژوورەوە'}
-            </button>
+              {loading ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                  />
+                  <span>چاوەڕوان بە...</span>
+                </>
+              ) : (
+                'چوونە ژوورەوە'
+              )}
+            </motion.button>
           </form>
         </div>
 
         {/* Footer Text */}
         <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 font-uni-salar">
-            سیستەمی فرۆشتن<br />گەشپێدراوە لەلایەن کلیک گروپ <br/><span className="font-uni-salar" suppressHydrationWarning>٠٧٧٠١٤٦٦٧٨٧</span></p>
+          سیستەمی فرۆشتن<br />
+          گەشپێدراوە لەلایەن کلیک گروپ <br />
+          <span className="font-uni-salar" suppressHydrationWarning>٠٧٧٠١٤٦٦٧٨٧</span>
+        </p>
       </div>
     </div>
   )

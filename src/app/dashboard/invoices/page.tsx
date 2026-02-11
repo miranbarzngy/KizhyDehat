@@ -1142,7 +1142,7 @@ export default function InvoicesPage() {
         unit: item.unit,
         total: item.price * item.quantity, // Calculate line total correctly
         products: {
-          name: item.item_name,
+          name: item.name,
           unit: item.unit
         }
       }))

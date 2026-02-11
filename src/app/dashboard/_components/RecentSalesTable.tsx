@@ -191,25 +191,25 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
         console.error('Error fetching sale items:', itemsError.message, itemsError.code, itemsError.hint)
       }
 
-      // Fetch inventory names separately using item_ids
-      let inventoryData: any[] | null = null
+      // Fetch product names separately using item_ids
+      let productsData: any[] | null = null
       const itemIds = (saleItems || []).map((item: any) => item.item_id).filter(Boolean)
       if (itemIds.length > 0) {
-        const { data: invData, error: invError } = await supabase
-          .from('inventory')
-          .select('id, item_name')
+        const { data: prodData, error: prodError } = await supabase
+          .from('products')
+          .select('id, name')
           .in('id', itemIds)
-        if (invError) {
-          console.error('Error fetching inventory names:', invError.message, invError.code, invError.hint)
+        if (prodError) {
+          console.error('Error fetching product names:', prodError.message, prodError.code, prodError.hint)
         }
-        inventoryData = invData
+        productsData = prodData
       }
 
-      // Manual mapping: match inventory item_name to each sale item
+      // Manual mapping: match product name to each sale item
       const saleItemsWithNames = (saleItems || []).map((item: any) => ({
         ...item,
         products: {
-          name: inventoryData?.find((inv: any) => inv.id === item.item_id)?.item_name || 'کاڵای سڕاوە'
+          name: productsData?.find((prod: any) => prod.id === item.item_id)?.name || 'کاڵای سڕاوە'
         }
       }))
 

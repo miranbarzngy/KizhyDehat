@@ -3,7 +3,8 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
-import { Store } from 'lucide-react'
+import { Store, LogOut, X, Sun, Moon, Palette, Crown } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface SidebarProps {
   shopSettings: {
@@ -17,6 +18,13 @@ interface SidebarProps {
   isOpen: boolean
   onClose: () => void
 }
+
+const themeOptions = [
+  { key: 'white', name: 'سپی', color: '#ffffff', textColor: '#000000', icon: Sun },
+  { key: 'colourful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff', icon: Palette },
+  { key: 'black-gold', name: 'زێڕین', color: '#D4AF37', textColor: '#ffffff', icon: Crown },
+  { key: 'dark', name: 'تاریک', color: '#374151', textColor: '#ffffff', icon: Moon }
+]
 
 export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps) {
   const { user, profile, signOut } = useAuth()
@@ -33,84 +41,35 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/10 z-40"
         onClick={onClose}
       />
 
-      {/* Sidebar */}
-      <div
+      {/* Floating Sidebar Panel */}
+      <motion.div
         ref={sidebarRef}
-        className="fixed top-0 right-0 h-full w-80 z-50 transform transition-transform duration-300 ease-in-out"
-        style={{ background: 'var(--theme-sidebar-bg)' }}
+        initial={{ x: '100%', opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed top-4 right-4 w-72 max-h-[50vh] z-50 shadow-2xl overflow-hidden rounded-3xl"
+        style={{ 
+          background: 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(40px)',
+          WebkitBackdropFilter: 'blur(40px)',
+          border: '1px solid rgba(255, 255, 255, 0.4)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
       >
-        <div className="p-6 h-full flex flex-col">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="self-end mb-6 p-2 rounded-full hover:bg-opacity-20"
-            style={{ color: 'var(--theme-sidebar-text)' }}
-          >
-            ✕
-          </button>
-
-          {/* User Profile Section */}
-          <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-20 h-20 rounded-full mb-4 shadow-lg flex items-center justify-center overflow-hidden"
-              style={{
-                background: 'var(--theme-sidebar-hover)',
-                color: 'var(--theme-sidebar-text)'
-              }}
-            >
-              {profile?.image && profile.image.trim() !== '' ? (
-                <img
-                  src={profile.image}
-                  alt="User Avatar"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement
-                    if (fallback) fallback.style.display = 'flex'
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-              ) : null}
-              {(!profile?.image || profile.image.trim() === '') && (
-                <span
-                  className="text-2xl font-bold"
-                  style={{
-                    color: 'var(--theme-sidebar-text)',
-                    fontFamily: 'var(--font-uni-salar)'
-                  }}
-                >
-                  {profile?.name?.charAt(0)?.toUpperCase() || user?.email?.split('@')[0]?.charAt(0)?.toUpperCase() || 'ب'}
-                </span>
-              )}
-            </div>
-            <h3
-              className="text-lg font-bold text-center mb-1"
-              style={{
-                color: 'var(--theme-sidebar-text)',
-                fontFamily: 'var(--font-uni-salar)'
-              }}
-            >
-              {profile?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'}
-            </h3>
-            <p
-              className="text-sm opacity-75 text-center"
-              style={{
-                color: 'var(--theme-secondary)',
-                fontFamily: 'var(--font-uni-salar)'
-              }}
-            >
-              {profile?.role?.name || 'ڕۆڵی نەناسراو'}
-            </p>
-          </div>
-
-          {/* Theme Toggle Section */}
-          <div className="mb-8">
+        <div className="p-4 flex flex-col gap-4">
+          {/* Header with Close button */}
+          <div className="flex items-center justify-between">
             <h4
-              className="text-sm font-semibold mb-4 text-center"
+              className="text-sm font-semibold"
               style={{
                 color: 'var(--theme-sidebar-text)',
                 fontFamily: 'var(--font-uni-salar)'
@@ -118,55 +77,94 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             >
               دیاریکردنی ڕەنگ
             </h4>
-            <div className="flex justify-center gap-3">
-              {[
-                { key: 'white', icon: '☀️', name: 'سپی', color: '#ffffff' },
-                { key: 'colourful', icon: '🌈', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b' },
-                { key: 'black-gold', icon: '👑', name: 'زێڕین', color: '#D4AF37' },
-                { key: 'dark', icon: '🌙', name: 'تاریک', color: '#374151' }
-              ].map((themeOption) => (
-                <button
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-black/10 transition-colors"
+              style={{ color: 'var(--theme-sidebar-text)' }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Theme Toggle Section */}
+          <div className="flex flex-wrap justify-center gap-3">
+            {themeOptions.map((themeOption) => {
+              const Icon = themeOption.icon
+              return (
+                <motion.button
                   key={themeOption.key}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all duration-200 hover:scale-110 shadow-sm"
+                  onClick={() => {
+                    const root = document.documentElement
+                    switch (themeOption.key) {
+                      case 'white':
+                        root.style.setProperty('--theme-background', '#f8fafc')
+                        root.style.setProperty('--theme-foreground', '#1e293b')
+                        root.style.setProperty('--theme-sidebar-bg', '#ffffff')
+                        root.style.setProperty('--theme-sidebar-text', '#1e293b')
+                        root.style.setProperty('--theme-sidebar-hover', '#f1f5f9')
+                        root.style.setProperty('--theme-primary', '#6366f1')
+                        break
+                      case 'colourful':
+                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
+                        root.style.setProperty('--theme-sidebar-bg', 'rgba(255, 255, 255, 0.9)')
+                        root.style.setProperty('--theme-sidebar-text', '#2d3748')
+                        root.style.setProperty('--theme-primary', '#ff6b6b')
+                        break
+                      case 'black-gold':
+                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)')
+                        root.style.setProperty('--theme-sidebar-bg', 'rgba(30, 30, 30, 0.95)')
+                        root.style.setProperty('--theme-sidebar-text', '#f5f5f5')
+                        root.style.setProperty('--theme-primary', '#D4AF37')
+                        break
+                      case 'dark':
+                        root.style.setProperty('--theme-background', '#111827')
+                        root.style.setProperty('--theme-sidebar-bg', '#1f2937')
+                        root.style.setProperty('--theme-sidebar-text', '#f9fafb')
+                        root.style.setProperty('--theme-primary', '#6366f1')
+                        break
+                    }
+                    localStorage.setItem('pos-theme', themeOption.key)
+                  }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md border border-white/30"
                   style={{
                     backgroundColor: themeOption.color,
-                    color: themeOption.key === 'white' ? '#000000' : '#ffffff'
+                    color: themeOption.textColor,
+                    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)'
                   }}
                   title={themeOption.name}
                 >
-                  {themeOption.icon}
-                </button>
-              ))}
-            </div>
-            <div className="mt-3 text-center">
-              <span 
-                className="text-xs font-medium" 
-                style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}
-              >
-                ڕەنگە هەڵبژێردراوەکان
-              </span>
-            </div>
+                  <Icon className="w-5 h-5" />
+                </motion.button>
+              )
+            })}
           </div>
 
+          {/* Divider */}
+          <div className="h-px bg-black/10" />
+
           {/* Logout Button */}
-          <div className="mt-auto">
-            <button
-              onClick={() => {
-                onClose()
-                handleSignOut()
-              }}
-              className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg"
-              style={{
-                background: 'var(--theme-sidebar-hover)',
-                color: 'var(--theme-sidebar-text)',
-                fontFamily: 'var(--font-uni-salar)'
-              }}
-            >
-              🚪 دەرچوون
-            </button>
-          </div>
+          <motion.button
+            onClick={() => {
+              onClose()
+              handleSignOut()
+            }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#dc2626',
+              fontFamily: 'var(--font-uni-salar)',
+              border: '1px solid rgba(239, 68, 68, 0.2)'
+            }}
+          >
+            <LogOut className="w-4 h-4" />
+            دەرچوون
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     </>
   )
 }

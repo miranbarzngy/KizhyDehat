@@ -188,6 +188,7 @@ export default function InvoicesPage() {
         return
       }
 
+      // Fetch sales with customer data (no product join - will fetch separately)
       const { data, error } = await supabase
         .from('sales')
         .select(`
@@ -203,8 +204,7 @@ export default function InvoicesPage() {
             item_id,
             quantity,
             price,
-            unit,
-            products(name, unit)
+            unit
           )
         `)
         .eq('status', 'pending')
@@ -214,6 +214,26 @@ export default function InvoicesPage() {
         console.error('Error fetching pending sales:', error.message, error.details)
         setPendingSales([])
         return
+      }
+
+      // Collect all unique item_ids to batch-fetch product names
+      const allItemIds = (data || []).flatMap((sale: any) =>
+        (sale.sale_items || []).map((item: any) => item.item_id)
+      ).filter(Boolean)
+
+      let productsMap: Record<string, string> = {}
+      if (allItemIds.length > 0) {
+        const uniqueIds = [...new Set(allItemIds)]
+        const { data: prodData, error: prodError } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', uniqueIds)
+        if (prodError) {
+          console.error('Error fetching product names:', prodError.message)
+        }
+        if (prodData) {
+          prodData.forEach((p: any) => { productsMap[p.id] = p.name })
+        }
       }
 
       // Transform data to match PendingSale interface
@@ -249,9 +269,9 @@ export default function InvoicesPage() {
             discount_amount: sale.discount_amount || 0,
             date: sale.date,
             items: sale.sale_items?.map((item: any) => ({
-              name: item.products?.name || 'نەناسراو',
+              name: productsMap[item.item_id] || 'کاڵای سڕاوە',
               quantity: item.quantity,
-              unit: item.products?.unit || item.unit || 'دانە',
+              unit: item.unit || 'دانە',
               price: item.price,
               total: item.price * item.quantity
             })) || []
@@ -1234,45 +1254,29 @@ export default function InvoicesPage() {
         // Continue with empty items if this fails
       }
 
-      // Fetch inventory item names for each sale item
-      const saleItemsWithNames = await Promise.all(
-        (saleItemsData || []).map(async (item: any) => {
-          try {
-            if (!supabase) {
-              return {
-                ...item,
-                products: {
-                  name: 'نەناسراو',
-                  unit: item.unit
-                }
-              }
-            }
+      // Fetch product names for sale items from products table
+      const itemIds = (saleItemsData || []).map((item: any) => item.item_id).filter(Boolean)
+      let productsMap: Record<string, string> = {}
+      if (itemIds.length > 0 && supabase) {
+        const { data: prodData, error: prodError } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', itemIds)
+        if (prodError) {
+          console.error('Error fetching product names:', prodError.message, prodError.code, prodError.hint)
+        }
+        if (prodData) {
+          prodData.forEach((p: any) => { productsMap[p.id] = p.name })
+        }
+      }
 
-            const { data: inventoryData, error: inventoryError } = await supabase
-              .from('inventory')
-              .select('item_name')
-              .eq('id', item.item_id)
-              .single()
-
-            return {
-              ...item,
-              products: {
-                name: inventoryData?.item_name || 'نەناسراو',
-                unit: item.unit
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching inventory item:', error)
-            return {
-              ...item,
-              products: {
-                name: 'نەناسراو',
-                unit: item.unit
-              }
-            }
-          }
-        })
-      )
+      const saleItemsWithNames = (saleItemsData || []).map((item: any) => ({
+        ...item,
+        products: {
+          name: productsMap[item.item_id] || 'کاڵای سڕاوە',
+          unit: item.unit
+        }
+      }))
 
       setSelectedInvoice(invoice)
       setInvoiceDetails({
@@ -1989,7 +1993,7 @@ export default function InvoicesPage() {
                               {sale.customer_phone || '—'}
                             </td>
                             <td className="px-2 md:px-6 py-3 md:py-4 text-gray-800 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              {sale.items.map(item => item.item_name).join(', ')}
+                              {sale.items.map(item => item.name).join(', ')}
                             </td>
                             <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                               {sale.items.map(item => item.unit).join(', ')}

@@ -225,22 +225,22 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
   if (loading) {
     return (
       <motion.div
-        className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
+        className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.1 }}
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <FaEye className="text-green-500 text-2xl" />
-            <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <FaEye className="text-green-400 text-2xl" />
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
               فرۆشتنە چاوەڕوانکراوەکان
             </h3>
           </div>
         </div>
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکردن...</p>
+          <p className="text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکردن...</p>
         </div>
       </motion.div>
     )
@@ -249,21 +249,21 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
   return (
     <>
       <motion.div
-        className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
+        className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.1 }}
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <FaEye className="text-green-500 text-2xl" />
-            <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <FaEye className="text-green-400 text-2xl" />
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
               فرۆشتنە چاوەڕوانکراوەکان
             </h3>
           </div>
           <motion.button
             onClick={() => router.push('/dashboard/invoices')}
-            className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="px-4 py-2 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 text-emerald-400 font-bold rounded-2xl shadow-lg hover:shadow-emerald-500/25 transition-all duration-300"
             style={{ fontFamily: 'var(--font-uni-salar)' }}
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
@@ -275,12 +275,12 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-gray-200/50">
-                <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
-                <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>دۆخ</th>
-                <th className="px-6 py-4 text-right font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                <th className="px-6 py-4 text-center font-semibold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
+              <tr className="border-b border-white/10">
+                <th className="px-6 py-4 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
+                <th className="px-6 py-4 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                <th className="px-6 py-4 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>دۆخ</th>
+                <th className="px-6 py-4 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                <th className="px-6 py-4 text-center font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
               </tr>
             </thead>
             <tbody>
@@ -288,21 +288,21 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
                 recentOrders.map((order, index) => (
                   <motion.tr
                     key={order.id}
-                    className="border-b border-gray-100/50 hover:bg-white/30 transition-colors duration-200"
+                    className="border-b border-white/5 hover:bg-white/10 transition-colors duration-200"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <td className="px-6 py-4 text-gray-800 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    <td className="px-6 py-4 text-gray-200 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                       {order.display_customer_name || 'کڕیاری گشتی'}
                     </td>
-                    <td className="px-6 py-4 text-gray-800 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(order.total)}</td>
+                    <td className="px-6 py-4 text-gray-200 font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(order.total)}</td>
                     <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.payment_method)}`}>{getStatusText(order.payment_method)}</span></td>
-                    <td className="px-6 py-4 text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>{new Date(order.date).toLocaleDateString('ku')}</td>
+                    <td className="px-6 py-4 text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>{new Date(order.date).toLocaleDateString('ku')}</td>
                     <td className="px-6 py-4 text-center">
                       <motion.button
                         onClick={() => viewOrderDetails(order)}
-                        className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200 mx-auto"
+                        className="w-10 h-10 bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-400 rounded-xl flex items-center justify-center shadow-lg hover:shadow-blue-500/25 transition-colors duration-200 mx-auto"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         title="بینین"

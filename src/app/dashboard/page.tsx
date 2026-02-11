@@ -193,7 +193,7 @@ export default function DashboardPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -203,15 +203,15 @@ export default function DashboardPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 داشبۆردی دارایی
               </h1>
-              <p className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <p className="text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 پێشبینینی گشتیی کاروباری فرۆشگاکەت
               </p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-blue-600">
+              <p className="text-lg font-bold text-blue-400">
                 {new Date().toLocaleDateString('ku')}
               </p>
             </div>

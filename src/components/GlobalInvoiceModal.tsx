@@ -295,14 +295,14 @@ export default function GlobalInvoiceModal({
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons - Glassmorphism Style */}
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-1 sm:order-2">
-                  {/* Print Button */}
+                  {/* Print Button - Emerald Glass */}
                   <motion.button
                     onClick={handlePrint}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 text-emerald-400 font-bold rounded-xl shadow-lg hover:shadow-emerald-500/25 transition-all duration-300"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                     style={{ fontFamily: 'var(--font-uni-salar)' }}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,12 +311,12 @@ export default function GlobalInvoiceModal({
                     <span>چاپکردن</span>
                   </motion.button>
 
-                  {/* Download Button */}
+                  {/* Download Button - Blue Glass */}
                   <motion.button
                     onClick={handleDownload}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-400 font-bold rounded-xl shadow-lg hover:shadow-blue-500/25 transition-all duration-300"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                     style={{ fontFamily: 'var(--font-uni-salar)' }}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,12 +325,12 @@ export default function GlobalInvoiceModal({
                     <span>دابەزاندن</span>
                   </motion.button>
 
-                  {/* Close Button */}
+                  {/* Close Button - Rose Glass */}
                   <motion.button
                     onClick={onClose}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-500/20 backdrop-blur-md border border-rose-500/30 text-rose-400 font-bold rounded-xl shadow-lg hover:shadow-rose-500/25 transition-all duration-300"
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                     style={{ fontFamily: 'var(--font-uni-salar)' }}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

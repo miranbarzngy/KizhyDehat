@@ -1,6 +1,6 @@
 'use client'
 
-import { FaEdit, FaTrash, FaHistory, FaMoneyBillWave } from 'react-icons/fa'
+import { motion } from 'framer-motion'
 
 interface SupplierCardProps {
   supplier: {
@@ -20,9 +20,9 @@ interface SupplierCardProps {
 export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, onPayment }: SupplierCardProps) {
   return (
     <div
-      className="relative p-6 rounded-2xl backdrop-blur-md border hover:scale-105 transition-all"
+      className="relative p-6 rounded-2xl backdrop-blur-md border"
       style={{
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: 'rgba(255, 255, 255, 0.6)',
         borderColor: 'rgba(255, 255, 255, 0.2)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
       }}
@@ -31,8 +31,7 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center mx-auto overflow-hidden"
           style={{
-            background: 'rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.05))',
             border: '2px solid rgba(255, 255, 255, 0.3)'
           }}
         >
@@ -63,25 +62,61 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
         <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی قەرز</div>
       </div>
 
-      <div className="flex flex-col space-y-2">
-        <div className="flex justify-center space-x-2">
-          <button onClick={onEdit} className="px-3 py-2 bg-blue-100 text-blue-600 rounded-lg flex items-center gap-1">
-            <FaEdit size={14} /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دەستکاری</span>
-          </button>
-          <button onClick={onDelete} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg flex items-center gap-1">
-            <FaTrash size={14} /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>سڕینەوە</span>
-          </button>
-        </div>
-        <div className="flex justify-center space-x-2">
-          <button onClick={onHistory} className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg flex items-center gap-1">
-            <FaHistory size={14} /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>مێژوو</span>
-          </button>
-          {supplier.balance > 0 && (
-            <button onClick={onPayment} className="px-3 py-2 bg-green-100 text-green-600 rounded-lg flex items-center gap-1">
-              <FaMoneyBillWave size={14} /><span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}>دانەوە</span>
-            </button>
-          )}
-        </div>
+      {/* Action Buttons - Permanently Visible */}
+      <div className="flex items-center justify-center gap-3 pt-4 border-t border-gray-200/50">
+        {/* Edit Button - Blue */}
+        <motion.button
+          onClick={onEdit}
+          className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+          title="دەستکاری"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </motion.button>
+
+        {/* Delete Button - Red */}
+        <motion.button
+          onClick={onDelete}
+          className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+          title="سڕینەوە"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </motion.button>
+
+        {/* History Button - Purple */}
+        <motion.button
+          onClick={onHistory}
+          className="w-10 h-10 bg-purple-500 hover:bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+          title="مێژوو"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </motion.button>
+
+        {/* Payment Button - Green (only if balance > 0) */}
+        {supplier.balance > 0 && (
+          <motion.button
+            onClick={onPayment}
+            className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+            title="دانەوە"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </motion.button>
+        )}
       </div>
     </div>
   )

@@ -183,6 +183,9 @@ export default function CustomersPage() {
 
   const fetchPaymentHistory = async (customerId: string) => {
     if (!supabase) return
+    
+    const history: PaymentHistory[] = []
+    
     try {
       // Get customer payments
       const { data: payments, error: paymentsError } = await supabase
@@ -191,66 +194,74 @@ export default function CustomersPage() {
         .eq('customer_id', customerId)
         .order('date', { ascending: false })
 
-      if (paymentsError) throw paymentsError
+      if (paymentsError) {
+        console.warn('customer_payments table error (may not exist):', paymentsError)
+      } else if (payments) {
+        payments.forEach(payment => {
+          history.push({
+            id: `payment-${payment.id}`,
+            date: payment.date,
+            amount: -payment.amount,
+            items: payment.items || '',
+            note: payment.note || 'پارەدان',
+            type: 'payment'
+          })
+        })
+      }
+    } catch (err) {
+      console.warn('Error fetching payments:', err)
+    }
 
-      // Get sales to this customer
+    try {
+      // Get sales to this customer with simplified query
       const { data: sales, error: salesError } = await supabase
         .from('sales')
-        .select(`
-          id,
-          date,
-          total,
-          payment_method,
-          sale_items (
-            inventory!inner(item_name),
-            quantity,
-            unit
-          )
-        `)
+        .select('id, date, total, payment_method')
         .eq('customer_id', customerId)
         .order('date', { ascending: false })
 
-      if (salesError) throw salesError
+      if (salesError) {
+        console.warn('sales table error (may not exist):', salesError)
+      } else if (sales) {
+        // Try to get sale items separately if sales exist
+        for (const sale of sales) {
+          let items = ''
+          try {
+            const { data: saleItems } = await supabase
+              .from('sale_items')
+              .select('quantity, unit, item_name')
+              .eq('sale_id', sale.id)
+            
+            if (saleItems && saleItems.length > 0) {
+              items = saleItems.map((item: any) => 
+                `${item.quantity} ${item.unit} ${item.item_name}`
+              ).join(', ')
+            }
+          } catch (err) {
+            // sale_items table may not exist
+            items = ''
+          }
 
-      const history: PaymentHistory[] = []
-
-      // Add sales
-      sales?.forEach(sale => {
-        const items = sale.sale_items?.map((item: any) =>
-          `${item.quantity} ${item.unit} ${item.inventory.item_name}`
-        ).join(', ') || ''
-
-        history.push({
-          id: `sale-${sale.id}`,
-          date: sale.date,
-          amount: sale.total,
-          items,
-          note: 'فرۆشتن',
-          type: 'sale',
-          payment_method: sale.payment_method,
-          sale_id: sale.id
-        })
-      })
-
-      // Add payments
-      payments?.forEach(payment => {
-        history.push({
-          id: `payment-${payment.id}`,
-          date: payment.date,
-          amount: -payment.amount, // Negative for payments received
-          items: payment.items || '',
-          note: payment.note || 'پارەدان',
-          type: 'payment'
-        })
-      })
-
-      // Sort by date descending
-      history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-      setPaymentHistory(history)
-    } catch (error) {
-      console.error('Error fetching payment history:', error)
+          history.push({
+            id: `sale-${sale.id}`,
+            date: sale.date,
+            amount: sale.total,
+            items,
+            note: 'فرۆشتن',
+            type: 'sale',
+            payment_method: sale.payment_method,
+            sale_id: sale.id
+          })
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching sales:', err)
     }
+
+    // Sort by date descending
+    history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    setPaymentHistory(history)
   }
 
   const handleImageUpload = async (file: File) => {
@@ -520,12 +531,18 @@ export default function CustomersPage() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">بەڕێوەبردنی کڕیاران</h1>
 
       <div className="mb-6">
-        <button
+        <motion.button
           onClick={() => setShowAddCustomer(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+          className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+          style={{ fontFamily: 'var(--font-uni-salar)' }}
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
         >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
           زیادکردنی کڕیار
-        </button>
+        </motion.button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -595,19 +612,21 @@ export default function CustomersPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons - Show on hover */}
-                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1">
+                    {/* Action Buttons - Permanently Visible */}
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
                       <motion.button
                         onClick={(e) => {
                           e.stopPropagation()
                           editCustomer(customer)
                         }}
-                        className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-sm shadow-md"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                        className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         title="نوێکردنەوە"
                       >
-                        ✏️
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </motion.button>
                       <motion.button
                         onClick={(e) => {
@@ -615,12 +634,14 @@ export default function CustomersPage() {
                           setCustomerToDelete(customer)
                           setShowDeleteConfirm(true)
                         }}
-                        className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm shadow-md"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                        className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         title="سڕینەوە"
                       >
-                        🗑️
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </motion.button>
                     </div>
                   </motion.div>
@@ -956,8 +977,7 @@ export default function CustomersPage() {
                           </td>
                           <td className="px-6 py-4">
                             <motion.button
-                              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
+                              className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-all duration-200"
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => {
@@ -965,7 +985,10 @@ export default function CustomersPage() {
                                 alert('فاکتور پیشاندان - بەم زووانە دەکرێت')
                               }}
                             >
-                              👁️ بینینی فاکتور
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
                             </motion.button>
                           </td>
                         </motion.tr>

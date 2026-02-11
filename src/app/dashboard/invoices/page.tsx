@@ -1852,37 +1852,57 @@ export default function InvoicesPage() {
                                  '📝 قەرز'}
                               </span>
                             </td>
-                            <td className="px-2 md:px-6 py-3 md:py-4">
-                              <div className="flex space-x-1 md:space-x-2">
-                                <motion.button
-                                  onClick={() => viewInvoiceDetails(invoice)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="بینینی وردەکارییەکان"
-                                >
-                                  <FaEye className="text-xs md:text-sm" />
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => reprintInvoice(invoice)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-green-500 hover:bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="دووبارە چاپکردن"
-                                >
-                                  <FaPrint className="text-xs md:text-sm" />
-                                </motion.button>
-                                {invoice.status !== 'refunded' && invoice.status !== 'cancelled' && (
+                            <td className="px-2 md:px-6 py-4">
+                              <div className="flex items-center justify-center gap-3">
+                                {/* View Button - Blue */}
+                                <div className="flex flex-col items-center gap-1">
                                   <motion.button
-                                    onClick={() => refundInvoice(invoice)}
-                                    className="px-2 md:px-3 py-1 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                    onClick={() => viewInvoiceDetails(invoice)}
+                                    className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    title="گەڕاندنەوە"
-                                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                                    title="بینین"
                                   >
-                                    ↩️
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
                                   </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
+                                </div>
+
+                                {/* Print Button - Green */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <motion.button
+                                    onClick={() => reprintInvoice(invoice)}
+                                    className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="چاپکردن"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                  </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>چاپکردن</span>
+                                </div>
+
+                                {/* Return Button - Orange (only if not refunded/cancelled) */}
+                                {invoice.status !== 'refunded' && invoice.status !== 'cancelled' && (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <motion.button
+                                      onClick={() => refundInvoice(invoice)}
+                                      className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      title="گەڕاندنەوە"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                      </svg>
+                                    </motion.button>
+                                    <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندنەوە</span>
+                                  </div>
                                 )}
                               </div>
                             </td>
@@ -1985,48 +2005,72 @@ export default function InvoicesPage() {
                                 ⏳ چاوەڕوانکراو
                               </span>
                             </td>
-                            <td className="px-2 md:px-6 py-3 md:py-4">
-                              <div className="flex space-x-1 md:space-x-2">
-                                <motion.button
-                                  onClick={() => viewPendingSaleDetails(sale)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="بینینی وردەکارییەکان"
-                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  <FaEye className="text-xs md:text-sm" />
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => confirmSale(sale)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-green-500 hover:bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="فرۆشراوی فرۆشتن"
-                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  فرۆشراو
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => returnSale(sale)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="گەڕێندراوەی کاڵا"
-                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  گەڕێندراوە
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => cancelSale(sale)}
-                                  className="px-2 md:px-3 py-1 md:py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs md:text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  title="هەڵوەشاندنەوەی فرۆشتن"
-                                  style={{ fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  هەڵوەشاندنەوە
-                                </motion.button>
+                            <td className="px-2 md:px-6 py-4">
+                              <div className="flex items-center justify-center gap-3">
+                                {/* View Button - Blue */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <motion.button
+                                    onClick={() => viewPendingSaleDetails(sale)}
+                                    className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="بینین"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                  </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
+                                </div>
+
+                                {/* Confirm Button - Green */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <motion.button
+                                    onClick={() => confirmSale(sale)}
+                                    className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="پشتڕاستکردنەوە"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>پەسەندکردن</span>
+                                </div>
+
+                                {/* Return Button - Orange */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <motion.button
+                                    onClick={() => returnSale(sale)}
+                                    className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="گەڕاندنەوە"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                  </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندنەوە</span>
+                                </div>
+
+                                {/* Cancel Button - Red */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <motion.button
+                                    onClick={() => cancelSale(sale)}
+                                    className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="هەڵوەشاندنەوە"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </motion.button>
+                                  <span className="text-[10px] text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>لابردن</span>
+                                </div>
                               </div>
                             </td>
                           </motion.tr>

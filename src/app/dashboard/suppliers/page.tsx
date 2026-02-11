@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { FaTh, FaList, FaSearch } from 'react-icons/fa'
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
@@ -120,11 +121,18 @@ export default function SuppliersPage() {
         بەڕێوەبردنی دابینکەران
       </h1>
 
-      <button onClick={() => setShowAddModal(true)}
-        className="px-6 py-3 rounded-lg font-medium hover:scale-105 transition-all mb-6"
-        style={{ backgroundColor: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
+      <motion.button
+        onClick={() => setShowAddModal(true)}
+        className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 mb-6"
+        style={{ fontFamily: 'var(--font-uni-salar)' }}
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
         زیادکردنی دابینکەر
-      </button>
+      </motion.button>
 
       <div className="p-6 rounded-lg shadow-md" style={{ background: 'var(--theme-card-bg)', border: '1px solid var(--theme-border)' }}>
         <div className="flex justify-between items-center mb-6">

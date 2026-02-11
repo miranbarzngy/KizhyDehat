@@ -187,7 +187,7 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
 
       const { data: joinedItems, error: itemsError } = await supabase
         .from('sale_items')
-        .select(`id, quantity, price, unit, item_id, inventory:item_id(item_name, name)`)
+        .select(`id, quantity, price, unit, item_id, inventory!item_id(item_name)`)
         .eq('sale_id', order.id)
 
       if (itemsError) {
@@ -206,13 +206,13 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
         itemsJoinWorked = true
       }
 
-      // Map items with product names
+      // Map items with inventory names
       let saleItemsWithNames: any[]
       if (itemsJoinWorked && saleItems && saleItems.length > 0) {
-        // Join worked - use inventory name (try item_name first, then name)
+        // Join worked - use inventory.item_name
         saleItemsWithNames = saleItems.map((item: any) => ({
           ...item,
-          products: { name: item.inventory?.item_name || item.inventory?.name || 'کاڵای سڕاوە' }
+          products: { name: item.inventory?.item_name || 'کاڵای سڕاوە' }
         }))
       } else {
         // Join failed - try individual fetches as fallback
@@ -221,10 +221,10 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
             try {
               const { data: inventoryData } = await supabase
                 .from('inventory')
-                .select('item_name, name')
+                .select('item_name')
                 .eq('id', item.item_id)
                 .single()
-              return { ...item, products: { name: inventoryData?.item_name || inventoryData?.name || 'کاڵای سڕاوە' } }
+              return { ...item, products: { name: inventoryData?.item_name || 'کاڵای سڕاوە' } }
             } catch {
               return { ...item, products: { name: 'کاڵای سڕاوە' } }
             }

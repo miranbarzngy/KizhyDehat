@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, image, phone, location, email, password, roleId } = await request.json()
+    const { name, image, phone, location, email, password, roleId, isActive } = await request.json()
 
     // Validate required fields
     if (!email || !password || !roleId) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create profile
+    // Create profile with is_active (default to true if not provided)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
         phone,
         location,
         email,
-        role_id: roleId
+        role_id: roleId,
+        is_active: isActive !== false
       })
 
     if (profileError) {
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, name, image, phone, location, email, password, roleId } = await request.json()
+    const { id, name, image, phone, location, email, password, roleId, isActive } = await request.json()
 
     // Validate required fields
     if (!id) {
@@ -107,7 +108,8 @@ export async function PUT(request: NextRequest) {
       phone,
       location,
       email,
-      role_id: roleId
+      role_id: roleId,
+      is_active: isActive
     }
 
     // Remove undefined values

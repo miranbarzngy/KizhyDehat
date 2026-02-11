@@ -87,8 +87,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabase()
     if (!supabase) throw new Error('Supabase not configured')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    
+    // Sign in first
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    
+    // Check if user's profile has is_active = false
+    if (data.user) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_active')
+          .eq('id', data.user.id)
+          .single()
+        
+        if (profile?.is_active === false) {
+          // Sign out the user and throw error
+          await supabase.auth.signOut()
+          throw new Error('ئەم هەژمارە ڕاگیراوە، تکایە پەیوەندی بە بەڕێوەبەرەوە بکە.')
+        }
+      } catch (profileError: any) {
+        // If profile fetch fails, allow login (profile might not exist yet)
+        console.warn('Could not fetch profile for is_active check:', profileError)
+      }
+    }
   }
 
   const signUp = async (email: string, password: string) => {

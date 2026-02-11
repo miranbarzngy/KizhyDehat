@@ -1,60 +1,78 @@
-'use client'
+"use client";
 
-import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency, sanitizePhoneNumber } from '@/lib/numberUtils'
-import { supabase } from '@/lib/supabase'
-import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
-import { FaCog, FaEdit, FaEye, FaImage, FaMapMarkerAlt, FaPhone, FaPlus, FaQrcode, FaShieldAlt, FaStore, FaTrash, FaUser, FaUsers } from 'react-icons/fa'
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { FaCog, FaShieldAlt, FaUsers } from "react-icons/fa";
+import StatCards from "@/components/admin/StatCards";
+import UserTab from "@/components/admin/UserTab";
+import RoleTab from "@/components/admin/RoleTab";
+import SettingsTab from "@/components/admin/SettingsTab";
+import UserModal from "@/components/admin/UserModal";
+import RoleModal from "@/components/admin/RoleModal";
 
 interface User {
-  id: string
-  name?: string
-  image?: string
-  phone?: string
-  location?: string
-  email?: string
-  role_id: string
+  id: string;
+  name?: string;
+  image?: string;
+  phone?: string;
+  location?: string;
+  email?: string;
+  role_id: string;
+  is_active?: boolean;
   role?: {
-    name: string
-    permissions: Record<string, boolean>
-  }
+    name: string;
+    permissions: Record<string, boolean>;
+  };
 }
 
 interface Role {
-  id: string
-  name: string
-  permissions: Record<string, boolean>
+  id: string;
+  name: string;
+  permissions: Record<string, boolean>;
 }
 
 interface ShopSettings {
-  id: string
-  shopname: string
-  icon: string
-  phone: string
-  location: string
-  qrcodeimage: string
+  id: string;
+  shopname: string;
+  icon: string;
+  phone: string;
+  location: string;
+  qrcodeimage: string;
 }
 
+type AdminTab = "users" | "roles" | "settings";
+
 export default function AdminPage() {
-  const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'settings'>('users')
-  const [users, setUsers] = useState<User[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
-  const [shopSettingsForm, setShopSettingsForm] = useState<Partial<ShopSettings>>({})
-  const [loading, setLoading] = useState(true)
-  const [showCreateUser, setShowCreateUser] = useState(false)
-  const [showCreateRole, setShowCreateRole] = useState(false)
-  const [newUserName, setNewUserName] = useState('')
-  const [newUserImage, setNewUserImage] = useState('')
-  const [newUserPhone, setNewUserPhone] = useState('')
-  const [newUserLocation, setNewUserLocation] = useState('')
-  const [newUserEmail, setNewUserEmail] = useState('')
-  const [newUserPassword, setNewUserPassword] = useState('')
-  const [selectedRoleId, setSelectedRoleId] = useState('')
-  const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [newRoleName, setNewRoleName] = useState('')
+  const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("users");
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
+  const [shopSettingsForm, setShopSettingsForm] = useState<
+    Partial<ShopSettings>
+  >({});
+  const [loading, setLoading] = useState(true);
+
+  // Modal states
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showCreateRole, setShowCreateRole] = useState(false);
+
+  // User form states
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserImage, setNewUserImage] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserLocation, setNewUserLocation] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [newUserIsActive, setNewUserIsActive] = useState(true);
+
+  // Role form states
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [newRoleName, setNewRoleName] = useState("");
   const [permissions, setPermissions] = useState<Record<string, boolean>>({
     dashboard: false,
     sales: false,
@@ -65,238 +83,186 @@ export default function AdminPage() {
     profits: false,
     help: false,
     admin: false,
-  })
-  const [editingRole, setEditingRole] = useState<Role | null>(null)
-
+  });
 
   useEffect(() => {
-    fetchUsers()
-    fetchRoles()
-    fetchShopSettings()
-  }, [])
+    fetchUsers();
+    fetchRoles();
+    fetchShopSettings();
+  }, []);
 
   const fetchUsers = async () => {
-    // Demo mode: show sample users data when Supabase is not configured
     if (!supabase) {
       const demoUsers: User[] = [
         {
-          id: 'demo-user-1',
-          name: 'ئەحمەد محەمەد',
-          image: '',
-          phone: '+964 750 123 4567',
-          location: 'هەولێر',
-          email: 'ahmed@example.com',
-          role_id: 'admin-role',
+          id: "demo-user-1",
+          name: "ئەحمەد محەمەد",
+          image: "",
+          phone: "+964 750 123 4567",
+          location: "هەولێر",
+          email: "ahmed@example.com",
+          role_id: "admin-role",
           role: {
-            name: 'Admin',
+            name: "Admin",
             permissions: {
               sales: true,
               inventory: true,
               customers: true,
               suppliers: true,
               payroll: true,
-              profits: true
-            }
-          }
+              profits: true,
+            },
+          },
         },
         {
-          id: 'demo-user-2',
-          name: 'فاطمە عەلی',
-          image: '',
-          phone: '+964 751 987 6543',
-          location: 'سلێمانی',
-          email: 'fatima@example.com',
-          role_id: 'manager-role',
+          id: "demo-user-2",
+          name: "فاطمە عەلی",
+          image: "",
+          phone: "+964 751 987 6543",
+          location: "سلێمانی",
+          email: "fatima@example.com",
+          role_id: "manager-role",
           role: {
-            name: 'Manager',
+            name: "Manager",
             permissions: {
               sales: true,
               inventory: true,
               customers: true,
               suppliers: false,
               payroll: false,
-              profits: true
-            }
-          }
-        }
-      ]
-      setUsers(demoUsers)
-      return
+              profits: true,
+            },
+          },
+        },
+      ];
+      setUsers(demoUsers);
+      return;
     }
 
     try {
-      // First, fetch all roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('roles')
-        .select('id, name, permissions')
+      const { data: rolesData } = await supabase
+        .from("roles")
+        .select("id, name, permissions");
+      const { data: usersData } = await supabase
+        .from("profiles")
+        .select("id, name, image, phone, location, email, role_id");
 
-      if (rolesError) {
-        console.error('Error fetching roles:', rolesError)
-        setUsers([])
-        return
-      }
-
-      // Then fetch users
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, name, image, phone, location, email, role_id')
-
-      if (usersError) {
-        console.error('Error fetching users:', usersError)
-        setUsers([])
-        return
-      }
-
-      // Map roles to users
-      const usersWithRoles: User[] = usersData?.map(user => ({
-        ...user,
-        role: rolesData?.find(role => role.id === user.role_id) || undefined
-      })) || []
-
-      setUsers(usersWithRoles)
+      const usersWithRoles: User[] =
+        usersData?.map((user) => ({
+          ...user,
+          role:
+            rolesData?.find((role) => role.id === user.role_id) || undefined,
+        })) || [];
+      setUsers(usersWithRoles);
     } catch (error) {
-      console.error('Error fetching users:', error)
-      // Final fallback: show empty array
-      setUsers([])
+      console.error("Error fetching users:", error);
+      setUsers([]);
     }
-  }
+  };
 
   const fetchRoles = async () => {
-    // Demo mode: show sample roles data when Supabase is not configured
     if (!supabase) {
-      const demoRoles: Role[] = [
+      setRoles([
         {
-          id: 'admin-role',
-          name: 'Admin',
+          id: "admin-role",
+          name: "Admin",
           permissions: {
             sales: true,
             inventory: true,
             customers: true,
             suppliers: true,
             payroll: true,
-            profits: true
-          }
+            profits: true,
+          },
         },
         {
-          id: 'manager-role',
-          name: 'Manager',
+          id: "manager-role",
+          name: "Manager",
           permissions: {
             sales: true,
             inventory: true,
             customers: true,
             suppliers: false,
             payroll: false,
-            profits: true
-          }
+            profits: true,
+          },
         },
         {
-          id: 'cashier-role',
-          name: 'Cashier',
+          id: "cashier-role",
+          name: "Cashier",
           permissions: {
             sales: true,
             inventory: false,
             customers: false,
             suppliers: false,
             payroll: false,
-            profits: false
-          }
-        }
-      ]
-      setRoles(demoRoles)
-      setLoading(false)
-      return
+            profits: false,
+          },
+        },
+      ]);
+      setLoading(false);
+      return;
     }
 
     try {
-      console.log('Fetching roles...')
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*')
-
-      console.log('Roles query result:', { data, error })
-
-      if (error) {
-        console.error('Error fetching roles:', error)
-        // If roles table doesn't exist or is empty, create default roles
-        if (error.code === 'PGRST116' || error.message?.includes('relation "roles" does not exist')) {
-          console.log('Roles table not found, using demo data')
-          const demoRoles: Role[] = [
-            {
-              id: 'admin-role',
-              name: 'Admin',
-              permissions: {
-                sales: true,
-                inventory: true,
-                customers: true,
-                suppliers: true,
-                payroll: true,
-                profits: true
-              }
-            },
-            {
-              id: 'manager-role',
-              name: 'Manager',
-              permissions: {
-                sales: true,
-                inventory: true,
-                customers: true,
-                suppliers: false,
-                payroll: false,
-                profits: true
-              }
-            },
-            {
-              id: 'cashier-role',
-              name: 'Cashier',
-              permissions: {
-                sales: true,
-                inventory: false,
-                customers: false,
-                suppliers: false,
-                payroll: false,
-                profits: false
-              }
-            }
-          ]
-          setRoles(demoRoles)
-        } else {
-          throw error
-        }
-      } else {
-        console.log('Roles loaded:', data)
-        setRoles(data || [])
-      }
+      const { data, error } = await supabase.from("roles").select("*");
+      if (error) throw error;
+      setRoles(data || []);
     } catch (error) {
-      console.error('Error fetching roles:', error)
-      // Fallback: use demo roles
-      const demoRoles: Role[] = [
+      console.error("Error fetching roles:", error);
+      setRoles([
         {
-          id: 'admin-role',
-          name: 'Admin',
+          id: "admin-role",
+          name: "Admin",
           permissions: {
             sales: true,
             inventory: true,
             customers: true,
             suppliers: true,
             payroll: true,
-            profits: true
-          }
-        }
-      ]
-      setRoles(demoRoles)
-    } finally {
-      console.log('Setting loading to false')
-      setLoading(false)
-    }
-  }
-
-  const createUser = async () => {
-    try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+            profits: true,
+          },
         },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchShopSettings = async () => {
+    if (!supabase) {
+      const demoSettings: ShopSettings = {
+        id: "demo-shop",
+        shopname: "فرۆشگای کوردستان",
+        icon: "",
+        phone: "+964 750 123 4567",
+        location: "هەولێر، کوردستان",
+        qrcodeimage: "",
+      };
+      setShopSettings(demoSettings);
+      setShopSettingsForm(demoSettings);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("shop_settings")
+        .select("*")
+        .single();
+      if (error && error.code !== "PGRST116") throw error;
+      setShopSettings(data || null);
+      if (data) setShopSettingsForm(data);
+    } catch (error) {
+      console.error("Error fetching shop settings:", error);
+    }
+  };
+
+  // User actions
+  const handleCreateUser = async () => {
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newUserName,
           image: newUserImage,
@@ -304,261 +270,27 @@ export default function AdminPage() {
           location: newUserLocation,
           email: newUserEmail,
           password: newUserPassword,
-          roleId: selectedRoleId
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create user')
-      }
-
-      setShowCreateUser(false)
-      setNewUserName('')
-      setNewUserImage('')
-      setNewUserPhone('')
-      setNewUserLocation('')
-      setNewUserEmail('')
-      setNewUserPassword('')
-      setSelectedRoleId('')
-      fetchUsers()
-      alert('User created successfully!')
+          roleId: selectedRoleId,
+          isActive: newUserIsActive,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to create user");
+      setShowCreateUser(false);
+      resetUserForm();
+      fetchUsers();
+      alert("بەکارهێنەر بە سەرکەوتوویی زیادکرا");
     } catch (error) {
-      console.error('Error creating user:', error)
-      alert(`Error creating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error("Error creating user:", error);
+      alert(`هەڵە: ${error}`);
     }
-  }
+  };
 
-  const createRole = async () => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت ڕۆڵ زیاد بکرێت')
-      return
-    }
-
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
     try {
-      const { error } = await supabase
-        .from('roles')
-        .insert({
-          name: newRoleName,
-          permissions
-        })
-
-      if (error) throw error
-
-      setShowCreateRole(false)
-      setNewRoleName('')
-      setPermissions({
-        dashboard: false,
-        sales: false,
-        inventory: false,
-        customers: false,
-        suppliers: false,
-        expenses: false,
-        profits: false,
-        help: false,
-        admin: false,
-      })
-      fetchRoles()
-    } catch (error) {
-      console.error('Error creating role:', error)
-      alert('Error creating role')
-    }
-  }
-
-  const fetchShopSettings = async () => {
-    // Demo mode: show sample shop settings data when Supabase is not configured
-    if (!supabase) {
-      const demoSettings: ShopSettings = {
-        id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
-        icon: '',
-        phone: '+964 750 123 4567',
-        location: 'هەولێر، کوردستان',
-        qrcodeimage: ''
-      }
-      setShopSettings(demoSettings)
-      setShopSettingsForm(demoSettings)
-      return
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('shop_settings')
-        .select('*')
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      const settings = data || null
-      setShopSettings(settings)
-      if (settings) {
-        setShopSettingsForm(settings)
-      }
-    } catch (error) {
-      console.error('Error fetching shop settings:', error)
-    }
-  }
-
-  const updateShopSettings = async (field: string, value: string) => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت ڕێکخستنەکان بگۆڕدرێن')
-      return
-    }
-
-    try {
-      const updateData: any = { [field]: value, updated_at: new Date().toISOString() }
-
-      if (shopSettings) {
-        // Update existing settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .update(updateData)
-          .eq('id', shopSettings.id)
-
-        if (error) throw error
-      } else {
-        // Create new settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .insert(updateData)
-
-        if (error) throw error
-      }
-
-      fetchShopSettings()
-    } catch (error) {
-      console.error('Error updating shop settings:', error)
-      alert('هەڵە لە نوێکردنی ڕێکخستنەکان')
-    }
-  }
-
-  const handleImageUpload = async (file: File, field: string) => {
-    if (!supabase) {
-      alert('Supabase not configured')
-      return
-    }
-
-    // File size validation (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB in bytes
-    if (file.size > maxSize) {
-      alert('وێنەکە زۆر گەورەیە. دەبێت لە 5MB کەمتر بێت.')
-      return
-    }
-
-    // File type validation
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      alert('جۆری وێنە نادروستە. تکایە JPEG، PNG یان WebP بەکاربهێنە.')
-      return
-    }
-
-    try {
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `shop/${fileName}`
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        })
-
-      if (uploadError) throw uploadError
-
-      const { data: urlData } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath)
-
-      if (!urlData?.publicUrl) throw new Error('Failed to get public URL')
-
-      updateShopSettings(field, urlData.publicUrl)
-    } catch (error) {
-      console.error('Image upload failed:', error)
-      alert(`هەڵە لە بارکردنی وێنە: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  const updateAllShopSettings = async () => {
-    if (!supabase) {
-      alert('دۆخی دیمۆ: ناتوانرێت ڕێکخستنەکان بگۆڕدرێن')
-      return
-    }
-
-    try {
-      const updateData = {
-        ...shopSettingsForm,
-        updated_at: new Date().toISOString()
-      }
-
-      if (shopSettings) {
-        // Update existing settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .update(updateData)
-          .eq('id', shopSettings.id)
-
-        if (error) throw error
-      } else {
-        // Create new settings
-        const { error } = await supabase
-          .from('shop_settings')
-          .insert(updateData)
-
-        if (error) throw error
-      }
-
-      alert('ڕێکخستنەکان بە سەرکەوتوویی نوێکرانەوە')
-      fetchShopSettings()
-
-      // Refresh the page to update browser title and favicon
-      if (typeof window !== 'undefined') {
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error('Error updating all shop settings:', error)
-      alert('هەڵە لە نوێکردنی ڕێکخستنەکان')
-    }
-  }
-
-  const updateUserRole = async (userId: string, roleId: string) => {
-    if (!supabase) return
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role_id: roleId })
-        .eq('id', userId)
-
-      if (error) throw error
-      fetchUsers()
-    } catch (error) {
-      console.error('Error updating user role:', error)
-      alert('Error updating user role')
-    }
-  }
-
-  const editUser = (user: User) => {
-    setEditingUser(user)
-    setNewUserName(user.name || '')
-    setNewUserImage(user.image || '')
-    setNewUserPhone(user.phone || '')
-    setNewUserLocation(user.location || '')
-    setNewUserEmail(user.email || '')
-    setNewUserPassword('') // Don't pre-fill password for security
-    setSelectedRoleId(user.role_id || '')
-    setShowCreateUser(true)
-  }
-
-  const updateUser = async () => {
-    if (!editingUser) return
-
-    try {
-      const response = await fetch('/api/users', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: editingUser.id,
           name: newUserName,
@@ -566,150 +298,135 @@ export default function AdminPage() {
           phone: newUserPhone,
           location: newUserLocation,
           email: newUserEmail,
-          password: newUserPassword || undefined, // Only update if provided
-          roleId: selectedRoleId
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update user')
-      }
-
-      setShowCreateUser(false)
-      setEditingUser(null)
-      setNewUserName('')
-      setNewUserImage('')
-      setNewUserPhone('')
-      setNewUserLocation('')
-      setNewUserEmail('')
-      setNewUserPassword('')
-      setSelectedRoleId('')
-      fetchUsers()
-      alert('User updated successfully!')
+          password: newUserPassword || undefined,
+          roleId: selectedRoleId,
+          isActive: newUserIsActive,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to update user");
+      setShowCreateUser(false);
+      setEditingUser(null);
+      resetUserForm();
+      fetchUsers();
+      alert("بەکارهێنەر بە سەرکەوتوویی نوێکرایەوە");
     } catch (error) {
-      console.error('Error updating user:', error)
-      alert(`Error updating user: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error("Error updating user:", error);
+      alert(`هەڵە: ${error}`);
     }
-  }
+  };
 
-  const resetForm = () => {
-    setEditingUser(null)
-    setNewUserName('')
-    setNewUserImage('')
-    setNewUserPhone('')
-    setNewUserLocation('')
-    setNewUserEmail('')
-    setNewUserPassword('')
-    setSelectedRoleId('')
-  }
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`دڵنیایت لە سڕینەوەی بەکارهێنەر "${userName}"؟`)) return;
+    try {
+      const response = await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: userId }),
+      });
+      if (!response.ok) throw new Error("Failed to delete user");
+      fetchUsers();
+      alert("بەکارهێنەر بە سەرکەوتوویی سڕدرایەوە");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert(`هەڵە: ${error}`);
+    }
+  };
 
-  const editRole = (role: Role) => {
-    setEditingRole(role)
-    setNewRoleName(role.name)
-    setPermissions(role.permissions)
-    setShowCreateRole(true)
-  }
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setNewUserName(user.name || "");
+    setNewUserImage(user.image || "");
+    setNewUserPhone(user.phone || "");
+    setNewUserLocation(user.location || "");
+    setNewUserEmail(user.email || "");
+    setNewUserPassword("");
+    setSelectedRoleId(user.role_id || "");
+    setNewUserIsActive(user.is_active !== false);
+    setShowCreateUser(true);
+  };
 
-  const updateRole = async () => {
-    if (!editingRole) return
-    if (!supabase) return
+  const resetUserForm = () => {
+    setNewUserName("");
+    setNewUserImage("");
+    setNewUserPhone("");
+    setNewUserLocation("");
+    setNewUserEmail("");
+    setNewUserPassword("");
+    setSelectedRoleId("");
+    setNewUserIsActive(true);
+  };
 
+  // Role actions
+  const handleCreateRole = async () => {
+    if (!supabase) {
+      alert("دۆخی دیمۆ: ناتوانرێت ڕۆڵ زیاد بکرێت");
+      return;
+    }
     try {
       const { error } = await supabase
-        .from('roles')
-        .update({
-          name: newRoleName,
-          permissions
-        })
-        .eq('id', editingRole.id)
-
-      if (error) throw error
-
-      setShowCreateRole(false)
-      setEditingRole(null)
-      setNewRoleName('')
-      setPermissions({
-        dashboard: false,
-        sales: false,
-        inventory: false,
-        customers: false,
-        suppliers: false,
-        expenses: false,
-        profits: false,
-        help: false,
-        admin: false,
-      })
-      fetchRoles()
-      alert('Role updated successfully!')
+        .from("roles")
+        .insert({ name: newRoleName, permissions });
+      if (error) throw error;
+      setShowCreateRole(false);
+      resetRoleForm();
+      fetchRoles();
+      alert("ڕۆڵ بە سەرکەوتوویی زیادکرا");
     } catch (error) {
-      console.error('Error updating role:', error)
-      alert('Error updating role')
+      console.error("Error creating role:", error);
+      alert("هەڵە لە زیادکردنی ڕۆڵ");
     }
-  }
+  };
 
-  const deleteRole = async (roleId: string, roleName: string) => {
-    // Check if any users are using this role
-    const usersWithRole = users.filter(user => user.role_id === roleId)
+  const handleUpdateRole = async () => {
+    if (!editingRole || !supabase) return;
+    try {
+      const { error } = await supabase
+        .from("roles")
+        .update({ name: newRoleName, permissions })
+        .eq("id", editingRole.id);
+      if (error) throw error;
+      setShowCreateRole(false);
+      setEditingRole(null);
+      resetRoleForm();
+      fetchRoles();
+      alert("ڕۆڵ بە سەرکەوتوویی نوێکرایەوە");
+    } catch (error) {
+      console.error("Error updating role:", error);
+      alert("هەڵە لە نوێکردنەوەی ڕۆڵ");
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string, roleName: string) => {
+    const usersWithRole = users.filter((user) => user.role_id === roleId);
     if (usersWithRole.length > 0) {
-      alert(`ناتوانرێت ڕۆڵ بسڕدرێتەوە چونکە ${usersWithRole.length} بەکارهێنەر ئەم ڕۆڵە بەکاردەهێنن. تکایە یەکەم ڕۆڵی ئەم بەکارهێنەرانە بگۆڕە.`)
-      return
+      alert(
+        `ناتوانرێت ڕۆڵ بسڕدرێتەوە چونکە ${usersWithRole.length} بەکارهێنەر ئەم ڕۆڵە بەکاردەهێنن.`,
+      );
+      return;
     }
-
-    if (!confirm(`دڵنیایت لە سڕینەوەی ڕۆڵی "${roleName}"؟`)) {
-      return
-    }
-
-    if (!supabase) return
-
+    if (!confirm(`دڵنیایت لە سڕینەوەی ڕۆڵی "${roleName}"؟`)) return;
+    if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', roleId)
-
-      if (error) throw error
-
-      fetchRoles()
-      alert('Role deleted successfully!')
+      const { error } = await supabase.from("roles").delete().eq("id", roleId);
+      if (error) throw error;
+      fetchRoles();
+      alert("ڕۆڵ بە سەرکەوتوویی سڕدرایەوە");
     } catch (error) {
-      console.error('Error deleting role:', error)
-      alert('Error deleting role')
+      console.error("Error deleting role:", error);
+      alert("هەڵە لە سڕینەوەی ڕۆڵ");
     }
-  }
+  };
 
-  const deleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`دڵنیایت لە سڕینەوەی بەکارهێنەر "${userName}"؟`)) {
-      return
-    }
-
-    try {
-      const response = await fetch('/api/users', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: userId })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete user')
-      }
-
-      fetchUsers()
-      alert('بەکارهێنەر بە سەرکەوتوویی سڕدرایەوە')
-    } catch (error) {
-      console.error('Error deleting user:', error)
-      alert(`هەڵە لە سڕینەوەی بەکارهێنەر: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
+  const handleEditRole = (role: Role) => {
+    setEditingRole(role);
+    setNewRoleName(role.name);
+    setPermissions(role.permissions);
+    setShowCreateRole(true);
+  };
 
   const resetRoleForm = () => {
-    setEditingRole(null)
-    setNewRoleName('')
+    setEditingRole(null);
+    setNewRoleName("");
     setPermissions({
       dashboard: false,
       sales: false,
@@ -720,13 +437,93 @@ export default function AdminPage() {
       profits: false,
       help: false,
       admin: false,
-    })
-  }
+    });
+  };
 
+  // Settings actions
+  const updateShopSettingsField = async (field: string, value: string) => {
+    if (!supabase) return;
+    try {
+      const updateData: any = {
+        [field]: value,
+        updated_at: new Date().toISOString(),
+      };
+      if (shopSettings) {
+        await supabase
+          .from("shop_settings")
+          .update(updateData)
+          .eq("id", shopSettings.id);
+      } else {
+        await supabase.from("shop_settings").insert(updateData);
+      }
+      fetchShopSettings();
+    } catch (error) {
+      console.error("Error updating shop settings:", error);
+    }
+  };
 
+  const handleImageUpload = async (file: File, field: string) => {
+    if (!supabase) {
+      alert("Supabase not configured");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("وێنەکە زۆر گەورەیە. دەبێت لە 5MB کەمتر بێت.");
+      return;
+    }
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("جۆری وێنە نادروستە. تکایە JPEG، PNG یان WebP بەکاربهێنە.");
+      return;
+    }
+    try {
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `shop/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(filePath, file, { cacheControl: "3600", upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(filePath);
+      if (!urlData?.publicUrl) throw new Error("Failed to get public URL");
+      updateShopSettingsField(field, urlData.publicUrl);
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      alert(`هەڵە لە بارکردنی وێنە: ${error}`);
+    }
+  };
+
+  const updateAllShopSettings = async () => {
+    if (!supabase) {
+      alert("دۆخی دیمۆ: ناتوانرێت ڕێکخستنەکان بگۆڕدرێن");
+      return;
+    }
+    try {
+      const updateData = {
+        ...shopSettingsForm,
+        updated_at: new Date().toISOString(),
+      };
+      if (shopSettings) {
+        await supabase
+          .from("shop_settings")
+          .update(updateData)
+          .eq("id", shopSettings.id);
+      } else {
+        await supabase.from("shop_settings").insert(updateData);
+      }
+      alert("ڕێکخستنەکان بە سەرکەوتوویی نوێکرانەوە");
+      fetchShopSettings();
+      if (typeof window !== "undefined") window.location.reload();
+    } catch (error) {
+      console.error("Error updating all shop settings:", error);
+      alert("هەڵە لە نوێکردنی ڕێکخستنەکان");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 w-full pl-0 md:pl-0">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 w-full">
       <div className="w-full max-w-7xl mx-auto px-4 md:p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -736,73 +533,65 @@ export default function AdminPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1 sm:mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <h1
+                className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1 sm:mb-2"
+                style={{ fontFamily: "var(--font-uni-salar)" }}
+              >
                 بەڕێوەبردنی سیستەم
               </h1>
-              <p className="text-sm sm:text-base text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <p
+                className="text-sm sm:text-base text-gray-600"
+                style={{ fontFamily: "var(--font-uni-salar)" }}
+              >
                 بەڕێوەبردنی بەکارهێنەران، ڕۆڵەکان و ڕێکخستنەکان
               </p>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="text-center sm:text-right">
-                <p className="text-xs sm:text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  بەکارهێنەران
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600">{users.length}</p>
-              </div>
-              <div className="text-center sm:text-right">
-                <p className="text-xs sm:text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  ڕۆڵەکان
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-purple-600">{roles.length}</p>
-              </div>
-            </div>
+            <StatCards users={users} roles={roles} />
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-1 mb-6 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg scrollbar-hide">
+          <div className="flex flex-row overflow-x-auto whitespace-nowrap gap-1 mb-6 bg-white/60 backdrop-blur-xl rounded-2xl p-1 shadow-lg scrollbar-hide">
             <button
-              onClick={() => setActiveTab('users')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'users'
-                  ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
+              onClick={() => setActiveTab("users")}
+              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-1 ${
+                activeTab === "users"
+                  ? "bg-blue-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-white/50"
               }`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
+              style={{ fontFamily: "var(--font-uni-salar)" }}
             >
-              <FaUsers className="inline ml-2" />
+              <FaUsers className="text-base" />
               بەکارهێنەران
             </button>
             <button
-              onClick={() => setActiveTab('roles')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'roles'
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
+              onClick={() => setActiveTab("roles")}
+              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-1 ${
+                activeTab === "roles"
+                  ? "bg-purple-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-white/50"
               }`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
+              style={{ fontFamily: "var(--font-uni-salar)" }}
             >
-              <FaShieldAlt className="inline ml-2" />
+              <FaShieldAlt className="text-base" />
               ڕۆڵەکان
             </button>
             <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'settings'
-                  ? 'bg-green-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
+              onClick={() => setActiveTab("settings")}
+              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-1 ${
+                activeTab === "settings"
+                  ? "bg-green-500 text-white shadow-md"
+                  : "text-gray-600 hover:bg-white/50"
               }`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
+              style={{ fontFamily: "var(--font-uni-salar)" }}
             >
-              <FaCog className="inline ml-2" />
+              <FaCog className="text-base" />
               ڕێکخستنەکان
             </button>
           </div>
 
           {/* Tab Content */}
           <AnimatePresence mode="wait">
-            {/* Users Tab */}
-            {activeTab === 'users' && (
+            {activeTab === "users" && (
               <motion.div
                 key="users"
                 initial={{ opacity: 0, x: -20 }}
@@ -810,124 +599,16 @@ export default function AdminPage() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Users Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center space-x-3">
-                    <FaUsers className="text-blue-500 text-2xl" />
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      بەڕێوەبردنی بەکارهێنەران
-                    </h2>
-                  </div>
-                  <motion.button
-                    onClick={() => setShowCreateUser(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPlus className="inline ml-2" />
-                    زیادکردنی بەکارهێنەر
-                  </motion.button>
-                </div>
-
-                {/* Users Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {users.map((user, index) => (
-                      <motion.div
-                        key={user.id}
-                        className="group bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{
-                          delay: index * 0.1,
-                          duration: 0.3
-                        }}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        {/* Gradient overlay on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-500 rounded-3xl"></div>
-
-                        <div className="relative z-10">
-                          {/* User Avatar */}
-                          <div className="flex items-center space-x-4 mb-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-400 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg">
-                              {user.image ? (
-                                <img
-                                  src={user.image}
-                                  alt={user.name || 'User'}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <FaUser className="w-8 h-8 text-white" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-xl text-gray-800 mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {user.name || 'ناوی نەناسراو'}
-                              </h3>
-                              <div className="flex items-center space-x-2">
-                                <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 rounded-full text-xs font-medium">
-                                  {user.role?.name || 'ڕۆڵی نەناسراو'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* User Details */}
-                          <div className="space-y-3 mb-6">
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaPhone className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {user.phone || 'نەناسراو'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaMapMarkerAlt className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {user.location || 'نەناسراو'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3 text-sm">
-                              <FaEye className="text-gray-400 w-4 h-4" />
-                              <span className="text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                {user.email || 'نەناسراو'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-3">
-                            <motion.button
-                              onClick={() => editUser(user)}
-                              className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaEdit className="inline ml-2" />
-                              نوێکردنەوە
-                            </motion.button>
-                            <motion.button
-                              onClick={() => deleteUser(user.id, user.name || 'ئەم بەکارهێنەرە')}
-                              className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaTrash />
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                <UserTab
+                  users={users}
+                  onCreateUser={() => setShowCreateUser(true)}
+                  onEditUser={handleEditUser}
+                  onDeleteUser={handleDeleteUser}
+                />
               </motion.div>
             )}
 
-            {/* Roles Tab */}
-            {activeTab === 'roles' && (
+            {activeTab === "roles" && (
               <motion.div
                 key="roles"
                 initial={{ opacity: 0, x: 20 }}
@@ -935,106 +616,16 @@ export default function AdminPage() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Roles Header */}
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center space-x-3">
-                    <FaShieldAlt className="text-purple-500 text-2xl" />
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      بەڕێوەبردنی ڕۆڵەکان
-                    </h2>
-                  </div>
-                  <motion.button
-                    onClick={() => setShowCreateRole(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FaPlus className="inline ml-2" />
-                    زیادکردنی ڕۆڵ
-                  </motion.button>
-                </div>
-
-                {/* Roles Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {roles.map((role, index) => (
-                      <motion.div
-                        key={role.id}
-                        className="group bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{
-                          delay: index * 0.1,
-                          duration: 0.3
-                        }}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        {/* Gradient overlay on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 rounded-3xl"></div>
-
-                        <div className="relative z-10">
-                          {/* Role Header */}
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center shadow-lg">
-                                <FaShieldAlt className="w-6 h-6 text-white" />
-                              </div>
-                              <h3 className="font-bold text-xl text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                {role.name}
-                              </h3>
-                            </div>
-                          </div>
-
-                          {/* Permissions */}
-                          <div className="mb-6">
-                            <h4 className="font-semibold text-gray-700 mb-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              مۆڵەتەکان:
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {Object.entries(role.permissions).map(([perm, hasAccess]) => (
-                                <div key={perm} className="flex items-center space-x-2">
-                                  <div className={`w-3 h-3 rounded-full ${hasAccess ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                                  <span className="text-sm text-gray-600 capitalize" style={{ fontFamily: 'Inter, sans-serif' }}>
-                                    {perm}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-3">
-                            <motion.button
-                              onClick={() => editRole(role)}
-                              className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              style={{ fontFamily: 'var(--font-uni-salar)' }}
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaEdit className="inline ml-2" />
-                              نوێکردنەوە
-                            </motion.button>
-                            <motion.button
-                              onClick={() => deleteRole(role.id, role.name)}
-                              className="px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaTrash />
-                            </motion.button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                <RoleTab
+                  roles={roles}
+                  onCreateRole={() => setShowCreateRole(true)}
+                  onEditRole={handleEditRole}
+                  onDeleteRole={handleDeleteRole}
+                />
               </motion.div>
             )}
 
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
+            {activeTab === "settings" && (
               <motion.div
                 key="settings"
                 initial={{ opacity: 0, x: 20 }}
@@ -1042,392 +633,65 @@ export default function AdminPage() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* Settings Header */}
-                <div className="flex items-center space-x-3 mb-6">
-                  <FaCog className="text-green-500 text-2xl" />
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    ڕێکخستنەکانی فرۆشگا
-                  </h2>
-                </div>
-
-                {/* Settings Form */}
-                <div className="bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Shop Name */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ناوی فرۆشگا
-                      </label>
-                      <div className="relative">
-                        <FaStore className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={shopSettingsForm.shopname || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, shopname: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-                          style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          placeholder="ناوی فرۆشگاکەت"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ژمارەی تەلەفۆن
-                      </label>
-                      <div className="relative">
-                        <FaPhone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={shopSettingsForm.phone || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
-                          style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
-                          placeholder="+964 XXX XXX XXXX"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Location */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        ناونیشان
-                      </label>
-                      <div className="relative">
-                        <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
-                        <textarea
-                          value={shopSettingsForm.location || ''}
-                          onChange={(e) => setShopSettingsForm(prev => ({ ...prev, location: e.target.value }))}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none resize-none"
-                          style={{ fontFamily: 'var(--font-uni-salar)' }}
-                          placeholder="ناونیشانی فرۆشگاکەت"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Shop Icon */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        وێنەی ئایکۆن
-                      </label>
-                      <div className="relative">
-                        <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleImageUpload(file, 'icon')
-                            }
-                          }}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                        />
-                      </div>
-                      {shopSettings?.icon && (
-                        <div className="mt-3">
-                          <img
-                            src={shopSettings.icon}
-                            alt="Shop Icon"
-                            className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* QR Code Image */}
-                    <div>
-                      <label className="block text-sm font-semibold mb-3 text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        وێنەی QR کۆد
-                      </label>
-                      <div className="relative">
-                        <FaQrcode className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleImageUpload(file, 'qrcodeimage')
-                            }
-                          }}
-                          className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                        />
-                      </div>
-                      {shopSettings?.qrcodeimage && (
-                        <div className="mt-3">
-                          <img
-                            src={shopSettings.qrcodeimage}
-                            alt="QR Code"
-                            className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Update Button */}
-                  <motion.button
-                    onClick={updateAllShopSettings}
-                    className="w-full mt-8 py-4 px-6 bg-gradient-to-r from-green-600 via-blue-600 to-green-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500"
-                    style={{ fontFamily: 'var(--font-uni-salar)' }}
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    animate={{
-                      backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                    }}
-                    transition={{
-                      backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" }
-                    }}
-                  >
-                    <span className="flex items-center justify-center space-x-2">
-                      <span>نوێکردنی هەموو ڕێکخستنەکان</span>
-                      <FaCog className="animate-spin" />
-                    </span>
-                  </motion.button>
-
-                  {/* Current Settings Display */}
-                  {shopSettings && (
-                    <motion.div
-                      className="mt-8 p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl border border-green-200"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <h3 className="font-bold text-gray-800 mb-4 flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        <FaEye className="ml-2 text-green-500" />
-                        ڕێکخستنەکانی ئێستا
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو:</span>
-                          <span className="font-bold text-gray-800">{shopSettings.shopname}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن:</span>
-                          <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>{shopSettings.phone}</span>
-                        </div>
-                        <div className="md:col-span-2 flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان:</span>
-                          <span className="font-bold text-gray-800">{shopSettings.location}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ئایکۆن:</span>
-                          <span className={`font-bold ${shopSettings.icon ? 'text-green-600' : 'text-red-600'}`}>
-                            {shopSettings.icon ? '✅ هەیە' : '❌ نییە'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                          <span className="font-medium text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>QR کۆد:</span>
-                          <span className={`font-bold ${shopSettings.qrcodeimage ? 'text-green-600' : 'text-red-600'}`}>
-                            {shopSettings.qrcodeimage ? '✅ هەیە' : '❌ نییە'}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
+                <SettingsTab
+                  shopSettings={shopSettings}
+                  shopSettingsForm={shopSettingsForm}
+                  onUpdateForm={updateShopSettingsField}
+                  onImageUpload={handleImageUpload}
+                  onSaveAll={updateAllShopSettings}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       </div>
 
-      {/* Create/Edit User Modal */}
-      {showCreateUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناو</label>
-                <input
-                  type="text"
-                  placeholder="ناوی بەکارهێنەر"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
+      {/* Modals */}
+      <UserModal
+        showCreateUser={showCreateUser}
+        editingUser={editingUser}
+        newUserName={newUserName}
+        newUserImage={newUserImage}
+        newUserPhone={newUserPhone}
+        newUserLocation={newUserLocation}
+        newUserEmail={newUserEmail}
+        newUserPassword={newUserPassword}
+        selectedRoleId={selectedRoleId}
+        newUserIsActive={newUserIsActive}
+        roles={roles}
+        onClose={() => {
+          setShowCreateUser(false);
+          setEditingUser(null);
+          resetUserForm();
+        }}
+        onSetName={setNewUserName}
+        onSetImage={setNewUserImage}
+        onSetPhone={setNewUserPhone}
+        onSetLocation={setNewUserLocation}
+        onSetEmail={setNewUserEmail}
+        onSetPassword={setNewUserPassword}
+        onSetRoleId={setSelectedRoleId}
+        onSetIsActive={setNewUserIsActive}
+        onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
+        onImageUpload={() => {}}
+      />
 
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنە</label>
-                {editingUser?.image && (
-                  <div className="mb-2">
-                    <img
-                      src={editingUser.image}
-                      alt="Current user image"
-                      className="w-16 h-16 object-cover rounded border"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">وێنەی ئێستا (بۆ گۆڕین وێنە نوێ هەڵبژێرە)</p>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      // Handle image upload here
-                      const reader = new FileReader()
-                      reader.onload = (e) => {
-                        setNewUserImage(e.target?.result as string)
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</label>
-                <input
-                  type="text"
-                  placeholder="+964 XXX XXX XXXX"
-                  value={newUserPhone}
-                  onChange={(e) => setNewUserPhone(sanitizePhoneNumber(e.target.value))}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</label>
-                <input
-                  type="text"
-                  placeholder="ناونیشانی بەکارهێنەر"
-                  value={newUserLocation}
-                  onChange={(e) => setNewUserLocation(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ئیمەیڵ</label>
-                <input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  وشەی نهێنی {editingUser && '(بەتاڵ بهێڵە بۆ نەگۆڕین)'}
-                </label>
-                <input
-                  type="password"
-                  placeholder={editingUser ? "وشەی نهێنی نوێ (ئارەزوومەندانە)" : "وشەی نهێنی"}
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕۆڵ</label>
-                <select
-                  value={selectedRoleId}
-                  onChange={(e) => setSelectedRoleId(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="">هەڵبژاردنی ڕۆڵ</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateUser(false)
-                  resetForm()
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                پاشگەزبوونەوە
-              </button>
-              <button
-                onClick={editingUser ? updateUser : createUser}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit Role Modal */}
-      {showCreateRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
-            </h3>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="ناوی ڕۆڵ"
-                value={newRoleName}
-                onChange={(e) => setNewRoleName(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
-              <div>
-                <h4 className="font-medium mb-2">مۆڵەتەکان</h4>
-                <div className="space-y-3">
-                  {[
-                    { key: 'dashboard', name: 'داشبۆرد', icon: '📊' },
-                    { key: 'sales', name: 'فرۆشتن', icon: '💰' },
-                    { key: 'inventory', name: 'کۆگا', icon: '📦' },
-                    { key: 'customers', name: 'کڕیاران', icon: '👥' },
-                    { key: 'suppliers', name: 'دابینکەران', icon: '🏭' },
-                    { key: 'expenses', name: 'خەرجییەکان', icon: '💸' },
-                    { key: 'profits', name: 'قازانج', icon: '📈' },
-                    { key: 'help', name: 'یارمەتی', icon: '❓' },
-                    { key: 'admin', name: 'بەڕێوەبەران', icon: '⚙️' }
-                  ].map((perm) => (
-                    <label key={perm.key} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={permissions[perm.key]}
-                        onChange={(e) => setPermissions(prev => ({ ...prev, [perm.key]: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-lg">{perm.icon}</span>
-                      <span className="font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>{perm.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => {
-                  setShowCreateRole(false)
-                  resetRoleForm()
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                پاشگەزبوونەوە
-              </button>
-              <button
-                onClick={editingRole ? updateRole : createRole}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                {editingRole ? 'نوێکردنەوە' : 'زیادکردن'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RoleModal
+        showCreateRole={showCreateRole}
+        editingRole={editingRole}
+        newRoleName={newRoleName}
+        permissions={permissions}
+        onClose={() => {
+          setShowCreateRole(false);
+          setEditingRole(null);
+          resetRoleForm();
+        }}
+        onSetName={setNewRoleName}
+        onTogglePermission={(key) =>
+          setPermissions((prev) => ({ ...prev, [key]: !prev[key] }))
+        }
+        onSubmit={editingRole ? handleUpdateRole : handleCreateRole}
+      />
     </div>
-  )
+  );
 }

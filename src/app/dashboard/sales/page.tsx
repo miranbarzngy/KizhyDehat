@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import html2canvas from 'html2canvas'
 import { Package } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { FaPlus, FaSearch } from 'react-icons/fa'
 
 interface InventoryItem {
   id: string
@@ -1272,10 +1273,9 @@ export default function SalesPage() {
             <div className="hidden lg:grid lg:grid-cols-4 gap-4">
               <AnimatePresence>
                 {filteredInventory.map((item, index) => (
-                  <motion.button
+                  <motion.div
                     key={item.id}
-                    onClick={() => addToCart(item)}
-                    className="group relative bg-white/60 backdrop-blur-xl rounded-xl p-2 shadow-lg hover:shadow-2xl border border-white/20 transition-all duration-500 hover:scale-105 hover:-translate-y-0.5 overflow-hidden"
+                    className="group relative bg-white/60 backdrop-blur-xl rounded-2xl p-4 shadow-lg hover:shadow-2xl border border-white/20 transition-all duration-500 overflow-hidden flex flex-col"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8 }}
@@ -1283,46 +1283,45 @@ export default function SalesPage() {
                       delay: index * 0.05,
                       duration: 0.3
                     }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                   >
-                    {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-500 rounded-xl"></div>
-
-                    <div className="relative z-10 text-center">
-                      {/* Product Image */}
-                      <div className="mb-1.5 flex justify-center">
-                        <ProductImage item={item} className="w-12 h-12" />
-                      </div>
-
-                      {/* Product Name */}
-                      <h3 className="font-bold text-sm mb-0.5 text-gray-800 group-hover:text-blue-600 transition-colors duration-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {item.name}
-                      </h3>
-
-                      {/* Price */}
-                      <motion.p
-                        className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1"
-                        style={{ fontFamily: 'Inter, sans-serif' }}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        {formatCurrency(item.selling_price_per_unit)} IQD
-                      </motion.p>
-
-                      {/* Stock Level */}
-                      <div className="flex items-center justify-center space-x-0.5 mb-0.5">
-                        <div className={`w-1 h-1 rounded-full ${(item.total_amount_bought ?? 0) > 10 ? 'bg-green-400' : (item.total_amount_bought ?? 0) > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                        <p className="text-xs text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                          {toEnglishDigits((item.total_amount_bought ?? 0).toString())} {item.unit}
-                        </p>
-                      </div>
-
-                      {/* Category Badge */}
-                      <div className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full text-xs font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                        {item.category}
-                      </div>
+                    {/* Product Image */}
+                    <div className="mb-3 flex justify-center">
+                      <ProductImage item={item} className="w-20 h-20" />
                     </div>
-                  </motion.button>
+
+                    {/* Product Name */}
+                    <h3 className="font-bold text-base mb-1 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {item.name}
+                    </h3>
+
+                    {/* Price */}
+                    <p className="text-xl font-bold text-blue-600 mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {formatCurrency(item.selling_price_per_unit)} IQD
+                    </p>
+
+                    {/* Stock Level */}
+                    <div className="flex items-center justify-center gap-1 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${(item.total_amount_bought ?? 0) > 10 ? 'bg-green-400' : (item.total_amount_bought ?? 0) > 5 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                      <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        {toEnglishDigits((item.total_amount_bought ?? 0).toString())} {item.unit}
+                      </p>
+                    </div>
+
+                    {/* Category Badge */}
+                    <div className="inline-block px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium mb-3 mx-auto" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {item.category}
+                    </div>
+
+                    {/* Add to Cart Button - Touch Friendly */}
+                    <button
+                      onClick={() => addToCart(item)}
+                      className="w-full mt-auto py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-300 flex items-center justify-center gap-2"
+                      style={{ fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      <FaPlus className="text-lg" />
+                      <span>زیادکردن</span>
+                    </button>
+                  </motion.div>
                 ))}
               </AnimatePresence>
             </div>
@@ -1391,33 +1390,37 @@ export default function SalesPage() {
                       {toEnglishDigits(item.quantity.toString())} {item.unit} × {formatCurrency(item.price)}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-1 ml-2">
+                  {/* Touch-Friendly Cart Buttons */}
+                  <div className="flex items-center gap-2 mr-2">
                     <motion.button
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-5 h-5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200 text-xs"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                      className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center font-bold transition-colors duration-200 shadow-md"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title="کەمکردن"
                     >
-                      -
+                      <span className="text-lg">−</span>
                     </motion.button>
-                    <span className="font-bold text-xs min-w-[1rem] text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <span className="font-bold text-sm min-w-[2rem] text-center px-1" style={{ fontFamily: 'Inter, sans-serif' }}>
                       {toEnglishDigits(item.quantity.toString())}
                     </span>
                     <motion.button
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="w-5 h-5 bg-green-100 hover:bg-green-200 text-green-600 rounded-full flex items-center justify-center font-bold transition-colors duration-200 text-xs"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                      className="w-10 h-10 bg-green-100 hover:bg-green-200 text-green-600 rounded-xl flex items-center justify-center font-bold transition-colors duration-200 shadow-md"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title="زیادکردن"
                     >
-                      +
+                      <FaPlus className="text-sm" />
                     </motion.button>
                     <motion.button
                       onClick={() => removeFromCart(item.id)}
-                      className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 text-xs ml-1"
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
+                      className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center transition-colors duration-200 shadow-md"
+                      whileHover={{ scale: 1.05, rotate: 90 }}
+                      whileTap={{ scale: 0.95 }}
+                      title="سڕینەوە"
                     >
-                      ✕
+                      <span className="text-sm">✕</span>
                     </motion.button>
                   </div>
                 </div>

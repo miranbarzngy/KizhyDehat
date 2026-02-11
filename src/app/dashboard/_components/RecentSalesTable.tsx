@@ -43,7 +43,7 @@ function InvoicePreview({ saleData, invoice, settings }: { saleData: any, invoic
     time: new Date().toLocaleTimeString('ku'),
     paymentMethod: invoice.payment_method || 'cash',
     items: saleData.sale_items?.map((item: any) => ({
-      name: item.products?.name || 'نەناسراو',
+      name: item.products?.name || 'کاڵای سڕاوە',
       unit: item.products?.unit || item.unit || 'دانە',
       quantity: item.quantity,
       price: item.price,
@@ -181,23 +181,37 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
 
       if (saleError) throw new Error('Sale not found')
 
+      // Fetch sale items with inventory join for item names
       const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
-        .select(`id, quantity, price, unit, item_id`)
+        .select(`id, quantity, price, unit, item_id, inventory:item_id(item_name)`)
         .eq('sale_id', order.id)
 
-      if (itemsError) console.error('Error fetching sale items:', itemsError)
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError.message, itemsError.code, itemsError.hint)
+      }
 
-      const saleItemsWithNames = await Promise.all(
-        (saleItems || []).map(async (item: any) => {
-          try {
-            const { data: inventoryData } = await supabase.from('inventory').select('item_name').eq('id', item.item_id).single()
-            return { ...item, products: { name: inventoryData?.item_name || 'نەناسراو' } }
-          } catch {
-            return { ...item, products: { name: 'نەناسراو' } }
-          }
-        })
-      )
+      // Map items - use joined inventory name, fallback to individual fetch, then fallback text
+      let saleItemsWithNames: any[]
+      if (saleItems && saleItems.length > 0 && saleItems[0].inventory) {
+        // Join worked - use inventory.item_name
+        saleItemsWithNames = saleItems.map((item: any) => ({
+          ...item,
+          products: { name: item.inventory?.item_name || 'کاڵای سڕاوە' }
+        }))
+      } else {
+        // Join may have failed or returned null - try individual fetches as fallback
+        saleItemsWithNames = await Promise.all(
+          (saleItems || []).map(async (item: any) => {
+            try {
+              const { data: inventoryData } = await supabase.from('inventory').select('item_name').eq('id', item.item_id).single()
+              return { ...item, products: { name: inventoryData?.item_name || 'کاڵای سڕاوە' } }
+            } catch {
+              return { ...item, products: { name: 'کاڵای سڕاوە' } }
+            }
+          })
+        )
+      }
 
       setSelectedOrder(order)
       setInvoiceDetails({ ...saleData, sale_items: saleItemsWithNames })

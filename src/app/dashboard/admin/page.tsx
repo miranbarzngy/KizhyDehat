@@ -29,8 +29,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="p-6 pl-0 md:pl-6" style={{ background: 'var(--theme-background)', minHeight: '100vh' }}>
-      <div className="w-full max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 w-full" style={{ background: 'var(--theme-background)', minHeight: '100vh' }}>
+      <div className="w-full max-w-[2800px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">

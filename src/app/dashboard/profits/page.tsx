@@ -185,7 +185,7 @@ export default function ProfitsPage() {
   }
 
   return (
-    <div className="w-full pl-0 ml-0 md:max-w-7xl md:mx-auto">
+    <div className="w-full pl-0 ml-0 max-w-[2800px] mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕاپۆرتی دارایی</h1>
         <p className="text-gray-500 mt-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>پوختەی دارایی و قازانجی فرۆشتن</p>
@@ -213,7 +213,7 @@ export default function ProfitsPage() {
           {activeTab === 'overview' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               <h2 className="text-xl font-semibold mb-6 text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>پوختەی دارایی</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-8">
                 <ProfitStats stats={overviewStats} />
               </div>
               <SalesTypeCards stats={overviewStats} />

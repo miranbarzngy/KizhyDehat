@@ -266,7 +266,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
   return (
     <>
       <motion.div
-        className="backdrop-blur-xl rounded-3xl p-6 shadow-lg border"
+        className="backdrop-blur-xl rounded-3xl p-6 shadow-lg border w-full"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.1 }}

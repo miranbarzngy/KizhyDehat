@@ -37,8 +37,8 @@ export default function InvoicesPage() {
   const filteredInvoices = invoices.filter(inv => !searchTerm || inv.customer_id?.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
-    <div className="p-6 pl-0 md:pl-6">
-      <div className="w-full max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 w-full">
+      <div className="w-full max-w-[2800px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-4xl font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>

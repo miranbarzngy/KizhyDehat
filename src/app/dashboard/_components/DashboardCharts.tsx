@@ -23,7 +23,7 @@ interface DashboardChartsProps {
 
 export default function DashboardCharts({ chartData, stats }: DashboardChartsProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-6 mb-8">
       {/* Profit Trend Chart */}
       <motion.div
         className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"

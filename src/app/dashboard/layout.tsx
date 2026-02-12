@@ -76,7 +76,7 @@ export default function DashboardLayout({
               <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
             </div>
           }>
-            <div>
+            <div className="max-w-[2800px] mx-auto w-full">
               {children}
             </div>
           </Suspense>

@@ -37,7 +37,7 @@ export default function ExpensesPage() {
       className="p-4 md:p-6"
       style={{ background: 'var(--theme-background)', minHeight: '100vh' }}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[2800px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -119,7 +119,7 @@ export default function ExpensesPage() {
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
             <div className="lg:col-span-1">
               <motion.div 
                 className="rounded-3xl p-6 shadow-lg border"
@@ -283,7 +283,7 @@ export default function ExpensesPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 gap-4">
                   <AnimatePresence mode="popLayout">
                     {expenses.map((expense, index) => (
                       <motion.div 

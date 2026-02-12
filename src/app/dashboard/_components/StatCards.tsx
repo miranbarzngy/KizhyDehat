@@ -26,7 +26,7 @@ function StatCardsComponent({ stats }: StatCardsProps) {
   return (
     <>
       {/* Quick Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-8">
         <motion.div
           className="group backdrop-blur-xl rounded-3xl p-6 shadow-lg border transition-all duration-500 hover:scale-105 hover:-translate-y-2 cursor-pointer"
           onClick={() => router.push('/dashboard/sales')}
@@ -205,7 +205,7 @@ function StatCardsComponent({ stats }: StatCardsProps) {
       </div>
 
       {/* Main Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-4 mb-8">
         <motion.div
           className="backdrop-blur-xl rounded-3xl p-6 shadow-lg border"
           initial={{ opacity: 0, scale: 0.9 }}

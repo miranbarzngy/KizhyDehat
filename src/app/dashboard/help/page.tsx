@@ -6,10 +6,10 @@ export default function HelpPage() {
   const { profile } = useAuth()
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="w-full max-w-[2800px] mx-auto">
       <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">ڕێنمای بەکارهێنان</h1>
 
-      <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6">
         {/* Adding Stock from Suppliers */}
         <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg">
           <div className="flex items-center mb-6">
@@ -195,7 +195,7 @@ export default function HelpPage() {
         </div>
 
         {/* Support */}
-        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg text-center">
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 2xl:col-span-4 3xl:col-span-5 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg text-center">
           <div className="bg-gray-100 p-6 rounded-lg">
             <h3 className="text-xl font-bold text-gray-900 mb-2">پێویست بە یارمەتی زیاترە؟</h3>
             <p className="text-gray-600">

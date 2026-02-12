@@ -213,7 +213,7 @@ export default function DashboardPage() {
   const formattedDate = currentTime.toLocaleDateString('ku')
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

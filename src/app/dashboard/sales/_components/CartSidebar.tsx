@@ -53,7 +53,7 @@ export default function CartSidebar({
       {/* Cart Header */}
       <div className="p-3 border-b border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-white/10">
         <motion.h2
-          className="text-lg font-bold text-slate-950 dark:text-white"
+          className="text-lg font-bold text-[var(--theme-foreground)]"
           style={{ fontFamily: 'var(--font-uni-salar)' }}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -117,8 +117,8 @@ export default function CartSidebar({
             onChange={(e) => onCustomerChange(e.target.value)}
             className={`w-full px-2 py-1 rounded border bg-white dark:bg-white/5 shadow-sm focus:ring-1 focus:outline-none transition-all duration-300 text-xs ${
               customerRequired
-                ? 'ring-1 ring-red-500 border-red-300 bg-red-50 text-gray-900'
-                : 'focus:ring-blue-500 border-gray-300 text-gray-900 dark:text-gray-200'
+                ? 'ring-1 ring-red-500 border-red-300 bg-red-50 text-[var(--theme-foreground)]'
+                : 'focus:ring-blue-500 border-gray-300 text-[var(--theme-foreground)] dark:text-gray-200'
             }`}
             style={{ fontFamily: 'var(--font-uni-salar)' }}
           >
@@ -171,7 +171,7 @@ export default function CartSidebar({
             type="text"
             value={discount}
             onChange={(e) => onDiscountChange(Number(e.target.value) || 0)}
-            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-xs text-center text-gray-900 dark:text-gray-200"
+            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-xs text-center text-[var(--theme-foreground)] dark:text-gray-200"
             style={{ fontFamily: 'Inter, sans-serif' }}
             placeholder="0"
             whileFocus={{ scale: 1.02 }}
@@ -188,7 +188,7 @@ export default function CartSidebar({
           <p className="text-gray-700 dark:text-gray-300/80 text-xs font-bold mb-0.5" style={{ fontFamily: 'var(--font-uni-salar)' }}>
             کۆی گشتی
           </p>
-          <p className="text-slate-950 dark:text-white text-lg font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <p className="text-[var(--theme-foreground)] text-lg font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
             {formatCurrency(total)} IQD
           </p>
         </motion.div>

@@ -92,18 +92,16 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
             )}
           </button>
           <h2 
-            className="text-base md:text-lg font-bold leading-tight mt-2"
+            className="text-base md:text-lg font-bold leading-tight mt-2 text-[var(--theme-foreground)]"
             style={{ 
-              color: 'var(--theme-sidebar-text)',
               fontFamily: 'var(--font-uni-salar)'
             }}
           >
             {shopSettings?.shopname || 'فرۆشگای کوردستان'}
           </h2>
           <p 
-            className="text-xs opacity-70 leading-tight"
+            className="text-xs opacity-70 leading-tight text-[var(--theme-foreground)]"
             style={{ 
-              color: 'var(--theme-sidebar-text)',
               fontFamily: 'var(--font-uni-salar)'
             }}
           >
@@ -135,9 +133,8 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
             )}
           </button>
           <h2 
-            className="text-xs md:text-sm font-bold leading-tight mt-1"
+            className="text-xs md:text-sm font-bold leading-tight mt-1 text-[var(--theme-foreground)]"
             style={{ 
-              color: 'var(--theme-sidebar-text)',
               fontFamily: 'var(--font-uni-salar)'
             }}
           >

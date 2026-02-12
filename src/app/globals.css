@@ -34,6 +34,7 @@ body {
   color: var(--theme-foreground);
   font-family: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
   font-weight: 500;
+  transition: color 0.3s ease, background-color 0.3s ease;
 }
 
 /* Theme-aware utility classes */
@@ -88,4 +89,21 @@ body {
   transition-property: background-color, border-color, color;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
+}
+
+/* Theme-specific foreground colors */
+.theme-white {
+  --theme-foreground: #000000;
+}
+
+.theme-purple {
+  --theme-foreground: #ffffff;
+}
+
+.theme-colorful {
+  --theme-foreground: #000000;
+}
+
+.theme-dark {
+  --theme-foreground: #ffffff;
 }

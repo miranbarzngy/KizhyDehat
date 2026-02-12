@@ -30,7 +30,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
     >
       <div className="flex justify-between items-center">
         <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <h4 className="font-bold text-[var(--theme-foreground)] text-xs truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
             {item.item.name}
           </h4>
           <p className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -47,7 +47,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
           >
             <span className="text-lg">−</span>
           </motion.button>
-          <span className="font-bold text-sm min-w-[2rem] text-center px-1 text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <span className="font-bold text-sm min-w-[2rem] text-center px-1 text-[var(--theme-foreground)]" style={{ fontFamily: 'Inter, sans-serif' }}>
             {toEnglishDigits(item.quantity.toString())}
           </span>
           <motion.button
@@ -72,7 +72,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
       </div>
       <div className="text-right mt-1">
         <motion.span
-          className="font-bold text-sm text-gray-800 dark:text-gray-200"
+          className="font-bold text-sm text-[var(--theme-foreground)]"
           style={{ fontFamily: 'Inter, sans-serif' }}
           whileHover={{ scale: 1.05 }}
         >

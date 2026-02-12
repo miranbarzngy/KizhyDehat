@@ -98,7 +98,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                     switch (themeOption.key) {
                       case 'white':
                         root.style.setProperty('--theme-background', '#f8fafc')
-                        root.style.setProperty('--theme-foreground', '#1e293b')
+                        root.style.setProperty('--theme-foreground', '#000000')
                         root.style.setProperty('--theme-sidebar-bg', '#ffffff')
                         root.style.setProperty('--theme-sidebar-text', '#1e293b')
                         root.style.setProperty('--theme-sidebar-hover', '#f1f5f9')
@@ -106,18 +106,21 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                         break
                       case 'colorful':
                         root.style.setProperty('--theme-background', 'linear-gradient(to right, #ffecd2, #fcb69f)')
+                        root.style.setProperty('--theme-foreground', '#000000')
                         root.style.setProperty('--theme-sidebar-bg', 'rgba(255, 255, 255, 0.9)')
                         root.style.setProperty('--theme-sidebar-text', '#2d3748')
                         root.style.setProperty('--theme-primary', '#ff6b6b')
                         break
                       case 'purple':
                         root.style.setProperty('--theme-background', 'linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%)')
+                        root.style.setProperty('--theme-foreground', '#ffffff')
                         root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.2)')
                         root.style.setProperty('--theme-sidebar-text', '#ffffff')
                         root.style.setProperty('--theme-primary', '#c084fc')
                         break
                       case 'dark':
                         root.style.setProperty('--theme-background', '#0a192f')
+                        root.style.setProperty('--theme-foreground', '#ffffff')
                         root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.3)')
                         root.style.setProperty('--theme-sidebar-text', '#d1d5db')
                         root.style.setProperty('--theme-primary', '#60a5fa')

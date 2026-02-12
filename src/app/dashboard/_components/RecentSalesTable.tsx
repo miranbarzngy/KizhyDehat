@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FaEye, FaShoppingCart } from 'react-icons/fa'
 import { useRouter } from 'next/navigation'
@@ -22,7 +22,7 @@ interface RecentSalesTableProps {
   onOrderClick?: (orderId: string) => void
 }
 
-export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
+function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
   const router = useRouter()
   const [recentOrders, setRecentOrders] = useState<PendingSale[]>([])
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
@@ -464,3 +464,5 @@ export default function RecentSalesTable({ onOrderClick }: RecentSalesTableProps
     </>
   )
 }
+
+export default memo(RecentSalesTable)

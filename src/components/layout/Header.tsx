@@ -156,6 +156,7 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className="flex flex-col items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 flex-shrink-0"
                 style={{
                   background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
@@ -197,6 +198,7 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className="flex flex-col items-center px-2 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 flex-shrink-0"
                 style={{
                   background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
@@ -237,6 +239,7 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className="flex flex-col items-center px-1.5 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 flex-shrink-0"
                 style={{
                   background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',

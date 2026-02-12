@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { FaBox, FaChartLine, FaDollarSign, FaMoneyBillWave, FaShoppingCart, FaUsers, FaArrowUp } from 'react-icons/fa'
@@ -19,7 +20,7 @@ interface StatCardsProps {
   stats: Stats
 }
 
-export default function StatCards({ stats }: StatCardsProps) {
+function StatCardsComponent({ stats }: StatCardsProps) {
   const router = useRouter()
 
   return (
@@ -375,3 +376,5 @@ export default function StatCards({ stats }: StatCardsProps) {
     </>
   )
 }
+
+export default memo(StatCardsComponent)

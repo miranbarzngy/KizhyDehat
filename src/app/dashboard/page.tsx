@@ -35,6 +35,7 @@ interface ShopSettings {
 export default function DashboardPage() {
   const { profile } = useAuth()
   const { theme } = useTheme()
+  const [currentTime, setCurrentTime] = useState(new Date())
   const [stats, setStats] = useState({
     totalSales: 0,
     pendingOrders: 0,
@@ -192,6 +193,25 @@ export default function DashboardPage() {
     return cleanup
   }, [])
 
+  // Real-time clock - update every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Format time in 12-hour format
+  const formattedTime = currentTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  })
+
+  // Format date in Kurdish
+  const formattedDate = currentTime.toLocaleDateString('ku')
+
   return (
     <div className="max-w-7xl mx-auto">
       <motion.div
@@ -220,16 +240,25 @@ export default function DashboardPage() {
               پێشبینینی گشتیی کاروباری فرۆشگاکەت
             </p>
           </div>
-          <div className="text-right">
-            <p 
-              className="text-lg font-bold"
+          <div className="flex flex-col items-end">
+            <span 
+              className="text-3xl font-bold"
               style={{ 
-                color: 'var(--theme-accent)',
+                color: 'var(--theme-foreground)',
                 fontFamily: 'Inter' 
               }}
             >
-              {new Date().toLocaleDateString('ku')}
-            </p>
+              {formattedTime}
+            </span>
+            <span 
+              className="text-2xl font-bold"
+              style={{ 
+                color: 'var(--theme-accent)',
+                fontFamily: 'var(--font-uni-salar)' 
+              }}
+            >
+              {formattedDate}
+            </span>
           </div>
         </div>
 

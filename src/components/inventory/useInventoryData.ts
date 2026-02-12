@@ -141,7 +141,12 @@ export function useInventoryData(): UseInventoryDataReturn {
       return
     }
     try {
-      const { data, error } = await supabase.from('products').select('*').or('is_archived.is.null,is_archived.eq.false').limit(100)
+      // Optimized: Select only needed columns to reduce payload size
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived')
+        .or('is_archived.is.null,is_archived.eq.false')
+        .limit(100)
       if (error) { console.error('Error:', error); return }
       const validProducts = (data || []).filter((item: any) => (item.total_amount_bought || 0) > 0).map((item: any) => ({ ...item, is_archived: item.is_archived || false }))
       setProducts(validProducts)
@@ -150,7 +155,15 @@ export function useInventoryData(): UseInventoryDataReturn {
 
   const fetchArchivedItems = useCallback(async () => {
     if (!supabase) return
-    try { const { data } = await supabase.from('products').select('*').or('is_archived.eq.true,total_amount_bought.lte.0').limit(50); setArchivedItems(data || []) } catch (e) { console.error(e) }
+    try { 
+      // Optimized: Select only needed columns
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived')
+        .or('is_archived.eq.true,total_amount_bought.lte.0')
+        .limit(50); 
+      setArchivedItems(data || []) 
+    } catch (e) { console.error(e) }
   }, [])
 
   const fetchCategories = useCallback(async () => {

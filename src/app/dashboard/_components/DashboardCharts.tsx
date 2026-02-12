@@ -26,47 +26,64 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
       {/* Profit Trend Chart */}
       <motion.div
-        className="bg-white dark:bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-lg border border-gray-200 dark:border-white/20"
+        className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"
+        style={{ 
+          background: 'var(--theme-card-bg)',
+          borderColor: 'var(--theme-card-border)'
+        }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
       >
         <div className="flex items-center space-x-3 mb-6">
-          <FaChartLine className="text-blue-600 dark:text-blue-400 text-2xl" />
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <FaChartLine className="text-2xl" style={{ color: 'var(--theme-accent)' }} />
+          <h3 
+            className="text-xl font-bold"
+            style={{ 
+              color: 'var(--theme-foreground)',
+              fontFamily: 'var(--font-uni-salar)' 
+            }}
+          >
             تەوەری قازانج
           </h3>
         </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={document.documentElement.classList.contains('dark') ? 'rgba(255,255,255,0.1)' : '#e5e7eb'} />
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke="var(--theme-border)" 
+              />
               <XAxis
                 dataKey="date"
                 tickFormatter={(date) => new Date(date).toLocaleDateString('ku', { month: 'short', day: 'numeric' })}
-                stroke={document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'}
+                stroke="var(--theme-secondary)"
                 fontSize={12}
-                tick={{ fill: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280' }}
+                tick={{ fill: 'var(--theme-secondary)' }}
               />
-              <YAxis stroke={document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'} fontSize={12} tick={{ fill: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280' }} />
+              <YAxis 
+                stroke="var(--theme-secondary)" 
+                fontSize={12} 
+                tick={{ fill: 'var(--theme-secondary)' }} 
+              />
               <Tooltip
                 labelFormatter={(date) => new Date(date).toLocaleDateString('ku')}
                 formatter={(value: number | undefined) => [`${formatCurrency(Math.abs(value || 0))}`, value && value >= 0 ? 'قازانج' : 'زیان']}
                 contentStyle={{
-                  backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(30, 30, 50, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-                  border: document.documentElement.classList.contains('dark') ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  backgroundColor: 'var(--theme-card-bg)',
+                  border: '1px solid var(--theme-card-border)',
                   borderRadius: '12px',
                   backdropFilter: 'blur(10px)',
-                  color: document.documentElement.classList.contains('dark') ? '#fff' : '#1f2937'
+                  color: 'var(--theme-foreground)'
                 }}
               />
               <Line
                 type="monotone"
                 dataKey="profit"
-                stroke={document.documentElement.classList.contains('dark') ? '#60a5fa' : '#2563eb'}
+                stroke="var(--theme-chart-color)"
                 strokeWidth={3}
-                dot={{ fill: document.documentElement.classList.contains('dark') ? '#60a5fa' : '#2563eb', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: document.documentElement.classList.contains('dark') ? '#60a5fa' : '#2563eb', strokeWidth: 2 }}
+                dot={{ fill: 'var(--theme-chart-color)', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: 'var(--theme-chart-color)', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -81,23 +98,54 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
         transition={{ delay: 1.0 }}
       >
         {/* Today's Sales */}
-        <div className="bg-white dark:bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-lg border border-gray-200 dark:border-white/20">
+        <div 
+          className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"
+          style={{ 
+            background: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)'
+          }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/30 backdrop-blur-md rounded-2xl flex items-center justify-center border border-blue-200 dark:border-blue-500/30">
-                <FaMoneyBillWave className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div 
+                className="w-10 h-10 backdrop-blur-md rounded-2xl flex items-center justify-center border"
+                style={{ 
+                  background: 'var(--theme-accent)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: '#ffffff'
+                }}
+              >
+                <FaMoneyBillWave className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-800 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <h4 
+                  className="font-semibold"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   فرۆشتنی ئەمڕۆ
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <p 
+                  className="text-sm"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   کۆی فرۆشتن
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-slate-950 dark:text-blue-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <p 
+                className="text-2xl font-bold"
+                style={{ 
+                  color: 'var(--theme-accent)',
+                  fontFamily: 'Inter, sans-serif' 
+                }}
+              >
                 {formatCurrency(stats.todaySales)}
               </p>
             </div>
@@ -105,23 +153,54 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
         </div>
 
         {/* Customers */}
-        <div className="bg-white dark:bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-lg border border-gray-200 dark:border-white/20">
+        <div 
+          className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"
+          style={{ 
+            background: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)'
+          }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-500/30 backdrop-blur-md rounded-2xl flex items-center justify-center border border-purple-200 dark:border-purple-500/30">
-                <FaUsers className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div 
+                className="w-10 h-10 backdrop-blur-md rounded-2xl flex items-center justify-center border"
+                style={{ 
+                  background: 'var(--theme-primary)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: '#ffffff'
+                }}
+              >
+                <FaUsers className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-800 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <h4 
+                  className="font-semibold"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   کڕیاران
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <p 
+                  className="text-sm"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   کڕیاری تۆمارکراو
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-slate-950 dark:text-purple-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <p 
+                className="text-2xl font-bold"
+                style={{ 
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'Inter, sans-serif' 
+                }}
+              >
                 {stats.totalCustomers}
               </p>
             </div>
@@ -129,23 +208,54 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
         </div>
 
         {/* Low Stock Alert */}
-        <div className="bg-white dark:bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-lg border border-gray-200 dark:border-white/20">
+        <div 
+          className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"
+          style={{ 
+            background: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)'
+          }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/30 backdrop-blur-md rounded-2xl flex items-center justify-center border border-orange-200 dark:border-orange-500/30">
-                <FaExclamationTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <div 
+                className="w-10 h-10 backdrop-blur-md rounded-2xl flex items-center justify-center border"
+                style={{ 
+                  background: '#f97316',
+                  borderColor: 'var(--theme-card-border)',
+                  color: '#ffffff'
+                }}
+              >
+                <FaExclamationTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-800 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <h4 
+                  className="font-semibold"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   کەم کۆگا
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <p 
+                  className="text-sm"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
                   کاڵای کەم کۆگا
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-slate-950 dark:text-orange-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <p 
+                className="text-2xl font-bold"
+                style={{ 
+                  color: '#f97316',
+                  fontFamily: 'Inter, sans-serif' 
+                }}
+              >
                 {stats.lowStockCount}
               </p>
             </div>

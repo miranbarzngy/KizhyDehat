@@ -37,77 +37,217 @@ export default function InventoryPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-white dark:bg-transparent p-6 pl-0 md:pl-6 transition-colors duration-300">
+    <div className="p-6 pl-0 md:pl-6">
       <div className="w-full max-w-7xl mx-auto">
-        <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold mb-8 text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="text-4xl font-bold mb-8"
+          style={{ 
+            color: 'var(--theme-foreground)',
+            fontFamily: 'var(--font-uni-salar)' 
+          }}
+        >
           بەڕێوەبردنی کاڵاکان
         </motion.h1>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-row overflow-x-auto whitespace-nowrap gap-2 mb-8 bg-gray-100/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-2xl p-2 transition-all duration-300">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="flex flex-row overflow-x-auto whitespace-nowrap gap-2 mb-8 backdrop-blur-xl border shadow-sm rounded-2xl p-2 transition-all duration-300"
+          style={{ 
+            backgroundColor: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)'
+          }}
+        >
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'archive') fetchArchivedItems() }}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10'}`}
-              style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              <tab.icon className="text-lg" />{tab.label}
+            <button 
+              key={tab.id} 
+              onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'archive') fetchArchivedItems() }}
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2`}
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                background: activeTab === tab.id ? 'var(--theme-accent)' : 'transparent',
+                color: activeTab === tab.id ? '#ffffff' : 'var(--theme-secondary)'
+              }}
+            >
+              <tab.icon className="text-lg" />
+              {tab.label}
             </button>
           ))}
         </motion.div>
 
         {activeTab === 'inventory' && (
           <>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row gap-4 mb-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="flex flex-col md:flex-row gap-4 mb-6"
+            >
               <div className="flex-1 relative">
-                <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="گەڕان..."
-                className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-400 outline-none transition-all"
-                  style={{ fontFamily: 'var(--font-uni-salar)' }} />
+                <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--theme-secondary)' }} />
+                <input 
+                  type="text" 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  placeholder="گەڕان..."
+                  className="w-full px-4 py-3 pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all"
+                  style={{ 
+                    backgroundColor: 'var(--theme-card-bg)',
+                    borderColor: 'var(--theme-card-border)',
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }} 
+                />
               </div>
-              <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 rounded-xl bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-blue-400 outline-none transition-all"
-                style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <select 
+                value={selectedCategory} 
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all"
+                style={{ 
+                  backgroundColor: 'var(--theme-card-bg)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
                 <option value="">هەموو پۆلەکان</option>
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             </motion.div>
-            <ProductGrid products={filteredProducts} soldProductIds={soldProductIds} openEditItem={openEditItem} confirmDelete={confirmDelete} archiveItem={archiveItem} onAddProduct={openAddItem} />
+            <ProductGrid 
+              products={filteredProducts} 
+              soldProductIds={soldProductIds} 
+              openEditItem={openEditItem} 
+              confirmDelete={confirmDelete} 
+              archiveItem={archiveItem} 
+              onAddProduct={openAddItem} 
+            />
           </>
         )}
 
         {activeTab === 'categories' && (
-          <CategoryGrid categories={categories} products={products} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} />
+          <CategoryGrid 
+            categories={categories} 
+            products={products} 
+            onAddCategory={handleAddCategory} 
+            onEditCategory={handleEditCategory} 
+            onDeleteCategory={handleDeleteCategory} 
+          />
         )}
 
         {activeTab === 'units' && (
-          <UnitGrid units={units} onAddUnit={handleAddUnit} onEditUnit={handleEditUnit} onDeleteUnit={handleDeleteUnit} />
+          <UnitGrid 
+            units={units} 
+            onAddUnit={handleAddUnit} 
+            onEditUnit={handleEditUnit} 
+            onDeleteUnit={handleDeleteUnit} 
+          />
         )}
 
         {activeTab === 'archive' && (
-          <ArchiveGrid archivedItems={archivedItems} searchTerm={searchTerm} restoreItem={restoreItem} confirmDelete={confirmDelete} />
+          <ArchiveGrid 
+            archivedItems={archivedItems} 
+            searchTerm={searchTerm} 
+            restoreItem={restoreItem} 
+            confirmDelete={confirmDelete} 
+          />
         )}
 
-        <AddItemModal showStockEntry={showStockEntry} setShowStockEntry={setShowStockEntry} currentStep={currentStep} setCurrentStep={setCurrentStep} editingItem={editingItem} formData={formData} setFormData={setFormData} suppliers={suppliers} units={units} onSuccess={fetchProducts} />
+        <AddItemModal 
+          showStockEntry={showStockEntry} 
+          setShowStockEntry={setShowStockEntry} 
+          currentStep={currentStep} 
+          setCurrentStep={setCurrentStep} 
+          editingItem={editingItem} 
+          formData={formData} 
+          setFormData={setFormData} 
+          suppliers={suppliers} 
+          units={units} 
+          onSuccess={fetchProducts} 
+        />
 
         {/* Delete Modal */}
         {showDeleteConfirm && itemToDelete && (
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-md rounded-2xl shadow-2xl bg-[#2a2d3e]/90 backdrop-blur-xl p-8 border border-white/10">
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }} 
+              className="w-full max-w-md rounded-2xl shadow-2xl p-8 border"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)'
+              }}
+            >
               <div className="text-center">
-                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaTrash className="text-3xl text-red-400" />
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+                >
+                  <FaTrash className="text-3xl" style={{ color: '#ef4444' }} />
                 </div>
-                <h3 className="text-xl font-bold mb-3 text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>سڕینەوە</h3>
-                <p className="text-gray-400 mb-6" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  دڵنیایت لە سڕینەوەی <span className="font-bold text-white">{itemToDelete.name}</span>؟
+                <h3 
+                  className="text-xl font-bold mb-3"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  سڕینەوە
+                </h3>
+                <p 
+                  className="mb-6"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  دڵنیایت لە سڕینەوەی <span className="font-bold" style={{ color: 'var(--theme-foreground)' }}>{itemToDelete.name}</span>؟
                 </p>
                 {deleteStatus === 'idle' && (
                   <div className="flex gap-4 justify-center">
-                    <button onClick={() => setShowDeleteConfirm(false)} className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>پاشگەزبوونەوە</button>
-                    <button onClick={() => { pauseSync('inventory-delete'); executeDelete() }} className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>سڕینەوە</button>
+                    <button 
+                      onClick={() => setShowDeleteConfirm(false)} 
+                      className="px-6 py-3 rounded-xl font-bold transition-all"
+                      style={{ 
+                        backgroundColor: 'var(--theme-muted)',
+                        color: 'var(--theme-foreground)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      پاشگەزبوونەوە
+                    </button>
+                    <button 
+                      onClick={() => { pauseSync('inventory-delete'); executeDelete() }} 
+                      className="px-6 py-3 rounded-xl font-bold transition-all"
+                      style={{ 
+                        backgroundColor: '#ef4444',
+                        color: '#ffffff',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      سڕینەوە
+                    </button>
                   </div>
                 )}
-                {deleteStatus === 'deleting' && <div className="text-center py-4"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div><p className="text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>...</p></div>}
-                {deleteStatus === 'success' && <div className="text-center py-4"><div className="text-4xl mb-2">✅</div><p className="text-green-400 font-bold" style={{ fontFamily: 'var(--font-uni-salar)' }}>{deleteMessage}</p></div>}
-                {deleteStatus === 'error' && <div className="text-center py-4"><div className="text-4xl mb-2">❌</div><p className="text-red-400 font-bold" style={{ fontFamily: 'var(--font-uni-salar)' }}>{deleteMessage}</p></div>}
+                {deleteStatus === 'deleting' && (
+                  <div className="text-center py-4">
+                    <div className="animate-spin w-8 h-8 border-4 rounded-full mx-auto mb-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+                    <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>...</p>
+                  </div>
+                )}
+                {deleteStatus === 'success' && (
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-2">✅</div>
+                    <p className="font-bold" style={{ color: '#22c55e', fontFamily: 'var(--font-uni-salar)' }}>{deleteMessage}</p>
+                  </div>
+                )}
+                {deleteStatus === 'error' && (
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-2">❌</div>
+                    <p className="font-bold" style={{ color: '#ef4444', fontFamily: 'var(--font-uni-salar)' }}>{deleteMessage}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -115,15 +255,61 @@ export default function InventoryPage() {
 
         {/* Category Modal */}
         {showCategoryModal && (
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-md rounded-2xl shadow-2xl bg-[#2a2d3e]/90 backdrop-blur-xl p-8 border border-white/10">
-              <h3 className="text-xl font-bold mb-4 text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>{editingCategory ? 'دەستکاری' : 'زیادکردن'}</h3>
-              <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="ناوی پۆل"
-                className="w-full px-4 py-3 rounded-xl bg-[#1a1c2e]/50 border border-white/10 text-white placeholder-gray-400 mb-4 focus:border-green-400 outline-none transition-all"
-                style={{ fontFamily: 'var(--font-uni-salar)' }} />
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }} 
+              className="w-full max-w-md rounded-2xl shadow-2xl p-8 border"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)'
+              }}
+            >
+              <h3 
+                className="text-xl font-bold mb-4"
+                style={{ 
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)' 
+                }}
+              >
+                {editingCategory ? 'دەستکاری' : 'زیادکردن'}
+              </h3>
+              <input 
+                type="text" 
+                value={newCategoryName} 
+                onChange={e => setNewCategoryName(e.target.value)} 
+                placeholder="ناوی پۆل"
+                className="w-full px-4 py-3 rounded-xl border mb-4 focus:ring-2 outline-none transition-all"
+                style={{ 
+                  backgroundColor: 'var(--theme-muted)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              />
               <div className="flex gap-4 justify-center">
-                <button onClick={() => setShowCategoryModal(false)} className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>پاشگەزبوونەوە</button>
-                <button onClick={saveCategory} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>{editingCategory ? 'نوێکردنەوە' : 'زیادکردن'}</button>
+                <button 
+                  onClick={() => setShowCategoryModal(false)} 
+                  className="px-6 py-3 rounded-xl font-bold transition-all"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)',
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button 
+                  onClick={saveCategory} 
+                  className="px-6 py-3 rounded-xl font-bold transition-all"
+                  style={{ 
+                    backgroundColor: '#22c55e',
+                    color: '#ffffff',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  {editingCategory ? 'نوێکردنەوە' : 'زیادکردن'}
+                </button>
               </div>
             </motion.div>
           </div>
@@ -131,18 +317,74 @@ export default function InventoryPage() {
 
         {/* Unit Modal */}
         {showUnitModal && (
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-md rounded-2xl shadow-2xl bg-[#2a2d3e]/90 backdrop-blur-xl p-8 border border-white/10">
-              <h3 className="text-xl font-bold mb-4 text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>{editingUnit ? 'دەستکاری' : 'زیادکردن'}</h3>
-              <input type="text" value={newUnitName} onChange={e => setNewUnitName(e.target.value)} placeholder="ناوی یەکە"
-                className="w-full px-4 py-3 rounded-xl bg-[#1a1c2e]/50 border border-white/10 text-white placeholder-gray-400 mb-4 focus:border-purple-400 outline-none transition-all"
-                style={{ fontFamily: 'var(--font-uni-salar)' }} />
-              <input type="text" value={newUnitSymbol} onChange={e => setNewUnitSymbol(e.target.value)} placeholder="هێڵکاری"
-                className="w-full px-4 py-3 rounded-xl bg-[#1a1c2e]/50 border border-white/10 text-white placeholder-gray-400 mb-4 focus:border-purple-400 outline-none transition-all"
-                style={{ fontFamily: 'var(--font-uni-salar)' }} />
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }} 
+              className="w-full max-w-md rounded-2xl shadow-2xl p-8 border"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)'
+              }}
+            >
+              <h3 
+                className="text-xl font-bold mb-4"
+                style={{ 
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)' 
+                }}
+              >
+                {editingUnit ? 'دەستکاری' : 'زیادکردن'}
+              </h3>
+              <input 
+                type="text" 
+                value={newUnitName} 
+                onChange={e => setNewUnitName(e.target.value)} 
+                placeholder="ناوی یەکە"
+                className="w-full px-4 py-3 rounded-xl border mb-4 focus:ring-2 outline-none transition-all"
+                style={{ 
+                  backgroundColor: 'var(--theme-muted)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              />
+              <input 
+                type="text" 
+                value={newUnitSymbol} 
+                onChange={e => setNewUnitSymbol(e.target.value)} 
+                placeholder="هێڵکاری"
+                className="w-full px-4 py-3 rounded-xl border mb-4 focus:ring-2 outline-none transition-all"
+                style={{ 
+                  backgroundColor: 'var(--theme-muted)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              />
               <div className="flex gap-4 justify-center">
-                <button onClick={() => setShowUnitModal(false)} className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>پاشگەزبوونەوە</button>
-                <button onClick={saveUnit} className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-bold transition-all" style={{ fontFamily: 'var(--font-uni-salar)' }}>{editingUnit ? 'نوێکردنەوە' : 'زیادکردن'}</button>
+                <button 
+                  onClick={() => setShowUnitModal(false)} 
+                  className="px-6 py-3 rounded-xl font-bold transition-all"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)',
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  پاشگەزبوونەوە
+                </button>
+                <button 
+                  onClick={saveUnit} 
+                  className="px-6 py-3 rounded-xl font-bold transition-all"
+                  style={{ 
+                    backgroundColor: 'var(--theme-accent)',
+                    color: '#ffffff',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  {editingUnit ? 'نوێکردنەوە' : 'زیادکردن'}
+                </button>
               </div>
             </motion.div>
           </div>

@@ -21,8 +21,8 @@ interface SidebarProps {
 
 const themeOptions = [
   { key: 'white', name: 'سپی', color: '#ffffff', textColor: '#000000', icon: Sun },
-  { key: 'colourful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff', icon: Palette },
-  { key: 'black-gold', name: 'زێڕین', color: '#D4AF37', textColor: '#ffffff', icon: Crown },
+  { key: 'colorful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff', icon: Palette },
+  { key: 'purple', name: 'پەڕە سوورەکان', color: '#6b21a8', textColor: '#ffffff', icon: Crown },
   { key: 'dark', name: 'تاریک', color: '#374151', textColor: '#ffffff', icon: Moon }
 ]
 
@@ -104,23 +104,23 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                         root.style.setProperty('--theme-sidebar-hover', '#f1f5f9')
                         root.style.setProperty('--theme-primary', '#6366f1')
                         break
-                      case 'colourful':
-                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
+                      case 'colorful':
+                        root.style.setProperty('--theme-background', 'linear-gradient(to right, #ffecd2, #fcb69f)')
                         root.style.setProperty('--theme-sidebar-bg', 'rgba(255, 255, 255, 0.9)')
                         root.style.setProperty('--theme-sidebar-text', '#2d3748')
                         root.style.setProperty('--theme-primary', '#ff6b6b')
                         break
-                      case 'black-gold':
-                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)')
-                        root.style.setProperty('--theme-sidebar-bg', 'rgba(30, 30, 30, 0.95)')
-                        root.style.setProperty('--theme-sidebar-text', '#f5f5f5')
-                        root.style.setProperty('--theme-primary', '#D4AF37')
+                      case 'purple':
+                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%)')
+                        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.2)')
+                        root.style.setProperty('--theme-sidebar-text', '#ffffff')
+                        root.style.setProperty('--theme-primary', '#c084fc')
                         break
                       case 'dark':
-                        root.style.setProperty('--theme-background', '#111827')
-                        root.style.setProperty('--theme-sidebar-bg', '#1f2937')
-                        root.style.setProperty('--theme-sidebar-text', '#f9fafb')
-                        root.style.setProperty('--theme-primary', '#6366f1')
+                        root.style.setProperty('--theme-background', '#0a192f')
+                        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.3)')
+                        root.style.setProperty('--theme-sidebar-text', '#d1d5db')
+                        root.style.setProperty('--theme-primary', '#60a5fa')
                         break
                     }
                     localStorage.setItem('pos-theme', themeOption.key)

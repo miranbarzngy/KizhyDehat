@@ -5,22 +5,22 @@ import { useEffect, useRef, useState } from 'react'
 
 const themeIcons = {
   white: '☀️',
-  colourful: '🌈',
-  'black-gold': '👑',
+  colorful: '🎨',
+  purple: '👑',
   dark: '🌙'
 }
 
 const themeNames = {
   white: 'سپی',
-  colourful: 'ڕەنگاوڕەنگ',
-  'black-gold': 'زێڕین',
+  colorful: 'ڕەنگاوڕەنگ',
+  purple: 'پەڕە سوورەکان',
   dark: 'تاریک'
 }
 
 const themeColors = {
   white: '#ffffff',
-  colourful: '#ff6b6b',
-  'black-gold': '#D4AF37',
+  colorful: '#ff6b6b',
+  purple: '#6b21a8',
   dark: '#374151'
 }
 

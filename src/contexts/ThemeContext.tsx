@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-export type Theme = 'white' | 'colourful' | 'black-gold' | 'dark'
+export type Theme = 'white' | 'colorful' | 'purple' | 'dark'
 
 interface ThemeConfig {
   name: string
@@ -26,7 +26,7 @@ const themes: Record<Theme, ThemeConfig> = {
     name: 'White Mode',
     background: '#ffffff',
     foreground: '#000000',
-    cardBg: '#ffffff',
+    cardBg: 'rgba(255, 255, 255, 0.9)',
     cardBorder: '#e5e7eb',
     primary: '#1f2937',
     secondary: '#6b7280',
@@ -38,11 +38,11 @@ const themes: Record<Theme, ThemeConfig> = {
     sidebarHover: '#f3f4f6',
     chartColor: '#10b981'
   },
-  colourful: {
-    name: 'Colourful Mode',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    foreground: '#ffffff',
-    cardBg: 'rgba(255, 255, 255, 0.9)',
+  colorful: {
+    name: 'Colorful Mode',
+    background: 'linear-gradient(to right, #ffecd2, #fcb69f)',
+    foreground: '#000000',
+    cardBg: 'rgba(255, 255, 255, 0.7)',
     cardBorder: 'rgba(255, 255, 255, 0.4)',
     primary: '#312e81',
     secondary: '#1f2937',
@@ -54,36 +54,36 @@ const themes: Record<Theme, ThemeConfig> = {
     sidebarHover: 'rgba(255, 255, 255, 0.8)',
     chartColor: '#ff6b6b'
   },
-  'black-gold': {
-    name: 'Black & Shiny Gold',
-    background: '#000000',
-    foreground: '#D4AF37',
-    cardBg: '#121212',
-    cardBorder: '#D4AF37',
-    primary: '#D4AF37',
-    secondary: '#FFD700',
-    accent: '#D4AF37',
-    muted: '#2a2a2a',
-    border: '#D4AF37',
-    sidebarBg: '#000000',
-    sidebarText: '#D4AF37',
-    sidebarHover: '#1a1a1a',
-    chartColor: '#D4AF37'
+  purple: {
+    name: 'Purple Mode',
+    background: 'linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%)',
+    foreground: '#ffffff',
+    cardBg: 'rgba(255, 255, 255, 0.15)',
+    cardBorder: 'rgba(255, 255, 255, 0.3)',
+    primary: '#ffffff',
+    secondary: '#e9d5ff',
+    accent: '#c084fc',
+    muted: 'rgba(255, 255, 255, 0.1)',
+    border: 'rgba(255, 255, 255, 0.2)',
+    sidebarBg: 'rgba(0, 0, 0, 0.2)',
+    sidebarText: '#ffffff',
+    sidebarHover: 'rgba(255, 255, 255, 0.1)',
+    chartColor: '#a78bfa'
   },
   dark: {
     name: 'Dark Mode',
-    background: '#1f2937',
+    background: '#0a192f',
     foreground: '#ffffff',
-    cardBg: '#374151',
-    cardBorder: '#4b5563',
+    cardBg: 'rgba(255, 255, 255, 0.05)',
+    cardBorder: 'rgba(255, 255, 255, 0.1)',
     primary: '#ffffff',
     secondary: '#9ca3af',
     accent: '#60a5fa',
-    muted: '#4b5563',
-    border: '#6b7280',
-    sidebarBg: '#111827',
+    muted: 'rgba(255, 255, 255, 0.05)',
+    border: 'rgba(255, 255, 255, 0.1)',
+    sidebarBg: 'rgba(0, 0, 0, 0.3)',
     sidebarText: '#d1d5db',
-    sidebarHover: '#374151',
+    sidebarHover: 'rgba(255, 255, 255, 0.1)',
     chartColor: '#10b981'
   }
 }

@@ -195,14 +195,35 @@ export default function SalesPage() {
 
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-transparent gap-4 lg:gap-6 lg:flex-row transition-colors duration-300">
+    <div className="h-full flex flex-col gap-4 lg:gap-6 lg:flex-row">
       <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="h-full flex flex-col">
           <div className="mb-3">
-            <motion.h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-blue-400 dark:to-purple-400" style={{ fontFamily: 'var(--font-uni-salar)' }} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>کاڵاکان</motion.h2>
+            <motion.h2 
+              className="text-xl font-bold mb-3"
+              style={{ 
+                color: 'var(--theme-foreground)',
+                fontFamily: 'var(--font-uni-salar)' 
+              }} 
+              initial={{ opacity: 0, x: -20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              transition={{ delay: 0.2 }}
+            >
+              کاڵاکان
+            </motion.h2>
             <CustomerSelector searchTerm={customerSearchTerm} showDropdown={showCustomerDropdown} filteredCustomers={getFilteredCustomers()} selectedCustomerData={selectedCustomerData} onSearchChange={setCustomerSearchTerm} onSelect={handleCustomerSelect} onDropdownChange={setShowCustomerDropdown} onCreateNew={handleCreateCustomer} />
             <motion.div className="mb-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-white dark:bg-white/5 shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none text-sm text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <select 
+                value={selectedCategory} 
+                onChange={(e) => setSelectedCategory(e.target.value)} 
+                className="w-full px-4 py-2 rounded-xl border shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none text-sm"
+                style={{ 
+                  backgroundColor: 'var(--theme-card-bg)',
+                  borderColor: 'var(--theme-card-border)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
                 <option value="all">هەموو پۆلەکان</option>
                 {groupedInventory.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
               </select>
@@ -211,26 +232,91 @@ export default function SalesPage() {
           <motion.div className="flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: 'none' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
             <div className="lg:hidden space-y-2">
               {filteredInventory.map((item, index) => (
-                <motion.button key={item.id} onClick={() => addToCart(item)} className="w-full h-16 bg-gray-100 dark:bg-white/10 backdrop-blur-xl rounded-lg shadow-md border border-gray-200 dark:border-white/10 flex items-center p-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }} whileTap={{ scale: 0.98 }}>
-                  <div className="flex-shrink-0 ml-2"><div className="w-12 h-12 bg-gray-200 dark:bg-white/10 rounded-xl"></div></div>
+                <motion.button 
+                  key={item.id} 
+                  onClick={() => addToCart(item)} 
+                  className="w-full h-16 backdrop-blur-xl rounded-lg shadow-md border flex items-center p-2"
+                  initial={{ opacity: 0, x: -20 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  transition={{ delay: index * 0.03 }} 
+                  whileTap={{ scale: 0.98 }}
+                  style={{ 
+                    backgroundColor: 'var(--theme-card-bg)',
+                    borderColor: 'var(--theme-card-border)'
+                  }}
+                >
+                  <div className="flex-shrink-0 ml-2">
+                    <div 
+                      className="w-12 h-12 rounded-xl"
+                      style={{ backgroundColor: 'var(--theme-muted)' }}
+                    ></div>
+                  </div>
                   <div className="flex-1 text-right mr-3">
-                    <h3 className="font-bold text-sm text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
-                    <p className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.category}</p>
+                    <h3 
+                      className="font-bold text-sm"
+                      style={{ 
+                        color: 'var(--theme-foreground)',
+                        fontFamily: 'var(--font-uni-salar)' 
+                      }}
+                    >
+                      {item.name}
+                    </h3>
+                    <p 
+                      className="text-xs"
+                      style={{ 
+                        color: 'var(--theme-secondary)',
+                        fontFamily: 'var(--font-uni-salar)' 
+                      }}
+                    >
+                      {item.category}
+                    </p>
                   </div>
                   <div className="flex-shrink-0 text-left">
-                    <p className="text-sm font-bold text-blue-500 dark:text-blue-400" style={{ fontFamily: 'Inter, sans-serif' }}>{item.selling_price_per_unit.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">IQD</p>
+                    <p 
+                      className="text-sm font-bold"
+                      style={{ 
+                        color: 'var(--theme-accent)',
+                        fontFamily: 'Inter, sans-serif' 
+                      }}
+                    >
+                      {item.selling_price_per_unit.toLocaleString()}
+                    </p>
+                    <p 
+                      className="text-xs"
+                      style={{ 
+                        color: 'var(--theme-secondary)',
+                        fontFamily: 'Inter, sans-serif' 
+                      }}
+                    >
+                      IQD
+                    </p>
                   </div>
                 </motion.button>
               ))}
             </div>
             <div className="hidden lg:grid lg:grid-cols-4 gap-4">
-              {filteredInventory.map((item) => (<ProductCard key={item.id} item={item} onAddToCart={addToCart} />))}
+              {filteredInventory.map((item) => (
+                <ProductCard key={item.id} item={item} onAddToCart={addToCart} />
+              ))}
             </div>
           </motion.div>
         </motion.div>
       </div>
-      <CartSidebar cart={cart} paymentMethod={paymentMethod} selectedCustomer={selectedCustomer} discount={discount} customerRequired={customerRequired} onPaymentMethodChange={setPaymentMethod} onDiscountChange={setDiscount} onCustomerChange={setSelectedCustomer} onUpdateQuantity={updateQuantity} onRemove={removeFromCart} onCompleteSale={completeSale} customers={customers.map(c => ({ id: c.id, name: c.name }))} onCreateCustomer={handleCreateCustomer} />
+      <CartSidebar 
+        cart={cart} 
+        paymentMethod={paymentMethod} 
+        selectedCustomer={selectedCustomer} 
+        discount={discount} 
+        customerRequired={customerRequired} 
+        onPaymentMethodChange={setPaymentMethod} 
+        onDiscountChange={setDiscount} 
+        onCustomerChange={setSelectedCustomer} 
+        onUpdateQuantity={updateQuantity} 
+        onRemove={removeFromCart} 
+        onCompleteSale={completeSale} 
+        customers={customers.map(c => ({ id: c.id, name: c.name }))} 
+        onCreateCustomer={handleCreateCustomer} 
+      />
       <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
       <GlobalInvoiceModal isOpen={showInvoice} onClose={() => setShowInvoice(false)} invoiceData={completedSaleData} />
     </div>

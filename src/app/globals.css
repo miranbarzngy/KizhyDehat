@@ -9,7 +9,7 @@
   /* Theme variables */
   --theme-background: #ffffff;
   --theme-foreground: #000000;
-  --theme-card-bg: #ffffff;
+  --theme-card-bg: rgba(255, 255, 255, 0.9);
   --theme-card-border: #e5e7eb;
   --theme-primary: #1f2937;
   --theme-secondary: #6b7280;
@@ -27,13 +27,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -66,11 +59,6 @@ body {
   background: var(--theme-sidebar-hover);
 }
 
-/* Gold text glow effect for Black & Gold theme */
-.gold-text-glow {
-  text-shadow: 0 0 8px rgba(212, 175, 55, 0.6), 0 0 16px rgba(212, 175, 55, 0.4);
-}
-
 /* Enhanced numerical values styling */
 .numerical-value {
   font-family: var(--font-uni-salar), 'Noto Sans Arabic', Arial, Helvetica, sans-serif;
@@ -84,12 +72,6 @@ body {
   opacity: 0.9;
 }
 
-/* Enhanced card styling for Colourful theme */
-.colourful-card {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
@@ -101,30 +83,9 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
-/* Force light mode background - critical for theme switching */
-.light body,
-.light #__next,
-.light .min-h-screen {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-}
-
 /* Ensure smooth theme transitions */
 * {
-  transition-property: background-color, border-color;
+  transition-property: background-color, border-color, color;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
-}
-
-/* Prevent flash of wrong theme */
-html.dark body,
-html.dark #__next {
-  background-color: #0f0c29 !important;
-  background: linear-gradient(to bottom right, #1a1c2e, #2d1b4e, #0f0c29) !important;
-}
-
-html:not(.dark) body,
-html:not(.dark) #__next {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
 }

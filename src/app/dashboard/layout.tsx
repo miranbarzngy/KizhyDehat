@@ -36,8 +36,14 @@ export default function DashboardLayout({
   // Loading state
   if (loading || !isClientReady) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#0f0c29] flex items-center justify-center transition-colors duration-300">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ 
+          background: 'var(--theme-background)',
+          color: 'var(--theme-foreground)'
+        }}
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
       </div>
     )
   }
@@ -49,8 +55,9 @@ export default function DashboardLayout({
 
   return (
     <div 
-      className="min-h-screen bg-white dark:bg-transparent transition-colors duration-300"
+      className="min-h-screen transition-colors duration-300"
       style={{ 
+        background: 'var(--theme-background)',
         color: 'var(--theme-foreground)',
         fontFamily: 'var(--font-uni-salar)'
       }}
@@ -66,7 +73,7 @@ export default function DashboardLayout({
         <main className="p-4 sm:p-6 lg:p-8 w-full">
           <Suspense fallback={
             <div className="flex items-center justify-center p-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
             </div>
           }>
             <div>

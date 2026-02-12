@@ -193,40 +193,55 @@ export default function DashboardPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-transparent transition-colors duration-300">
-      <div className="max-w-7xl mx-auto p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-950 dark:text-white mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                داشبۆردی دارایی
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                پێشبینینی گشتیی کاروباری فرۆشگاکەت
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-lg font-bold text-slate-950 dark:text-blue-400" style={{ fontFamily: 'Inter' }}>
-                {new Date().toLocaleDateString('ku')}
-              </p>
-            </div>
+    <div className="max-w-7xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 
+              className="text-4xl font-bold mb-2"
+              style={{ 
+                color: 'var(--theme-foreground)',
+                fontFamily: 'var(--font-uni-salar)' 
+              }}
+            >
+              داشبۆردی دارایی
+            </h1>
+            <p 
+              style={{ 
+                color: 'var(--theme-secondary)',
+                fontFamily: 'var(--font-uni-salar)' 
+              }}
+            >
+              پێشبینینی گشتیی کاروباری فرۆشگاکەت
+            </p>
           </div>
+          <div className="text-right">
+            <p 
+              className="text-lg font-bold"
+              style={{ 
+                color: 'var(--theme-accent)',
+                fontFamily: 'Inter' 
+              }}
+            >
+              {new Date().toLocaleDateString('ku')}
+            </p>
+          </div>
+        </div>
 
-          {/* Quick Action & Main Stats Cards */}
-          <StatCards stats={stats} />
+        {/* Quick Action & Main Stats Cards */}
+        <StatCards stats={stats} />
 
-          {/* Charts & Additional Stats */}
-          <DashboardCharts chartData={chartData} stats={{ todaySales: stats.todaySales, totalCustomers: stats.totalCustomers, lowStockCount: stats.lowStockCount }} />
+        {/* Charts & Additional Stats */}
+        <DashboardCharts chartData={chartData} stats={{ todaySales: stats.todaySales, totalCustomers: stats.totalCustomers, lowStockCount: stats.lowStockCount }} />
 
-          {/* Recent Sales Table */}
-          <RecentSalesTable />
-        </motion.div>
-      </div>
+        {/* Recent Sales Table */}
+        <RecentSalesTable />
+      </motion.div>
     </div>
   )
 }

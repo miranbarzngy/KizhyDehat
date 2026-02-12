@@ -15,8 +15,8 @@ interface UserProfilePopupProps {
 
 const themeOptions = [
   { key: 'white', name: 'سپی', color: '#ffffff', textColor: '#000000' },
-  { key: 'colourful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff' },
-  { key: 'black-gold', name: 'زێڕین', color: '#D4AF37', textColor: '#ffffff' },
+  { key: 'colorful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff' },
+  { key: 'purple', name: 'پەڕە سوورەکان', color: '#6b21a8', textColor: '#ffffff' },
   { key: 'dark', name: 'تاریک', color: '#374151', textColor: '#ffffff' }
 ]
 
@@ -41,8 +41,8 @@ export default function UserProfilePopup({ isOpen, onClose, shopSettings }: User
         root.style.setProperty('--theme-primary', '#6366f1')
         root.style.setProperty('--theme-secondary', '#64748b')
         break
-      case 'colourful':
-        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)')
+      case 'colorful':
+        root.style.setProperty('--theme-background', 'linear-gradient(to right, #ffecd2, #fcb69f)')
         root.style.setProperty('--theme-foreground', '#2d3748')
         root.style.setProperty('--theme-sidebar-bg', 'rgba(255, 255, 255, 0.9)')
         root.style.setProperty('--theme-sidebar-text', '#2d3748')
@@ -50,22 +50,22 @@ export default function UserProfilePopup({ isOpen, onClose, shopSettings }: User
         root.style.setProperty('--theme-primary', '#ff6b6b')
         root.style.setProperty('--theme-secondary', '#718096')
         break
-      case 'black-gold':
-        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)')
-        root.style.setProperty('--theme-foreground', '#f5f5f5')
-        root.style.setProperty('--theme-sidebar-bg', 'rgba(30, 30, 30, 0.95)')
-        root.style.setProperty('--theme-sidebar-text', '#f5f5f5')
-        root.style.setProperty('--theme-sidebar-hover', 'rgba(212, 175, 55, 0.2)')
-        root.style.setProperty('--theme-primary', '#D4AF37')
-        root.style.setProperty('--theme-secondary', '#a0aec0')
+      case 'purple':
+        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%)')
+        root.style.setProperty('--theme-foreground', '#ffffff')
+        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.2)')
+        root.style.setProperty('--theme-sidebar-text', '#ffffff')
+        root.style.setProperty('--theme-sidebar-hover', 'rgba(255, 255, 255, 0.1)')
+        root.style.setProperty('--theme-primary', '#c084fc')
+        root.style.setProperty('--theme-secondary', '#e9d5ff')
         break
       case 'dark':
-        root.style.setProperty('--theme-background', '#111827')
+        root.style.setProperty('--theme-background', '#0a192f')
         root.style.setProperty('--theme-foreground', '#f9fafb')
-        root.style.setProperty('--theme-sidebar-bg', '#1f2937')
-        root.style.setProperty('--theme-sidebar-text', '#f9fafb')
-        root.style.setProperty('--theme-sidebar-hover', '#374151')
-        root.style.setProperty('--theme-primary', '#6366f1')
+        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.3)')
+        root.style.setProperty('--theme-sidebar-text', '#d1d5db')
+        root.style.setProperty('--theme-sidebar-hover', 'rgba(255, 255, 255, 0.1)')
+        root.style.setProperty('--theme-primary', '#60a5fa')
         root.style.setProperty('--theme-secondary', '#9ca3af')
         break
     }
@@ -218,8 +218,8 @@ export default function UserProfilePopup({ isOpen, onClose, shopSettings }: User
                       title={theme.name}
                     >
                       {theme.key === 'white' && '☀️'}
-                      {theme.key === 'colourful' && '🌈'}
-                      {theme.key === 'black-gold' && '👑'}
+                      {theme.key === 'colorful' && '🌈'}
+                      {theme.key === 'purple' && '👑'}
                       {theme.key === 'dark' && '🌙'}
                     </button>
                   ))}

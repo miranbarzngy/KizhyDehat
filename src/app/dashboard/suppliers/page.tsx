@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { FaList, FaSearch, FaTh } from 'react-icons/fa'
+import { FaList, FaSearch, FaTh, FaPlus } from 'react-icons/fa'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -109,7 +109,32 @@ export default function SuppliersPage() {
         </div>
 
         {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            {/* Add New Supplier Card */}
+            <motion.div
+              onClick={() => setShowAddModal(true)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="rounded-3xl p-6 flex flex-col items-center justify-center cursor-pointer min-h-[200px]"
+              style={{
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)',
+                borderStyle: 'dashed',
+                borderWidth: '2px',
+                backdropFilter: 'blur(12px)',
+              }}
+            >
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--theme-muted)' }}>
+                <FaPlus size={32} style={{ color: 'var(--theme-accent)' }} />
+              </div>
+              <span
+                className="text-lg font-semibold"
+                style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+              >
+                زیادکردنی دابینکەر
+              </span>
+            </motion.div>
+            
             {filteredSuppliers.map(supplier => (
               <SupplierCard key={supplier.id} supplier={supplier}
                 onEdit={() => {}}

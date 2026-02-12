@@ -24,7 +24,7 @@ interface ThemeConfig {
 const themes: Record<Theme, ThemeConfig> = {
   white: {
     name: 'White Mode',
-    background: '#ffffff',
+    background: '#f3f4f6',
     foreground: '#000000',
     cardBg: 'rgba(255, 255, 255, 0.9)',
     cardBorder: '#e5e7eb',

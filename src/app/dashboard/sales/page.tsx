@@ -193,49 +193,33 @@ export default function SalesPage() {
     const cat = item.category || 'ئەوانی تر'; if (!acc[cat]) acc[cat] = []; acc[cat].push(item); return acc
   }, {} as { [key: string]: InventoryItem[] })).map(([name, items]) => ({ name, items }))
 
-  if (loading) {
-    return (
-      <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 gap-4 lg:gap-6 lg:flex-row">
-        <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
-          <div className="h-full flex flex-col">
-            <div className="mb-3"><div className="h-8 w-32 bg-white/10 rounded animate-pulse mb-3"></div><div className="h-12 w-full bg-white/10 rounded animate-pulse"></div></div>
-            <div className="flex-1 overflow-y-auto"><div className="grid grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<div key={i} className="bg-white/10 backdrop-blur-xl rounded-xl p-4 animate-pulse"><div className="w-12 h-12 bg-white/10 rounded-xl mx-auto mb-2"></div><div className="h-4 bg-white/10 rounded mb-1"></div><div className="h-6 bg-white/10 rounded"></div></div>))}</div></div>
-          </div>
-        </div>
-        <div className="h-[30vh] lg:h-full lg:w-96 bg-white/10 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-white/20 flex flex-col">
-          <div className="p-3 border-b border-white/20"><div className="h-6 w-20 bg-white/10 rounded animate-pulse"></div></div>
-          <div className="flex-1 p-4"><div className="text-center text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکردن...</div></div>
-        </div>
-      </div>
-    )
-  }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 gap-4 lg:gap-6 lg:flex-row">
+    <div className="h-full flex flex-col bg-white dark:bg-transparent gap-4 lg:gap-6 lg:flex-row transition-colors duration-300">
       <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="h-full flex flex-col">
           <div className="mb-3">
-            <motion.h2 className="text-xl font-bold mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>کاڵاکان</motion.h2>
+            <motion.h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-blue-400 dark:to-purple-400" style={{ fontFamily: 'var(--font-uni-salar)' }} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>کاڵاکان</motion.h2>
             <CustomerSelector searchTerm={customerSearchTerm} showDropdown={showCustomerDropdown} filteredCustomers={getFilteredCustomers()} selectedCustomerData={selectedCustomerData} onSearchChange={setCustomerSearchTerm} onSelect={handleCustomerSelect} onDropdownChange={setShowCustomerDropdown} onCreateNew={handleCreateCustomer} />
             <motion.div className="mb-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 rounded-xl border-0 bg-white/5 backdrop-blur-md shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none text-sm text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                <option value="all" className="bg-slate-800">هەموو پۆلەکان</option>
-                {groupedInventory.map((group) => <option key={group.name} value={group.name} className="bg-slate-800">{group.name}</option>)}
+              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-white dark:bg-white/5 shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none text-sm text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                <option value="all">هەموو پۆلەکان</option>
+                {groupedInventory.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
               </select>
             </motion.div>
           </div>
           <motion.div className="flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: 'none' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
             <div className="lg:hidden space-y-2">
               {filteredInventory.map((item, index) => (
-                <motion.button key={item.id} onClick={() => addToCart(item)} className="w-full h-16 bg-white/10 backdrop-blur-xl rounded-lg shadow-md border border-white/10 flex items-center p-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }} whileTap={{ scale: 0.98 }}>
-                  <div className="flex-shrink-0 ml-2"><div className="w-12 h-12 bg-white/10 rounded-xl"></div></div>
+                <motion.button key={item.id} onClick={() => addToCart(item)} className="w-full h-16 bg-gray-100 dark:bg-white/10 backdrop-blur-xl rounded-lg shadow-md border border-gray-200 dark:border-white/10 flex items-center p-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }} whileTap={{ scale: 0.98 }}>
+                  <div className="flex-shrink-0 ml-2"><div className="w-12 h-12 bg-gray-200 dark:bg-white/10 rounded-xl"></div></div>
                   <div className="flex-1 text-right mr-3">
-                    <h3 className="font-bold text-sm text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
-                    <p className="text-xs text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.category}</p>
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.name}</h3>
+                    <p className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.category}</p>
                   </div>
                   <div className="flex-shrink-0 text-left">
-                    <p className="text-sm font-bold text-blue-400" style={{ fontFamily: 'Inter, sans-serif' }}>{item.selling_price_per_unit.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">IQD</p>
+                    <p className="text-sm font-bold text-blue-500 dark:text-blue-400" style={{ fontFamily: 'Inter, sans-serif' }}>{item.selling_price_per_unit.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500">IQD</p>
                   </div>
                 </motion.button>
               ))}

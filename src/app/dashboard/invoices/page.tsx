@@ -148,74 +148,74 @@ export default function InvoicesPage() {
   const filteredInvoices = invoices.filter(inv => !searchTerm || inv.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) || inv.invoice_number.toString().includes(searchTerm) || inv.status.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1c2e] via-[#2d1b4e] to-[#0f0c29] p-6 pl-0 md:pl-6">
+    <div className="min-h-screen bg-white dark:bg-transparent p-6 pl-0 md:pl-6 transition-colors duration-300">
       <div className="w-full max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>پسوڵە و ڕێکخستنەکان</h1>
-            <div className="flex items-center space-x-2 text-gray-300"><FaFileInvoice className="text-blue-400" /><span style={{ fontFamily: 'var(--font-uni-salar)' }}>{filteredInvoices.length} فاکتور</span></div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>پسوڵە و ڕێکخستنەکان</h1>
+            <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-300"><FaFileInvoice className="text-blue-500 dark:text-blue-400" /><span style={{ fontFamily: 'var(--font-uni-salar)' }}>{filteredInvoices.length} فاکتور</span></div>
           </div>
 
           {/* Floating Glass Tab Bar */}
-          <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-2 mb-8 bg-[#2a2d3e]/60 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl p-2">
-            <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'pending' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-300 hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-2 mb-8 bg-gray-100/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-2xl p-2 transition-all duration-300">
+            <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'pending' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
               ⏳ فرۆشتنە چاوەڕوانکراوەکان
             </button>
-            <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'invoices' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-300 hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'invoices' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
               <FaFileInvoice className="inline ml-2" />پسوڵەی فرۆشتنەکان
             </button>
-            <button onClick={() => setActiveTab('settings')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'settings' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-300 hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <button onClick={() => setActiveTab('settings')} className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all duration-300 ${activeTab === 'settings' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
               <FaCog className="inline ml-2" />ڕێکخستنەکان
             </button>
           </div>
 
           {activeTab === 'settings' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              {/* Main Glass Container - Dark Style */}
-              <div className="bg-[#2a2d3e]/50 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl p-6 md:p-8">
+              {/* Main Glass Container - Theme Aware */}
+              <div className="bg-white/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-3xl p-6 md:p-8 transition-all duration-300">
                 <div className="flex items-center mb-8">
-                  <FaCog className="text-blue-400 text-2xl ml-3" />
-                  <h2 className="text-2xl font-bold text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕێکخستنەکان</h2>
+                  <FaCog className="text-blue-500 dark:text-blue-400 text-2xl ml-3" />
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕێکخستنەکان</h2>
                 </div>
 
                 {/* Grid Layout: 2 columns */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Shop Info Card */}
-                  <div className="bg-[#1a1c2e]/50 backdrop-blur-md border border-white/10 shadow-lg rounded-3xl p-6">
+                  <div className="bg-gray-50/80 dark:bg-[#1a1c2e]/50 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-lg rounded-3xl p-6 transition-all duration-300">
                     <div className="flex items-center mb-4">
-                      <FaStore className="text-blue-400 text-xl ml-2" />
-                      <h3 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>زانیاری فرۆشگا</h3>
+                      <FaStore className="text-blue-500 dark:text-blue-400 text-xl ml-2" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>زانیاری فرۆشگا</h3>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی فرۆشگا</label>
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی فرۆشگا</label>
                         <div className="relative">
-                          <FaStore className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                          <FaStore className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                           <input type="text" value={formData.shop_name} onChange={(e) => setFormData(prev => ({ ...prev, shop_name: e.target.value }))}
-                            className="w-full pr-10 pl-4 py-2.5 bg-[#1a1c2e]/50 border border-white/10 rounded-xl focus:bg-[#1a1c2e]/70 focus:border-blue-400 outline-none transition-all text-white placeholder-gray-500"
+                            className="w-full pr-10 pl-4 py-2.5 bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 rounded-xl focus:border-blue-400 outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
                             style={{ fontFamily: 'var(--font-uni-salar)' }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ژمارەی تەلەفۆن</label>
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ژمارەی تەلەفۆن</label>
                         <div className="relative">
-                          <FaPhone className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                          <FaPhone className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                           <input type="text" value={formData.shop_phone} onChange={(e) => setFormData(prev => ({ ...prev, shop_phone: e.target.value }))}
-                            className="w-full pr-10 pl-4 py-2.5 bg-[#1a1c2e]/50 border border-white/10 rounded-xl focus:bg-[#1a1c2e]/70 focus:border-blue-400 outline-none transition-all text-white placeholder-gray-500"
+                            className="w-full pr-10 pl-4 py-2.5 bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 rounded-xl focus:border-blue-400 outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
                             style={{ fontFamily: 'Inter' }}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</label>
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</label>
                         <div className="relative">
-                          <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-500" />
+                          <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
                           <textarea value={formData.shop_address} onChange={(e) => setFormData(prev => ({ ...prev, shop_address: e.target.value }))}
-                            className="w-full pr-10 pl-4 py-2.5 bg-[#1a1c2e]/50 border border-white/10 rounded-xl focus:bg-[#1a1c2e]/70 focus:border-blue-400 outline-none transition-all resize-none text-white placeholder-gray-500"
+                            className="w-full pr-10 pl-4 py-2.5 bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 rounded-xl focus:border-blue-400 outline-none transition-all resize-none text-gray-900 dark:text-white placeholder-gray-400"
                             rows={2}
                             style={{ fontFamily: 'var(--font-uni-salar)' }}
                           />
@@ -225,36 +225,36 @@ export default function InvoicesPage() {
                   </div>
 
                   {/* Branding Card */}
-                  <div className="bg-[#1a1c2e]/50 backdrop-blur-md border border-white/10 shadow-lg rounded-3xl p-6">
+                  <div className="bg-gray-50/80 dark:bg-[#1a1c2e]/50 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-lg rounded-3xl p-6 transition-all duration-300">
                     <div className="flex items-center mb-4">
-                      <FaImage className="text-purple-400 text-xl ml-2" />
-                      <h3 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>براندینگ</h3>
+                      <FaImage className="text-purple-500 dark:text-purple-400 text-xl ml-2" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>براندینگ</h3>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>لۆگۆ</label>
-                        <div className="border-2 border-dashed border-white/20 rounded-xl p-4 bg-[#1a1c2e]/30 hover:bg-[#1a1c2e]/50 transition-colors text-center cursor-pointer">
-                          <FaImage className="text-gray-500 mx-auto mb-2" />
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>لۆگۆ</label>
+                        <div className="border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl p-4 bg-white dark:bg-[#1a1c2e]/30 hover:bg-gray-50 dark:hover:bg-[#1a1c2e]/50 transition-colors text-center cursor-pointer">
+                          <FaImage className="text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                           <input type="file" accept="image/*" onChange={(e) => setFormData(prev => ({ ...prev, shop_logo: e.target.files?.[0] || null }))} className="hidden" id="logo-upload" />
-                          <label htmlFor="logo-upload" className="cursor-pointer text-sm text-blue-400 hover:text-blue-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>کلیک</label>
+                          <label htmlFor="logo-upload" className="cursor-pointer text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>کلیک</label>
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>QR کۆد</label>
-                        <div className="border-2 border-dashed border-white/20 rounded-xl p-4 bg-[#1a1c2e]/30 hover:bg-[#1a1c2e]/50 transition-colors text-center cursor-pointer">
-                          <FaQrcode className="text-gray-500 mx-auto mb-2" />
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>QR کۆد</label>
+                        <div className="border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl p-4 bg-white dark:bg-[#1a1c2e]/30 hover:bg-gray-50 dark:hover:bg-[#1a1c2e]/50 transition-colors text-center cursor-pointer">
+                          <FaQrcode className="text-gray-400 dark:text-gray-500 mx-auto mb-2" />
                           <input type="file" accept="image/*" onChange={(e) => setFormData(prev => ({ ...prev, qr_code_file: e.target.files?.[0] || null }))} className="hidden" id="qr-upload" />
-                          <label htmlFor="qr-upload" className="cursor-pointer text-sm text-blue-400 hover:text-blue-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>کلیک</label>
+                          <label htmlFor="qr-upload" className="cursor-pointer text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>کلیک</label>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-4">
-                      <label className="block text-sm font-medium mb-2 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>پەیام</label>
+                      <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>پەیام</label>
                       <textarea value={formData.thank_you_note} onChange={(e) => setFormData(prev => ({ ...prev, thank_you_note: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-[#1a1c2e]/50 border border-white/10 rounded-xl focus:bg-[#1a1c2e]/70 focus:border-blue-400 outline-none transition-all resize-none text-white placeholder-gray-500"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 rounded-xl focus:border-blue-400 outline-none transition-all resize-none text-gray-900 dark:text-white placeholder-gray-400"
                         rows={2}
                         style={{ fontFamily: 'var(--font-uni-salar)' }}
                       />
@@ -275,7 +275,7 @@ export default function InvoicesPage() {
               <div className="relative mb-6">
                 <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="گەڕان..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pr-10 pl-4 py-3 bg-[#2a2d3e]/60 backdrop-blur-xl border border-white/10 shadow-xl rounded-xl focus:bg-[#2a2d3e]/80 focus:border-blue-400 outline-none transition-all text-white placeholder-gray-400"
+                  className="w-full pr-10 pl-4 py-3 bg-white dark:bg-[#2a2d3e]/60 border border-gray-200 dark:border-white/10 rounded-xl focus:border-blue-400 outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
                   style={{ fontFamily: 'var(--font-uni-salar)' }}
                 />
               </div>
@@ -285,54 +285,54 @@ export default function InvoicesPage() {
 
           {activeTab === 'pending' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="bg-[#2a2d3e]/50 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl overflow-hidden">
+              <div className="bg-white/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-3xl overflow-hidden transition-all duration-300">
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
-                      <tr className="border-b border-white/10 bg-[#2a2d3e]/60">
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کاڵا</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>دۆخ</th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
+                      <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-[#2a2d3e]/60">
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کاڵا</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>دۆخ</th>
+                        <th className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pendingSales.map((sale) => (
-                        <motion.tr key={sale.id} className="border-b border-white/5 hover:bg-white/5 transition-colors" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                          <td className="px-4 py-3 text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.customer_name}</td>
-                          <td className="px-4 py-3 text-gray-400" style={{ fontFamily: 'Inter' }}>{sale.customer_phone || '—'}</td>
-                          <td className="px-4 py-3 text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.items.map(i => i.name).join(', ')}</td>
-                          <td className="px-4 py-3 font-bold text-gray-200" style={{ fontFamily: 'Inter' }}>{formatCurrency(sale.total)}</td>
-                          <td className="px-4 py-3 text-gray-400" style={{ fontFamily: 'Inter' }}>{new Date(sale.date).toLocaleDateString('ku')}</td>
-                          <td className="px-4 py-2"><span className="px-3 py-1 rounded-full text-xs bg-orange-500/20 text-orange-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>⏳ چاوەڕوان</span></td>
+                        <motion.tr key={sale.id} className="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                          <td className="px-4 py-3 text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.customer_name}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter' }}>{sale.customer_phone || '—'}</td>
+                          <td className="px-4 py-3 text-gray-900 dark:text-gray-200" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.items.map(i => i.name).join(', ')}</td>
+                          <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-200" style={{ fontFamily: 'Inter' }}>{formatCurrency(sale.total)}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter' }}>{new Date(sale.date).toLocaleDateString('ku')}</td>
+                          <td className="px-4 py-2"><span className="px-3 py-1 rounded-full text-xs bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>⏳ چاوەڕوان</span></td>
                           <td className="px-4 py-3">
                             <div className="flex flex-row-reverse gap-2 items-start justify-center">
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button onClick={() => viewPendingSaleDetails(sale)} className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                 </motion.button>
-                                <span className="text-[10px] text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
                               </div>
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button onClick={() => confirmSale(sale)} className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                 </motion.button>
-                                <span className="text-[10px] text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>پشتڕاست</span>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>پشتڕاست</span>
                               </div>
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button onClick={() => returnSale(sale)} className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                                 </motion.button>
-                                <span className="text-[10px] text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندنەوە</span>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندنەوە</span>
                               </div>
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button onClick={() => cancelSale(sale)} className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </motion.button>
-                                <span className="text-[10px] text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>هەڵوەشاندنەوە</span>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>هەڵوەشاندنەوە</span>
                               </div>
                             </div>
                           </td>

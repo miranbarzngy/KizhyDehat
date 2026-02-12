@@ -5,9 +5,9 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import StatCards from './_components/StatCards'
-import DashboardCharts from './_components/DashboardCharts'
-import RecentSalesTable from './_components/RecentSalesTable'
+import StatCards from './_components/StatCards.tsx'
+import DashboardCharts from './_components/DashboardCharts.tsx'
+import RecentSalesTable from './_components/RecentSalesTable.tsx'
 
 interface ChartData {
   date: string
@@ -193,7 +193,7 @@ export default function DashboardPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+    <div className="min-h-screen bg-white dark:bg-transparent transition-colors duration-300">
       <div className="max-w-7xl mx-auto p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -203,15 +203,15 @@ export default function DashboardPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <h1 className="text-4xl font-bold text-slate-950 dark:text-white mb-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 داشبۆردی دارایی
               </h1>
-              <p className="text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <p className="text-gray-600 dark:text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 پێشبینینی گشتیی کاروباری فرۆشگاکەت
               </p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-blue-400">
+              <p className="text-lg font-bold text-slate-950 dark:text-blue-400" style={{ fontFamily: 'Inter' }}>
                 {new Date().toLocaleDateString('ku')}
               </p>
             </div>

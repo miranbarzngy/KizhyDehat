@@ -37,16 +37,16 @@ export default function InventoryPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1a1c2e] via-[#2d1b4e] to-[#0f0c29] p-6 pl-0 md:pl-6">
+    <div className="min-h-screen bg-white dark:bg-transparent p-6 pl-0 md:pl-6 transition-colors duration-300">
       <div className="w-full max-w-7xl mx-auto">
-        <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold mb-8 text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold mb-8 text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
           بەڕێوەبردنی کاڵاکان
         </motion.h1>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-row overflow-x-auto whitespace-nowrap gap-2 mb-8 bg-[#2a2d3e]/60 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl p-2">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-row overflow-x-auto whitespace-nowrap gap-2 mb-8 bg-gray-100/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-2xl p-2 transition-all duration-300">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'archive') fetchArchivedItems() }}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' : 'text-gray-300 hover:bg-white/10'}`}
+              className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10'}`}
               style={{ fontFamily: 'var(--font-uni-salar)' }}>
               <tab.icon className="text-lg" />{tab.label}
             </button>
@@ -58,12 +58,12 @@ export default function InventoryPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="flex-1 relative">
                 <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="گەڕان..."
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-[#1a1c2e]/50 border border-white/10 text-white placeholder-gray-400 focus:border-blue-400 outline-none transition-all"
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="گەڕان..."
+                className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-400 outline-none transition-all"
                   style={{ fontFamily: 'var(--font-uni-salar)' }} />
               </div>
               <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 rounded-xl bg-[#1a1c2e]/50 border border-white/10 text-white focus:border-blue-400 outline-none transition-all"
+                className="px-4 py-3 rounded-xl bg-white dark:bg-[#1a1c2e]/50 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-blue-400 outline-none transition-all"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 <option value="">هەموو پۆلەکان</option>
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}

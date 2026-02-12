@@ -112,12 +112,12 @@ export default function SuppliersPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>
+    return <div className="min-h-screen w-full bg-white dark:bg-[#0f0c29] flex items-center justify-center transition-colors duration-300"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+    <div className="min-h-screen w-full bg-white dark:bg-transparent p-6 pl-0 md:pl-6 transition-colors duration-300">
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
         بەڕێوەبردنی دابینکەران
       </h1>
 

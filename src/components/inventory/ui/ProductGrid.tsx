@@ -19,7 +19,7 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="col-span-full p-12 rounded-2xl bg-white/60 backdrop-blur-md border border-white/20 shadow-lg text-center"
+        className="col-span-full p-12 rounded-2xl bg-white border border-gray-200 shadow-lg text-center"
       >
         <div className="text-6xl mb-4">📦</div>
         <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.2rem', color: '#6b7280' }}>
@@ -39,7 +39,7 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
       {onAddProduct && (
         <button
           onClick={onAddProduct}
-          className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-2 border-dashed border-blue-300/50 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] flex flex-col items-center justify-center min-h-[300px]"
+          className="p-6 rounded-2xl bg-blue-50 border-2 border-dashed border-blue-300 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] flex flex-col items-center justify-center min-h-[300px]"
         >
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-3">
             <FaPlus className="text-blue-600 text-2xl" />
@@ -55,7 +55,7 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
       {products.map(item => (
         <div 
           key={item.id} 
-          className="p-6 rounded-2xl bg-white/60 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all"
+          className="p-6 rounded-2xl bg-white border border-gray-200 shadow-lg hover:shadow-xl transition-all"
         >
           <div className="h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center text-4xl overflow-hidden">
             {item.image ? (
@@ -65,7 +65,7 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
             )}
           </div>
           <h3 
-            className="text-lg font-bold text-center mb-2" 
+            className="text-lg font-bold text-center text-slate-950 mb-2" 
             style={{ fontFamily: 'var(--font-uni-salar)' }}
           >
             {item.name}
@@ -78,14 +78,14 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
               {item.total_amount_bought} {item.unit}
             </span>
             {item.category && (
-              <div className="text-sm text-gray-500">{item.category}</div>
+              <div className="text-sm text-gray-600">{item.category}</div>
             )}
           </div>
           {/* Action Buttons - Always Visible & Touch Friendly */}
-          <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200/50">
+          <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200">
             <button 
               onClick={() => openEditItem(item)}
-              className="w-10 h-10 flex items-center justify-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md"
+              className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
               title="دەستکاری"
             >
               <FaEdit />

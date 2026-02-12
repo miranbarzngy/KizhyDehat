@@ -50,7 +50,7 @@ export default function CustomerSelector({
             }}
             onFocus={() => onDropdownChange(true)}
             placeholder="گەڕان بۆ کڕیار"
-            className="w-full px-4 py-2 pr-10 rounded-xl border-0 bg-white/5 backdrop-blur-md shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-sm text-gray-200 placeholder-gray-500"
+            className="w-full px-4 py-2 pr-10 rounded-xl border border-gray-300 bg-white shadow-lg hover:shadow-xl transition-all duration-300 focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-sm text-gray-900 placeholder-gray-500"
             style={{ fontFamily: 'var(--font-uni-salar)' }}
             whileFocus={{ scale: 1.01 }}
           />
@@ -58,7 +58,7 @@ export default function CustomerSelector({
           <AnimatePresence>
             {showDropdown && searchTerm && (
               <motion.div
-                className="absolute top-full left-0 right-0 mt-1 bg-slate-800/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/10 z-50 max-h-48 overflow-y-auto"
+                className="absolute top-full left-0 right-0 mt-1 !bg-white dark:!bg-[#2a2d3e] backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 z-50 max-h-48 overflow-y-auto"
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -69,8 +69,8 @@ export default function CustomerSelector({
                     <motion.button
                       key={customer.id}
                       onClick={() => onSelect(customer)}
-                      className="w-full px-3 py-2 text-right hover:bg-white/10 transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl text-sm"
-                      whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.1)' }}
+                      className="w-full px-3 py-2 text-right hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl text-sm"
+                      whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -78,16 +78,16 @@ export default function CustomerSelector({
                     >
                       <div className="flex justify-between items-center">
                         <div className="text-left">
-                          <div className="text-xs text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <div className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
                             {customer.phone1}
                           </div>
                           {customer.total_debt && customer.total_debt > 0 && (
-                            <div className="text-xs text-red-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+                            <div className="text-xs text-red-600 dark:text-red-400" style={{ fontFamily: 'Inter, sans-serif' }}>
                               قەرز: {formatCurrency(customer.total_debt)} IQD
                             </div>
                           )}
                         </div>
-                        <div className="font-bold text-gray-200 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        <div className="font-bold text-gray-900 dark:text-gray-100 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                           {customer.name}
                         </div>
                       </div>
@@ -105,7 +105,7 @@ export default function CustomerSelector({
 
         <motion.button
           onClick={onCreateNew}
-          className="px-3 py-2 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 text-emerald-400 rounded-xl shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center"
+          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 border border-emerald-200 text-white rounded-xl shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center"
           whileHover={{ scale: 1.05, y: -1 }}
           whileTap={{ scale: 0.95 }}
           title="کڕیاری نوێ زیادبکە"
@@ -119,7 +119,7 @@ export default function CustomerSelector({
       <AnimatePresence>
         {selectedCustomerData && (
           <motion.div
-            className="mt-3 p-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md rounded-xl border border-white/10"
+            className="mt-3 p-3 bg-blue-50 dark:bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/10"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -128,27 +128,27 @@ export default function CustomerSelector({
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-3">
                 <motion.div
-                  className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
+                  className="w-8 h-8 bg-blue-600 dark:bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
                   <span className="text-white text-sm font-bold">👤</span>
                 </motion.div>
                 <div>
-                  <div className="font-bold text-gray-100" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  <div className="font-bold text-gray-900 dark:text-gray-100" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                     {selectedCustomerData.name}
                   </div>
-                  <div className="text-sm text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <div className="text-sm text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {selectedCustomerData.phone1}
                   </div>
                 </div>
               </div>
               {selectedCustomerData.total_debt && selectedCustomerData.total_debt > 0 && (
                 <div className="text-right">
-                  <div className="text-sm text-red-400 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <div className="text-sm text-red-600 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
                     قەرزی ئێستا
                   </div>
                   <motion.div
-                    className="text-lg font-bold text-red-400"
+                    className="text-lg font-bold text-red-600"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                     whileHover={{ scale: 1.05 }}
                   >

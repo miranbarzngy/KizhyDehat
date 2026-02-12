@@ -100,3 +100,31 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Force light mode background - critical for theme switching */
+.light body,
+.light #__next,
+.light .min-h-screen {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* Ensure smooth theme transitions */
+* {
+  transition-property: background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Prevent flash of wrong theme */
+html.dark body,
+html.dark #__next {
+  background-color: #0f0c29 !important;
+  background: linear-gradient(to bottom right, #1a1c2e, #2d1b4e, #0f0c29) !important;
+}
+
+html:not(.dark) body,
+html:not(.dark) #__next {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}

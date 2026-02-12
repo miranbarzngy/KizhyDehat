@@ -527,8 +527,8 @@ export default function CustomersPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">بەڕێوەبردنی کڕیاران</h1>
+    <div className="bg-white dark:bg-transparent min-h-screen transition-colors duration-300">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 p-6 pl-0 md:pl-6">بەڕێوەبردنی کڕیاران</h1>
 
       <div className="mb-6">
         <motion.button

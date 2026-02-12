@@ -1,5 +1,7 @@
-import GlobalLoader from '@/components/common/GlobalLoader'
-
 export default function Loading() {
-  return <GlobalLoader message="چاوەڕوانبە..." />
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+    </div>
+  )
 }

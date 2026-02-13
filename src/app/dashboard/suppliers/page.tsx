@@ -109,8 +109,8 @@ export default function SuppliersPage() {
         </div>
 
         {viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-            {/* Add New Supplier Card */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6">
+            {/* Add New Supplier Card - Always show first */}
             <motion.div
               onClick={() => setShowAddModal(true)}
               whileHover={{ scale: 1.02 }}
@@ -135,31 +135,36 @@ export default function SuppliersPage() {
               </span>
             </motion.div>
             
-            {filteredSuppliers.map(supplier => (
-              <SupplierCard key={supplier.id} supplier={supplier}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                onHistory={() => {}}
-                onPayment={() => {}}
-              />
-            ))}
+            {/* Show suppliers or empty message */}
+            {filteredSuppliers.length > 0 ? (
+              filteredSuppliers.map(supplier => (
+                <SupplierCard key={supplier.id} supplier={supplier}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onHistory={() => {}}
+                  onPayment={() => {}}
+                />
+              ))
+            ) : (
+              <div 
+                className="col-span-full p-12 rounded-2xl shadow-lg text-center"
+                style={{ 
+                  backgroundColor: 'var(--theme-card-bg)',
+                  borderColor: 'var(--theme-card-border)',
+                  borderWidth: '1px'
+                }}
+              >
+                <div className="text-6xl mb-4">🏢</div>
+                <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.2rem', color: 'var(--theme-secondary)' }}>
+                  هیچ دابینکەر نەدۆزرایەوە
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {viewMode === 'table' && (
           <SupplierTable suppliers={filteredSuppliers} onEdit={() => {}} onDelete={() => {}} />
-        )}
-
-        {filteredSuppliers.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🏢</div>
-            <h3 
-              className="text-xl font-semibold"
-              style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-            >
-              هیچ دابینکەر نەدۆزرایەوە
-            </h3>
-          </div>
         )}
       </div>
 

@@ -214,8 +214,8 @@ export function InvoiceTemplate({ data }: { data: any }) {
         </div>
         
         {data?.qrCodeUrl && (
-          <div style={{ textAlign: 'center' }}>
-            <img src={data.qrCodeUrl} alt="QR" style={{ width: '70px', height: '70px' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '12px' }}>
+            <img src={data.qrCodeUrl} alt="QR" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
           </div>
         )}
         

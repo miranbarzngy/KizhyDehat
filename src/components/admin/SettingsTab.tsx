@@ -16,9 +16,10 @@ interface ShopSettings {
 interface SettingsTabProps {
   shopSettings: ShopSettings | null
   shopSettingsForm: Partial<ShopSettings>
-  onUpdateForm: (field: string, value: string | number) => void
-  onImageUpload: (file: File, field: string) => void
-  onSaveAll: () => void
+  onUpdateForm: (field: string, value: string | number) => Promise<void>
+  onImageUpload: (file: File, field: string) => Promise<void>
+  onQRCodeUpload: (file: File) => Promise<void>
+  onSaveAll: () => Promise<void>
 }
 
 const timeoutOptions = [
@@ -34,6 +35,7 @@ export default function SettingsTab({
   shopSettingsForm, 
   onUpdateForm, 
   onImageUpload, 
+  onQRCodeUpload,
   onSaveAll 
 }: SettingsTabProps) {
   return (
@@ -197,16 +199,16 @@ export default function SettingsTab({
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) {
-                    onImageUpload(file, 'qr_code_url')
+                    onQRCodeUpload(file)
                   }
                 }}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
               />
             </div>
-            {shopSettings?.qr_code_url && (
+            {(shopSettings?.qr_code_url || shopSettingsForm?.qr_code_url) && (
               <div className="mt-3">
                 <img
-                  src={shopSettings.qr_code_url}
+                  src={shopSettingsForm?.qr_code_url || shopSettings?.qr_code_url || ''}
                   alt="QR Code"
                   className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
                 />

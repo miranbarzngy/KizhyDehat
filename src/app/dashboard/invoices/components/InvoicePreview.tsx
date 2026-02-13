@@ -161,7 +161,11 @@ function InvoiceTemplate({ data }: { data: any }) {
         <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
           <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', ...kurdishStyle }}>کۆی گشتی: {formatPrice(data?.total || 0)}</div>
         </div>
-        {data?.qrCodeUrl && <div style={{ textAlign: 'center' }}><img src={data.qrCodeUrl} alt="QR" style={{ width: '70px', height: '70px' }} /></div>}
+        {data?.qrCodeUrl && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '12px' }}>
+            <img src={data.qrCodeUrl} alt="QR" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+          </div>
+        )}
         <div style={{ textAlign: 'center', fontSize: '12px', color: '#6b7280', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>{data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}</div>
         <div style={{ textAlign: 'center', fontSize: '9px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
       </div>

@@ -11,11 +11,12 @@ import { useAdminData } from "@/components/admin/useAdminData";
 
 export default function AdminPage() {
   const {
-    users, roles, shopSettings, loading, activeTab, showCreateUser, showCreateRole, editingUser,
+    users, roles, shopSettings, shopSettingsForm, loading, activeTab, showCreateUser, showCreateRole, editingUser,
     newUserName, newUserEmail, selectedRoleId,
     setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserEmail, setSelectedRoleId,
     fetchUsers, fetchRoles, fetchShopSettings, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
-    handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm
+    handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm, updateShopSettingsField,
+    handleImageUpload, handleQRCodeUpload, updateAllShopSettings
   } = useAdminData();
 
   useEffect(() => { fetchUsers(); fetchRoles(); fetchShopSettings(); }, []);
@@ -117,7 +118,14 @@ export default function AdminPage() {
             )}
             {activeTab === "settings" && (
               <motion.div key="settings" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                <SettingsTab shopSettings={shopSettings} onUpdateForm={() => {}} onImageUpload={() => {}} onSaveAll={() => {}} />
+                <SettingsTab 
+                  shopSettings={shopSettings} 
+                  shopSettingsForm={shopSettingsForm}
+                  onUpdateForm={updateShopSettingsField} 
+                  onImageUpload={handleImageUpload} 
+                  onQRCodeUpload={handleQRCodeUpload}
+                  onSaveAll={updateAllShopSettings} 
+                />
               </motion.div>
             )}
           </AnimatePresence>

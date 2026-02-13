@@ -52,6 +52,7 @@ interface UseAdminDataReturn {
   resetRoleForm: () => void;
   updateShopSettingsField: (field: string, value: string | number) => Promise<void>;
   handleImageUpload: (file: File, field: string) => Promise<void>;
+  handleQRCodeUpload: (file: File) => Promise<void>;
   updateAllShopSettings: () => Promise<void>;
 }
 
@@ -229,6 +230,54 @@ export function useAdminData(): UseAdminDataReturn {
     } catch (error) { console.error("Upload failed:", error); alert("هەڵە"); }
   }, [updateShopSettingsField]);
 
+  const handleQRCodeUpload = useCallback(async (file: File) => {
+    if (!supabase) { alert("Supabase not configured"); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("وێنە گەورەیە"); return; }
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) { alert("جۆر نادروستە"); return; }
+    
+    try {
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `qr-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      
+      // Try 'shop-logos' bucket first, then fallback to 'shop-assets', then 'product-images'
+      const bucketNames = ['shop-logos', 'shop-assets', 'product-images'];
+      let uploadSuccess = false;
+      let publicUrl = '';
+      
+      for (const bucketName of bucketNames) {
+        try {
+          const { error: uploadError } = await supabase.storage.from(bucketName).upload(`qr-codes/${fileName}`, file);
+          if (uploadError) {
+            console.log(`Failed to upload to ${bucketName}:`, uploadError.message);
+            continue;
+          }
+          const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(`qr-codes/${fileName}`);
+          if (urlData?.publicUrl) {
+            publicUrl = urlData.publicUrl;
+            uploadSuccess = true;
+            break;
+          }
+        } catch (bucketError) {
+          console.log(`Bucket ${bucketName} error:`, bucketError);
+          continue;
+        }
+      }
+      
+      if (!uploadSuccess) {
+        alert("هەڵە لە ئەپلۆدکردن: تکایە باکێتی 'shop-logos' دروست بکە لە Supabase Storage");
+        return;
+      }
+      
+      if (publicUrl) {
+        updateShopSettingsField('qr_code_url', publicUrl);
+      }
+    } catch (error) { 
+      console.error("QR Code Upload failed:", error); 
+      alert("هەڵە لە ئەپلۆدکردنی QR کۆد: تکایە باکێتی 'shop-logos' دروست بکە لە Supabase Storage بە 'Public' access");
+    }
+  }, [updateShopSettingsField]);
+
   const updateAllShopSettings = useCallback(async () => {
     if (!supabase) { alert("دۆخی دیمۆ"); return; }
     try {
@@ -246,6 +295,6 @@ export function useAdminData(): UseAdminDataReturn {
     setNewUserPhone, setNewUserLocation, setNewUserEmail, setNewUserPassword, setSelectedRoleId, setNewUserIsActive,
     setNewRoleName, setPermissions, togglePermission, fetchUsers, fetchRoles, fetchShopSettings, handleCreateUser,
     handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm, handleCreateRole, handleUpdateRole, handleDeleteRole,
-    handleEditRole, resetRoleForm, updateShopSettingsField, handleImageUpload, updateAllShopSettings
+    handleEditRole, resetRoleForm, updateShopSettingsField, handleImageUpload, handleQRCodeUpload, updateAllShopSettings
   };
 }

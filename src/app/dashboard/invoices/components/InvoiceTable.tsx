@@ -59,7 +59,7 @@ export default function InvoiceTable({
                   #{invoice.invoice_number}
                 </td>
                 <td className="px-2 md:px-6 py-3 md:py-4 text-gray-900 dark:text-gray-200 text-center text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  {invoice.customer_name}
+                  {invoice.customer_name || invoice.customers?.name || 'نەناسراو'}
                 </td>
                 <td className="px-2 md:px-6 py-3 md:py-4 text-gray-600 dark:text-gray-400 text-center text-xs md:text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
                   {new Date(invoice.date).toLocaleDateString('ku')}

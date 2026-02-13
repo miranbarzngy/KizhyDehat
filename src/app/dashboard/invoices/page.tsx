@@ -144,8 +144,77 @@ export default function InvoicesPage() {
     setInvoiceDetails(null)
   }
 
-  const handleDownloadInvoice = async () => {
-    // Implementation for download
+  // Handle printing invoice (reprint)
+  const handlePrintInvoice = async (sale: any) => {
+    try {
+      // Fetch sale items with product info
+      const { data: saleItems, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*, products(name, unit)')
+        .eq('sale_id', sale.id)
+      
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError)
+      }
+      
+      // Transform items
+      const transformedItems = (saleItems || []).map((item: any) => ({
+        ...item,
+        products: item.products ? {
+          name: item.products.name,
+          unit: item.products.unit
+        } : null
+      }))
+      
+      // Fetch customer data
+      const { data: customerData } = sale.customer_id ? await supabase
+        .from('customers')
+        .select('name, phone1')
+        .eq('id', sale.customer_id)
+        .single() : { data: null }
+      
+      // Fetch seller name from profile
+      const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
+      
+      const saleData = {
+        ...sale,
+        customers: customerData || null,
+        sale_items: transformedItems || [],
+        seller_name: sellerName || sale.sold_by || sale.seller_name || '',
+        profiles: { name: sellerName || sale.sold_by || sale.seller_name || '' }
+      }
+      
+      setSelectedInvoice(sale)
+      setInvoiceDetails(saleData)
+      setShowInvoiceModal(true)
+    } catch (error) {
+      console.error('Error printing invoice:', error)
+      alert('هەڵە لە کردنەوەی پسوڵە بۆ چاپکردن')
+    }
+  }
+
+  // Handle refund invoice
+  const handleRefundInvoice = async (sale: any) => {
+    if (!confirm('دڵنیایت لە گەڕاندنەوەی ئەم پسوڵەیە؟')) {
+      return
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .update({ status: 'refunded' })
+        .eq('id', sale.id)
+      
+      if (error) throw error
+      
+      alert('پسوڵەکە بە سەرکەوتوویی گەڕێندرایەوە')
+      // Refresh data
+      await fetchInvoices()
+      await fetchPendingSales()
+    } catch (error) {
+      console.error('Error refunding invoice:', error)
+      alert('هەڵە لە گەڕاندنەوەی پسوڵەکە')
+    }
   }
 
   useEffect(() => { fetchPendingSales(); fetchInvoices(); fetchInvoiceSettings() }, [])
@@ -368,7 +437,7 @@ export default function InvoicesPage() {
           {activeTab === 'invoices' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <input type="text" placeholder="گەڕان..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full mb-6 px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)', color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }} />
-              <InvoiceTable filteredInvoices={filteredInvoices} onView={() => {}} onReprint={() => {}} onRefund={() => {}} />
+              <InvoiceTable filteredInvoices={filteredInvoices} onView={handleViewInvoice} onReprint={handlePrintInvoice} onRefund={handleRefundInvoice} />
             </motion.div>
           )}
 

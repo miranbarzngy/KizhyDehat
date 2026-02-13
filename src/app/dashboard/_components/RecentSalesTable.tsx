@@ -1,12 +1,12 @@
 'use client'
 
-import { memo, useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { FaEye, FaShoppingCart } from 'react-icons/fa'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/numberUtils'
 import GlobalInvoiceModal, { buildInvoiceData } from '@/components/GlobalInvoiceModal'
+import { formatCurrency } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
+import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+import { memo, useEffect, useState } from 'react'
+import { FaEye, FaShoppingCart } from 'react-icons/fa'
 
 interface PendingSale {
   id: string
@@ -459,7 +459,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         onClose={() => setShowInvoiceModal(false)}
         invoiceData={getInvoiceData()}
         invoiceId={selectedOrder?.id}
-        title="وردەکارییەکانی فاکتور"
+        title="وردەکارییەکانی پسوڵە"
       />
     </>
   )

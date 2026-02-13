@@ -26,7 +26,7 @@ export default function InvoiceModal({
       onClose={() => setShowModal(false)}
       invoiceData={invoiceData}
       invoiceId={selectedInvoice?.id}
-      title={`فاکتور #${selectedInvoice?.invoice_number || selectedInvoice?.id?.slice(0, 8).toUpperCase() || '---'}`}
+      title={`پسوڵە #${selectedInvoice?.invoice_number || selectedInvoice?.id?.slice(0, 8).toUpperCase() || '---'}`}
     />
   )
 }

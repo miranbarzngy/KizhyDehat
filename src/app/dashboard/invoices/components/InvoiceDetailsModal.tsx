@@ -1,12 +1,11 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { FaFileInvoice, FaEye, FaPrint } from 'react-icons/fa'
-import { Invoice, SaleData } from './invoiceUtils'
-import InvoicePreview from './InvoicePreview'
-import html2canvas from 'html2canvas'
 import { formatCurrency } from '@/lib/numberUtils'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useRef } from 'react'
+import { FaEye, FaFileInvoice } from 'react-icons/fa'
+import InvoicePreview from './InvoicePreview'
+import { Invoice, SaleData } from './invoiceUtils'
 
 interface InvoiceDetailsModalProps {
   showInvoiceModal: boolean
@@ -52,7 +51,7 @@ export default function InvoiceDetailsModal({
                 <FaFileInvoice className="text-blue-500 text-2xl" />
                 <div>
                   <h3 className="text-xl font-bold text-gray-800" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    وردەکارییەکانی فاکتور #{selectedInvoice.invoice_number}
+                    وردەکارییەکانی پسوڵە #{selectedInvoice.invoice_number}
                   </h3>
                   <p className="text-sm text-gray-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {new Date(selectedInvoice.date).toLocaleDateString('ku')} - {invoiceDetails.customers?.name}

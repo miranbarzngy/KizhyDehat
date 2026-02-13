@@ -196,8 +196,22 @@ export default function SalesPage() {
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
       const customerPhone = customers.find(c => c.id === selectedCustomer)?.phone1
 
+      // Get the profile name from the profiles table
+      let profileName = userName
+      if (user?.id) {
+        try {
+          const { data: profileData } = await supabase.from('profiles').select('name').eq('id', user.id).single()
+          if (profileData?.name) {
+            profileName = profileData.name
+          }
+        } catch (e) {
+          console.log('Could not fetch profile:', e)
+        }
+      }
+
       setCompletedSaleData({
-        invoiceNumber: 0, customerName: customerName || 'نەناسراو', customerPhone, sellerName: userName,
+        invoiceNumber: 0, customerName: customerName || 'نەناسراو', customerPhone, sellerName: profileName,
+        seller_name: profileName, profiles: { name: profileName },
         date: new Date().toLocaleDateString('ku'), time: new Date().toLocaleTimeString('ku'), paymentMethod,
         items: cart.map(item => ({ name: item.item.name, unit: item.unit, quantity: item.quantity, price: item.price, total: item.total })),
         subtotal: total + discount, discount, total,

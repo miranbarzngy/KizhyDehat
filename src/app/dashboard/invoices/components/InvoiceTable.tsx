@@ -24,7 +24,7 @@ export default function InvoiceTable({
           <thead>
             <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-[#2a2d3e]/60">
               <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                ژمارەی فاکتور
+                ژمارەی پسوڵە
               </th>
               <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 کڕیار

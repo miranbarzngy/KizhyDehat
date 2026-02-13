@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import html2canvas from 'html2canvas'
 import { useEffect, useRef, useState } from 'react'
-import { FaFileInvoice, FaPrint, FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
+import { FaFileInvoice, FaMapMarkerAlt, FaPhone, FaPrint } from 'react-icons/fa'
 
 interface InvoiceSettings {
   id: string
@@ -43,7 +43,7 @@ const toKurdishDigits = (value: any): string => {
   return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
 }
 
-  // Format time to 12-hour format with Kurdish numerals
+// Format time to 12-hour format with Kurdish numerals
 const formatTimeKurdish = (dateStr: string): string => {
   try {
     const date = new Date(dateStr)
@@ -148,12 +148,12 @@ export function InvoiceTemplate({ data }: { data: any }) {
                 <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data.customerPhone)}</div>
               </div>
             )}
-            {data?.sellerName && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>فرۆشیار</div>
-                <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>{data.sellerName}</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>فرۆشیار</div>
+              <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>
+                {data.profiles?.name || data.seller_name || data.sold_by || data.sellerName || 'کارمەند'}
               </div>
-            )}
+            </div>
           </div>
         </div>
         
@@ -223,14 +223,17 @@ export function InvoiceTemplate({ data }: { data: any }) {
           {data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}
         </div>
         <div style={{ textAlign: 'center', fontSize: '9px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>
-          گەشەپێدانی سیستم لە لایەن Click Group<br />07701466787
+          گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787
         </div>
       </div>
     </div>
   )
 }
 
-export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoiceId, title = 'وردەکارییەکانی فاکتور' }: GlobalInvoiceModalProps) {
+export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoiceId, title = 'وردەکارییەکانی پسوڵە' }: GlobalInvoiceModalProps) {
+  // Debug: Log invoice data when component renders
+  console.log('GlobalInvoiceModal - invoiceData:', invoiceData)
+  
   const invoiceRef = useRef<HTMLDivElement>(null)
   const captureRef = useRef<HTMLDivElement>(null)
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
@@ -297,7 +300,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       link.click()
     } catch (error) { 
       console.error('Error downloading invoice:', error)
-      alert('هەڵە لە داگرتنی وێنەی فاکتور') 
+      alert('هەڵە لە داگرتنی وێنەی پسوڵە') 
     }
   }
 
@@ -396,7 +399,8 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     invoiceNumber: invoice.invoice_number || 0,
     customerName: saleData?.customers?.name || saleData?.customer_name || 'نەناسراو',
     customerPhone: saleData?.customers?.phone1 || '',
-    sellerName: saleData?.sold_by || saleData?.sellerName || 'فرۆشیار',
+    sellerName: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
+    seller_name: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
     date: new Date(invoice.date).toLocaleDateString('ku'),
     time: formattedTime,
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',

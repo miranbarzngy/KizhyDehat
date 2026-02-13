@@ -1,8 +1,8 @@
 'use client'
 
 import { formatCurrency } from '@/lib/numberUtils'
-import { SaleData, Invoice } from './invoiceUtils'
 import { FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
+import { Invoice, SaleData } from './invoiceUtils'
 
 interface InvoicePreviewProps {
   saleData: SaleData
@@ -109,12 +109,10 @@ function InvoiceTemplate({ data }: { data: any }) {
                 <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data.customerPhone)}</div>
               </div>
             )}
-            {data?.sellerName && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>فرۆشیار</div>
-                <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>{data.sellerName}</div>
-              </div>
-            )}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>فرۆشیار</div>
+              <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>{data.seller_name || data.sellerName || data.profiles?.name || 'کارمەند'}</div>
+            </div>
           </div>
         </div>
         <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '2px dashed #d1d5db', textAlign: 'center' }}>
@@ -165,7 +163,7 @@ function InvoiceTemplate({ data }: { data: any }) {
         </div>
         {data?.qrCodeUrl && <div style={{ textAlign: 'center' }}><img src={data.qrCodeUrl} alt="QR" style={{ width: '70px', height: '70px' }} /></div>}
         <div style={{ textAlign: 'center', fontSize: '12px', color: '#6b7280', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>{data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}</div>
-        <div style={{ textAlign: 'center', fontSize: '9px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستم لە لایەن Click Group<br />07701466787</div>
+        <div style={{ textAlign: 'center', fontSize: '9px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
       </div>
     </div>
   )
@@ -186,7 +184,8 @@ function buildInvoiceDataLocal(saleData: SaleData, invoice: Invoice): any {
     invoiceNumber: invoice.invoice_number || 0,
     customerName: saleData?.customers?.name || saleData?.customer_name || 'نەناسراو',
     customerPhone: saleData?.customers?.phone1 || '',
-    sellerName: saleData?.sold_by || saleData?.sellerName || 'فرۆشیار',
+    sellerName: saleData?.sold_by || saleData?.sellerName || 'کارمەند',
+    seller_name: saleData?.sold_by || saleData?.seller_name || 'کارمەند',
     date: new Date(invoice.date).toLocaleDateString('ku'),
     time: formattedTime,
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',

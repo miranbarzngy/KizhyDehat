@@ -22,7 +22,7 @@ export default function ReturnsTable({ returns }: ReturnsTableProps) {
       <table className="min-w-full table-auto text-sm">
         <thead>
           <tr className="bg-gray-50">
-            <th className="px-3 py-2 text-right" style={{ fontFamily: 'var(--font-uni-salar)' }}>فاکتور</th>
+            <th className="px-3 py-2 text-right" style={{ fontFamily: 'var(--font-uni-salar)' }}>پسوڵە</th>
             <th className="px-3 py-2 text-right" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
             <th className="px-3 py-2 text-right" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
             <th className="px-3 py-2 text-right" style={{ fontFamily: 'var(--font-uni-salar)' }}>فرۆشیار</th>

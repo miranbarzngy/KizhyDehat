@@ -1,14 +1,12 @@
 'use client'
 
-import InvoiceModal from '@/components/shared/InvoiceModal'
 import { InvoiceTemplate } from '@/components/GlobalInvoiceModal'
-import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
+import InvoiceModal from '@/components/shared/InvoiceModal'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
-import html2canvas from 'html2canvas'
 
 interface InvoiceSettings {
   id?: number
@@ -52,6 +50,36 @@ export default function InvoicesPage() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
 
+  // Fetch seller name from profile using user_id
+  const fetchSellerName = async (userId: string | null, soldBy: string | null): Promise<string> => {
+    // Try user_id first
+    if (userId) {
+      try {
+        const { data, error } = await supabase.from('profiles').select('name').eq('id', userId).single()
+        if (data?.name) {
+          console.log('fetchSellerName - Found by user_id:', data.name)
+          return data.name
+        }
+      } catch (e) {
+        console.log('fetchSellerName - user_id query failed:', e)
+      }
+    }
+    // Try sold_by if user_id didn't work
+    if (soldBy) {
+      try {
+        const { data, error } = await supabase.from('profiles').select('name').eq('id', soldBy).single()
+        if (data?.name) {
+          console.log('fetchSellerName - Found by sold_by:', data.name)
+          return data.name
+        }
+      } catch (e) {
+        console.log('fetchSellerName - sold_by query failed:', e)
+      }
+    }
+    console.log('fetchSellerName - No profile found, userId:', userId, 'soldBy:', soldBy)
+    return ''
+  }
+
   // Handle viewing invoice from any tab
   const handleViewInvoice = async (sale: any) => {
     try {
@@ -81,11 +109,18 @@ export default function InvoicesPage() {
         .eq('id', sale.customer_id)
         .single() : { data: null }
       
+      // Fetch seller name from profile using user_id
+      const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
+      
       const saleData = {
         ...sale,
         customers: customerData || null,
-        sale_items: transformedItems || []
+        sale_items: transformedItems || [],
+        seller_name: sellerName || sale.sold_by || sale.seller_name || '',
+        profiles: { name: sellerName || sale.sold_by || sale.seller_name || '' }
       }
+      
+      console.log('Invoice Data Debug - handleViewInvoice:', saleData)
       
       setSelectedInvoice(sale)
       setInvoiceDetails(saleData)
@@ -118,16 +153,32 @@ export default function InvoicesPage() {
   const fetchPendingSales = async () => {
     if (!supabase) return
     try {
-      const { data } = await supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
-      setPendingSales(data || [])
+      // Fetch sales with customer data
+      const { data: salesData } = await supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+      
+      // For each sale, fetch the seller name using user_id and sold_by
+      const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
+        const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
+        return { ...sale, seller_name: sellerName || sale.sold_by || '', profiles: { name: sellerName || sale.sold_by || '' } }
+      }))
+      
+      setPendingSales(mappedData)
     } catch { setPendingSales([]) }
   }
 
   const fetchInvoices = async () => {
     if (!supabase) return
     try {
-      const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false })
-      setInvoices(data || [])
+      // Fetch all sales
+      const { data: salesData } = await supabase.from('sales').select('*').order('created_at', { ascending: false })
+      
+      // For each sale, fetch the seller name using user_id and sold_by
+      const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
+        const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
+        return { ...sale, seller_name: sellerName || sale.sold_by || '', profiles: { name: sellerName || sale.sold_by || '' } }
+      }))
+      
+      setInvoices(mappedData)
     } catch { setInvoices([]) }
   }
 
@@ -214,6 +265,7 @@ export default function InvoicesPage() {
     date: new Date().toLocaleDateString('ku'),
     time: new Date().toLocaleTimeString('ku'),
     paymentMethod: 'cash',
+    seller_name: 'کارمەند',
     items: [
       { name: 'کاڵای یەکەم', unit: 'دانە', quantity: 2, price: 5000, total: 10000 },
       { name: 'کاڵای دووەم', unit: 'کیلۆ', quantity: 1.5, price: 8000, total: 12000 }
@@ -237,7 +289,7 @@ export default function InvoicesPage() {
             <h1 className="text-4xl font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>پسوڵە و ڕێکخستنەکان</h1>
             <div className="flex items-center space-x-2" style={{ color: 'var(--theme-secondary)' }}>
               <FaFileInvoice style={{ color: 'var(--theme-accent)' }} />
-              <span style={{ fontFamily: 'var(--font-uni-salar)' }}>{filteredInvoices.length} فاکتور</span>
+              <span style={{ fontFamily: 'var(--font-uni-salar)' }}>{filteredInvoices.length} پسوڵە</span>
             </div>
           </div>
 
@@ -355,7 +407,7 @@ export default function InvoicesPage() {
                             {sale.customers?.name || 'کڕیاری نەناسراو'}
                           </td>
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            {sale.sold_by || '-'}
+                            {sale.seller_name || sale.sold_by || '-'}
                           </td>
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             {formatCurrencyKurdish(sale.subtotal || 0)} د.ع

@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
 
 export interface Invoice {
   id: string
@@ -76,7 +76,7 @@ export async function generateInvoiceHTML(saleData: SaleData, invoice: Invoice, 
       <div style="margin-bottom: 24px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 12px;">
           <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="text-align: center;"><div style="font-weight: 600; color: #374151;">ژمارەی فاکتور</div><div style="font-family: 'Inter'; font-weight: bold; color: #1f2937; font-size: 18px; direction: ltr;">${invoice.invoice_number === 0 ? '' : '#' + toEnglishDigits(invoice.invoice_number.toString())}</div></div>
+            <div style="text-align: center;"><div style="font-weight: 600; color: #374151;">ژمارەی پسوڵەش</div><div style="font-family: 'Inter'; font-weight: bold; color: #1f2937; font-size: 18px; direction: ltr;">${invoice.invoice_number === 0 ? '' : '#' + toEnglishDigits(invoice.invoice_number.toString())}</div></div>
             <div style="text-align: center;"><div style="font-weight: 600; color: #374151;">کڕیار</div><div style="font-weight: bold; color: #1f2937;">${saleData.customers?.name || 'نەناسراو'}</div></div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -133,7 +133,7 @@ export function generateReceiptPreview(shopName: string, shopPhone: string, shop
       <div style="text-align: center; margin: 12px 0; color: #d1d5db;">--------------------------</div>
       <div style="margin-bottom: 16px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 10px;">
-          <div style="text-align: center;"><div>ژمارەی فاکتور</div><div style="font-family: 'Inter'; font-weight: bold;">#${toEnglishDigits(currentInvoiceNumber.toString())}</div></div>
+          <div style="text-align: center;"><div>ژمارەی پسوڵە</div><div style="font-family: 'Inter'; font-weight: bold;">#${toEnglishDigits(currentInvoiceNumber.toString())}</div></div>
           <div style="text-align: center;"><div>کڕیار</div><div style="font-weight: bold;">${mockCustomerName}</div></div>
         </div>
       </div>

@@ -4,14 +4,27 @@ import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { FaArrowLeft, FaArrowRight, FaCheck, FaExclamationTriangle, FaUpload } from 'react-icons/fa'
+import { 
+  FaArrowLeft, 
+  FaArrowRight, 
+  FaCheck, 
+  FaExclamationTriangle, 
+  FaUpload, 
+  FaBox, 
+  FaTag, 
+  FaBalanceScale, 
+  FaCalculator,
+  FaTrash,
+  FaSpinner
+} from 'react-icons/fa'
+import type { Product } from './types'
 
 interface AddItemModalProps {
   showStockEntry: boolean
   setShowStockEntry: (show: boolean) => void
   currentStep: number
   setCurrentStep: (step: number) => void
-  editingItem: any
+  editingItem: Product | null
   formData: any
   setFormData: (data: any) => void
   suppliers: any[]
@@ -20,8 +33,10 @@ interface AddItemModalProps {
 }
 
 interface Supplier { id: string; name: string }
-interface Unit { id: string; name: string }
+interface Unit { id: string; name: string; symbol?: string }
 interface Category { id: string; name: string }
+
+type FormData = Record<string, any>
 
 export default function AddItemModal({
   showStockEntry,
@@ -37,8 +52,69 @@ export default function AddItemModal({
 }: AddItemModalProps) {
   const { pauseSync, resumeSync } = useSyncPause()
   const [categories, setCategories] = useState<Category[]>([])
+  const [localUnits, setLocalUnits] = useState<Unit[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [unitsLoading, setUnitsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Fetch categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setCategoriesLoading(true)
+      if (!supabase) {
+        setCategories([
+          { id: '1', name: 'خۆراك' },
+          { id: '2', name: 'خواردن' },
+          { id: '3', name: 'ئاو' }
+        ])
+        setCategoriesLoading(false)
+        return
+      }
+      try {
+        const { data } = await supabase.from('categories').select('*').order('name')
+        setCategories(data || [])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setCategories([
+          { id: '1', name: 'خۆراك' },
+          { id: '2', name: 'خواردن' }
+        ])
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  // Fetch units from database
+  useEffect(() => {
+    const fetchUnits = async () => {
+      setUnitsLoading(true)
+      if (!supabase) {
+        setLocalUnits([
+          { id: '1', name: 'دانە', symbol: 'د' },
+          { id: '2', name: 'کیلۆ', symbol: 'ک' },
+          { id: '3', name: 'مەتر', symbol: 'م' }
+        ])
+        setUnitsLoading(false)
+        return
+      }
+      try {
+        const { data } = await supabase.from('units').select('*').order('name')
+        setLocalUnits(data || [])
+      } catch (error) {
+        console.error('Error fetching units:', error)
+        setLocalUnits([
+          { id: '1', name: 'دانە', symbol: 'د' },
+          { id: '2', name: 'کیلۆ', symbol: 'ک' }
+        ])
+      } finally {
+        setUnitsLoading(false)
+      }
+    }
+    fetchUnits()
+  }, [])
 
   // Block browser refresh during submission
   useEffect(() => {
@@ -55,36 +131,15 @@ export default function AddItemModal({
     }
   }, [isSubmitting])
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (!supabase) {
-        setCategories([
-          { id: '1', name: 'خۆراك' },
-          { id: '2', name: 'خواردن' },
-          { id: '3', name: 'ئاو' },
-          { id: '4', name: 'کیلۆ' }
-        ])
-        return
-      }
-      try {
-        const { data } = await supabase.from('categories').select('*').order('name')
-        setCategories(data || [])
-      } catch (error) {
-        setCategories([
-          { id: '1', name: 'خۆراك' },
-          { id: '2', name: 'خواردن' },
-          { id: '3', name: 'ئاو' }
-        ])
-      }
-    }
-    fetchCategories()
-  }, [])
-
   // Calculate unit cost from price_of_bought and quantity
-  // When editing, formData.price_of_bought is already calculated from cost_per_unit * total_amount_bought
   const unitCost = formData.quantity > 0 ? formData.price_of_bought / formData.quantity : formData.price_of_bought
   const profitAmount = formData.selling_price - unitCost
   const profitRate = unitCost > 0 ? (profitAmount / unitCost) * 100 : 0
+  
+  // Calculate total price automatically
+  const totalPrice = formData.quantity > 0 && formData.selling_price > 0 
+    ? formData.quantity * formData.selling_price 
+    : 0
 
   const generateBarcode4 = () => {
     const timestamp = Date.now().toString(36).toUpperCase()
@@ -94,25 +149,25 @@ export default function AddItemModal({
 
   useEffect(() => {
     if (showStockEntry && !formData.barcode4) {
-      setFormData(prev => ({ ...prev, barcode4: generateBarcode4() }))
+      setFormData((prev: FormData) => ({ ...prev, barcode4: generateBarcode4() }))
     }
   }, [showStockEntry])
 
   const handleBarcode3Blur = () => {
     if (!formData.barcode4) {
-      setFormData(prev => ({ ...prev, barcode4: generateBarcode4() }))
+      setFormData((prev: FormData) => ({ ...prev, barcode4: generateBarcode4() }))
     }
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !supabase) return
     try {
       const fileName = `${Date.now()}-${file.name}`
       const { error } = await supabase.storage.from('product-images').upload(fileName, file)
       if (error) throw error
       const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName)
-      setFormData(prev => ({ ...prev, image: urlData.publicUrl }))
+      setFormData((prev: FormData) => ({ ...prev, image: urlData.publicUrl }))
     } catch (error) {
       setErrorMessage('هەڵە لە ئەپلۆدکردنی وێنە')
       setTimeout(() => setErrorMessage(''), 3000)
@@ -284,209 +339,813 @@ export default function AddItemModal({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-2xl rounded-2xl shadow-2xl bg-white/95 p-8 max-h-[90vh] overflow-y-auto">
+      <div 
+        className="w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
+        style={{ 
+          backgroundColor: 'var(--theme-card-bg)',
+          border: '1px solid var(--theme-card-border)'
+        }}
+      >
         {errorMessage && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
-            <FaExclamationTriangle className="text-red-500" />
-            <span style={{ fontFamily: 'var(--font-uni-salar)', color: '#dc2626' }}>{errorMessage}</span>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="mb-4 p-4 rounded-xl flex items-center gap-2"
+            style={{ 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#dc2626'
+            }}
+          >
+            <FaExclamationTriangle />
+            <span style={{ fontFamily: 'var(--font-uni-salar)' }}>{errorMessage}</span>
           </motion.div>
         )}
+        
+        {/* Progress Bar */}
         <div className="mb-6">
           <div className="flex justify-between mb-2">
-            <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem' }}>قۆناغ {currentStep} لە 4</span>
-            <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem' }}>
+            <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem', color: 'var(--theme-secondary)' }}>
+              قۆناغ {currentStep} لە 4
+            </span>
+            <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem', color: 'var(--theme-secondary)' }}>
               {currentStep === 1 && 'کڕین و قەرز'}
               {currentStep === 2 && 'بڕ و یەکە'}
               {currentStep === 3 && 'ناساندن'}
               {currentStep === 4 && 'نرخ و قازانج'}
             </span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <motion.div className="h-full bg-gradient-to-r from-blue-600 to-purple-600" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} />
+          <div 
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: 'var(--theme-muted)' }}
+          >
+            <motion.div 
+              className="h-full"
+              style={{ 
+                background: 'linear-gradient(90deg, var(--theme-accent), #8b5cf6)'
+              }}
+              initial={{ width: 0 }} 
+              animate={{ width: `${progress}%` }} 
+              transition={{ duration: 0.4, ease: 'easeInOut' }} 
+            />
           </div>
         </div>
+
+        {/* Step Indicators */}
         <div className="flex justify-center mb-6">
           {[1, 2, 3, 4].map(step => (
             <div key={step} className="flex items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <motion.div 
+                className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
+                style={{ 
+                  fontFamily: 'var(--font-uni-salar)',
+                  background: currentStep >= step ? 'var(--theme-accent)' : 'var(--theme-muted)',
+                  color: currentStep >= step ? '#ffffff' : 'var(--theme-secondary)'
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 {currentStep > step ? <FaCheck /> : step}
-              </div>
-              {step < 4 && <div className={`w-12 h-1 ${currentStep > step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+              </motion.div>
+              {step < 4 && (
+                <motion.div 
+                  className="w-12 h-1"
+                  style={{ 
+                    background: currentStep > step ? 'var(--theme-accent)' : 'var(--theme-muted)'
+                  }}
+                  initial={{ width: 0 }}
+                  animate={{ width: currentStep > step ? '3rem' : '0rem' }}
+                  transition={{ duration: 0.3 }}
+                />
+              )}
             </div>
           ))}
         </div>
-        <h2 className="text-xl font-bold mb-6 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+
+        {/* Step Title */}
+        <h2 
+          className="text-xl font-bold mb-6 text-center"
+          style={{ 
+            fontFamily: 'var(--font-uni-salar)',
+            color: 'var(--theme-foreground)'
+          }}
+        >
           {currentStep === 1 && 'قۆناغی 1: کڕین و قەرز'}
           {currentStep === 2 && 'قۆناغی 2: بڕ و یەکە'}
           {currentStep === 3 && 'قۆناغی 3: ناساندن'}
           {currentStep === 4 && 'قۆناغی 4: نرخ و قازانج'}
         </h2>
+
         <AnimatePresence mode="wait">
+          {/* Step 1: Purchase & Debt */}
           {currentStep === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <motion.div 
+              key="step1" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }} 
+              className="space-y-4"
+            >
+              {/* Supplier with Icon */}
               <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>دابینکەر *</label>
-                <select value={formData.supplier_id || ''} onChange={e => setFormData({...formData, supplier_id: e.target.value})} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.supplier_id ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  <option value="">هەڵبژێرە</option>
-                  {suppliers.map((s: Supplier) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین (کۆی گشتی) *</label>
-                <input type="number" value={formData.price_of_bought || ''} onChange={e => setFormData({...formData, price_of_bought: Number(e.target.value.replace(/^0+/, ''))})} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.price_of_bought ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }} placeholder="0" />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={formData.is_not_fully_paid || false} onChange={e => setFormData({...formData, is_not_fully_paid: e.target.checked})} className="w-5 h-5" />
-                <label style={{ fontFamily: 'var(--font-uni-salar)' }}>پارەکە بە تەواوی نەدراوە (قەرز)</label>
-              </div>
-              {formData.is_not_fully_paid && (
-                <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕی قەرز</label>
-                  <input type="number" value={formData.remain_amount || ''} onChange={e => setFormData({...formData, remain_amount: Number(e.target.value.replace(/^0+/, ''))})} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} placeholder="0" />
+                <label 
+                  className="block text-sm mb-2 flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  <FaBalanceScale className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                  دابینکەر *
+                </label>
+                <div className="relative">
+                  <select 
+                    value={formData.supplier_id || ''} 
+                    onChange={e => setFormData((prev: FormData) => ({...prev, supplier_id: e.target.value}))} 
+                    className={`w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent ${!formData.supplier_id ? 'border-red-400' : ''}`}
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: !formData.supplier_id ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                      color: 'var(--theme-foreground)',
+                      backgroundColor: 'var(--theme-muted)'
+                    }}
+                  >
+                    <option value="">هەڵبژێرە</option>
+                    {suppliers.map((s: Supplier) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <FaBalanceScale 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                    style={{ color: 'var(--theme-secondary)' }}
+                  />
                 </div>
+              </div>
+
+              {/* Purchase Price with Icon */}
+              <div>
+                <label 
+                  className="block text-sm mb-2 flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                  نرخی کڕین (کۆی گشتی) *
+                </label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={formData.price_of_bought || ''} 
+                    onChange={e => setFormData((prev: FormData) => ({...prev, price_of_bought: Number(e.target.value.replace(/^0+/, ''))}))} 
+                    className={`w-full px-4 py-3 pr-10 rounded-xl border bg-transparent ${!formData.price_of_bought ? 'border-red-400' : ''}`}
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: !formData.price_of_bought ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                    placeholder="0"
+                  />
+                  <FaCalculator 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                    style={{ color: 'var(--theme-secondary)' }}
+                  />
+                </div>
+              </div>
+
+              {/* Debt Checkbox */}
+              <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--theme-muted)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={formData.is_not_fully_paid || false} 
+                  onChange={e => setFormData((prev: FormData) => ({...prev, is_not_fully_paid: e.target.checked}))} 
+                  className="w-5 h-5 accent-blue-600" 
+                />
+                <label 
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  پارەکە بە تەواوی نەدراوە (قەرز)
+                </label>
+              </div>
+
+              {/* Remaining Amount */}
+              {formData.is_not_fully_paid && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <label 
+                    className="block text-sm mb-2"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بڕی قەرز
+                  </label>
+                  <input 
+                    type="number" 
+                    value={formData.remain_amount || ''} 
+                    onChange={e => setFormData((prev: FormData) => ({...prev, remain_amount: Number(e.target.value.replace(/^0+/, ''))}))} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                    placeholder="0"
+                  />
+                </motion.div>
               )}
             </motion.div>
           )}
+
+          {/* Step 2: Quantity & Unit */}
           {currentStep === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <motion.div 
+              key="step2" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }} 
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
+                {/* Quantity */}
                 <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ *</label>
-                  <input type="number" value={formData.quantity || ''} onChange={e => setFormData({...formData, quantity: Number(e.target.value.replace(/^0+/, ''))})} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.quantity ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }} placeholder="0" />
+                  <label 
+                    className="block text-sm mb-2 flex items-center gap-2"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    <FaBox className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                    بڕ *
+                  </label>
+                  <input 
+                    type="number" 
+                    value={formData.quantity || ''} 
+                    onChange={e => setFormData({...formData, quantity: Number(e.target.value.replace(/^0+/, ''))})} 
+                    className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.quantity ? 'border-red-400' : ''}`}
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: !formData.quantity ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                    placeholder="0"
+                  />
                 </div>
+
+                {/* Unit with Loading State */}
                 <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</label>
-                  <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    <option value="دانە">دانە</option>
-                    {units.map((u: Unit) => <option key={u.id} value={u.name}>{u.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                <p style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی هەر یەکەیە:</p>
-                <p className="text-2xl font-bold text-blue-600">{unitCost.toLocaleString()} IQD</p>
-              </div>
-            </motion.div>
-          )}
-          {currentStep === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-              <div className="mb-4">
-                <label className="block text-sm mb-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>وێنەی کاڵا</label>
-                <div className="flex flex-col items-center justify-center gap-4">
-                  <div className="w-32 h-32 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50">
-                    {formData.image ? (
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                  <label 
+                    className="block text-sm mb-2 flex items-center gap-2"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                    یەکە
+                  </label>
+                  <div className="relative">
+                    {unitsLoading ? (
+                      <div 
+                        className="w-full px-4 py-3 rounded-xl border flex items-center justify-center"
+                        style={{ 
+                          fontFamily: 'var(--font-uni-salar)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-secondary)',
+                          backgroundColor: 'var(--theme-muted)'
+                        }}
+                      >
+                        <FaSpinner className="animate-spin ml-2" />
+                        چاوەڕێبە...
+                      </div>
                     ) : (
-                      <FaUpload className="text-3xl text-gray-400" />
+                      <>
+                        <select 
+                          value={formData.unit} 
+                          onChange={e => setFormData({...formData, unit: e.target.value})} 
+                          className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent"
+                          style={{ 
+                            fontFamily: 'var(--font-uni-salar)',
+                            borderColor: 'var(--theme-accent)',
+                            color: 'var(--theme-foreground)',
+                            backgroundColor: 'var(--theme-muted)'
+                          }}
+                        >
+                          <option value="دانە">دانە</option>
+                          {localUnits.map((u: Unit) => (
+                            <option key={u.id} value={u.name}>
+                              {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <FaCalculator 
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                          style={{ color: 'var(--theme-secondary)' }}
+                        />
+                      </>
                     )}
                   </div>
-                  <label className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                </div>
+              </div>
+
+              {/* Unit Cost Display */}
+              <motion.div 
+                className="rounded-2xl p-5 text-center border"
+                style={{ 
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  borderColor: 'var(--theme-accent)'
+                }}
+                initial={{ scale: 0.95, opacity: 0.8 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p 
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}
+                >
+                  نرخی هەر یەکەیە:
+                </p>
+                <p 
+                  className="text-3xl font-bold"
+                  style={{ 
+                    fontFamily: 'var(--font-uni-salar)', 
+                    color: 'var(--theme-accent)'
+                  }}
+                >
+                  {unitCost.toLocaleString()} IQD
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Step 3: Product Info */}
+          {currentStep === 3 && (
+            <motion.div 
+              key="step3" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }} 
+              className="space-y-4"
+            >
+              {/* Image Upload */}
+              <div className="mb-4">
+                <label 
+                  className="block text-sm mb-3 text-center"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}
+                >
+                  وێنەی کاڵا
+                </label>
+                <div 
+                  className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-dashed transition-all"
+                  style={{ 
+                    borderColor: formData.image ? 'var(--theme-accent)' : 'var(--theme-card-border)',
+                    backgroundColor: 'var(--theme-muted)'
+                  }}
+                >
+                  {formData.image ? (
+                    <div className="relative">
+                      <img 
+                        src={formData.image} 
+                        alt="Preview" 
+                        className="w-32 h-32 rounded-xl object-cover border-2"
+                        style={{ borderColor: 'var(--theme-accent)' }}
+                      />
+                      <button 
+                        onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                        className="absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center text-white"
+                        style={{ backgroundColor: '#ef4444' }}
+                      >
+                        <FaTrash className="text-xs" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 rounded-xl flex items-center justify-center">
+                      <FaUpload className="text-4xl" style={{ color: 'var(--theme-secondary)' }} />
+                    </div>
+                  )}
+                  <label 
+                    className="flex items-center gap-2 px-5 py-3 rounded-xl cursor-pointer transition-all hover:opacity-90"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      backgroundColor: 'var(--theme-accent)',
+                      color: '#ffffff'
+                    }}
+                  >
                     <FaUpload />
                     <span>ئەپلۆدکردن</span>
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
-                  {formData.image && (
-                    <button onClick={() => setFormData(prev => ({ ...prev, image: '' }))} className="text-red-500 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      سڕینەوەی وێنە
-                    </button>
+                  <p 
+                    className="text-xs"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}
+                  >
+                    PNG، JPG، JPEG
+                  </p>
+                </div>
+              </div>
+              
+              {/* Product Name with Icon */}
+              <div>
+                <label 
+                  className="block text-sm mb-2 flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  <FaBox className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                  ناوی کاڵا *
+                </label>
+                <input 
+                  type="text" 
+                  value={formData.name || ''} 
+                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} 
+                  className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.name?.trim() ? 'border-red-400' : ''}`}
+                  style={{ 
+                    fontFamily: 'var(--font-uni-salar)',
+                    borderColor: !formData.name?.trim() ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                    color: 'var(--theme-foreground)'
+                  }}
+                  placeholder="ناوی کاڵا بنووسە"
+                />
+              </div>
+              
+              {/* Category with Loading State */}
+              <div>
+                <label 
+                  className="block text-sm mb-2 flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  <FaTag className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                  پۆڵ *
+                </label>
+                <div className="relative">
+                  {categoriesLoading ? (
+                    <div 
+                      className="w-full px-4 py-3 rounded-xl border flex items-center justify-center"
+                      style={{ 
+                        fontFamily: 'var(--font-uni-salar)',
+                        borderColor: 'var(--theme-card-border)',
+                        color: 'var(--theme-secondary)',
+                        backgroundColor: 'var(--theme-muted)'
+                      }}
+                    >
+                      <FaSpinner className="animate-spin ml-2" />
+                      چاوەڕێبە...
+                    </div>
+                  ) : (
+                    <>
+                      <select 
+                        value={formData.category || ''} 
+                        onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))} 
+                        className={`w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent ${!formData.category ? 'border-red-400' : ''}`}
+                        style={{ 
+                          fontFamily: 'var(--font-uni-salar)',
+                          borderColor: !formData.category ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                          color: 'var(--theme-foreground)',
+                          backgroundColor: 'var(--theme-muted)'
+                        }}
+                      >
+                        <option value="">هەڵبژێرە</option>
+                        {categories.map((c: Category) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <FaTag 
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                        style={{ color: 'var(--theme-secondary)' }}
+                      />
+                    </>
                   )}
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا *</label>
-                <input type="text" value={formData.name || ''} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.name?.trim() ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }} placeholder="ناوی کاڵا بنووسە" />
+
+              {/* Barcodes */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بارکۆد 1
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.barcode1 || ''} 
+                    onChange={e => setFormData(prev => ({ ...prev, barcode1: e.target.value }))} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بارکۆد 2
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.barcode2 || ''} 
+                    onChange={e => setFormData(prev => ({ ...prev, barcode2: e.target.value }))} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                  />
+                </div>
               </div>
-              
-              <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>پۆڵ *</label>
-                <select value={formData.category || ''} onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.category ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  <option value="">هەڵبژێرە</option>
-                  {categories.map((c: Category) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بارکۆد 3
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.barcode3 || ''} 
+                    onChange={e => setFormData(prev => ({ ...prev, barcode3: e.target.value }))} 
+                    onBlur={handleBarcode3Blur} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بارکۆد 4 (ئۆتۆ)
+                  </label>
+                  <input 
+                    type="text" 
+                    value={formData.barcode4 || ''} 
+                    className="w-full px-4 py-3 rounded-xl border"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-secondary)',
+                      backgroundColor: 'var(--theme-muted)'
+                    }}
+                    readOnly 
+                  />
+                </div>
               </div>
 
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆد 1</label>
-                  <input type="text" value={formData.barcode1 || ''} onChange={e => setFormData(prev => ({ ...prev, barcode1: e.target.value }))} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} />
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بەرواری زیادکردن
+                  </label>
+                  <input 
+                    type="date" 
+                    value={formData.added_date || ''} 
+                    onChange={e => setFormData(prev => ({ ...prev, added_date: e.target.value }))} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆد 2</label>
-                  <input type="text" value={formData.barcode2 || ''} onChange={e => setFormData(prev => ({ ...prev, barcode2: e.target.value }))} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} />
+                  <label 
+                    className="block text-sm mb-1"
+                    style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                  >
+                    بەرواری تەواوبوون
+                  </label>
+                  <input 
+                    type="date" 
+                    value={formData.expire_date || ''} 
+                    onChange={e => setFormData(prev => ({ ...prev, expire_date: e.target.value }))} 
+                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)',
+                      borderColor: 'var(--theme-card-border)',
+                      color: 'var(--theme-foreground)'
+                    }}
+                  />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆد 3</label>
-                  <input type="text" value={formData.barcode3 || ''} onChange={e => setFormData(prev => ({ ...prev, barcode3: e.target.value }))} onBlur={handleBarcode3Blur} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بارکۆد 4 (ئۆتۆ)</label>
-                  <input type="text" value={formData.barcode4 || ''} className="w-full px-4 py-3 rounded-lg border bg-gray-100" style={{ fontFamily: 'var(--font-uni-salar)' }} readOnly />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەرواری زیادکردن</label>
-                  <input type="date" value={formData.added_date || ''} onChange={e => setFormData(prev => ({ ...prev, added_date: e.target.value }))} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەرواری تەواوبوون</label>
-                  <input type="date" value={formData.expire_date || ''} onChange={e => setFormData(prev => ({ ...prev, expire_date: e.target.value }))} className="w-full px-4 py-3 rounded-lg border bg-white" style={{ fontFamily: 'var(--font-uni-salar)' }} />
-                </div>
-              </div>
+
+              {/* Note */}
               <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>تێبینی</label>
-                <textarea value={formData.note || ''} onChange={e => setFormData(prev => ({ ...prev, note: e.target.value }))} className="w-full px-4 py-3 rounded-lg border bg-white" rows={2} style={{ fontFamily: 'var(--font-uni-salar)' }} />
+                <label 
+                  className="block text-sm mb-1"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  تێبینی
+                </label>
+                <textarea 
+                  value={formData.note || ''} 
+                  onChange={e => setFormData(prev => ({ ...prev, note: e.target.value }))} 
+                  className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                  rows={2}
+                  style={{ 
+                    fontFamily: 'var(--font-uni-salar)',
+                    borderColor: 'var(--theme-card-border)',
+                    color: 'var(--theme-foreground)'
+                  }}
+                />
               </div>
             </motion.div>
           )}
 
+          {/* Step 4: Pricing */}
           {currentStep === 4 && (
-            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <motion.div 
+              key="step4" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }} 
+              className="space-y-4"
+            >
+              {/* Selling Price */}
               <div>
-                <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن *</label>
-                <input type="number" value={formData.selling_price || ''} onChange={e => setFormData(prev => ({ ...prev, selling_price: Number(e.target.value.replace(/^0+/, '')) }))} className={`w-full px-4 py-3 rounded-lg border bg-white ${!formData.selling_price ? 'border-red-300' : ''}`} style={{ fontFamily: 'var(--font-uni-salar)' }} placeholder="0" />
+                <label 
+                  className="block text-sm mb-2 flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
+                >
+                  <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+                  نرخی فرۆشتن *
+                </label>
+                <input 
+                  type="number" 
+                  value={formData.selling_price || ''} 
+                  onChange={e => setFormData(prev => ({ ...prev, selling_price: Number(e.target.value.replace(/^0+/, '')) }))} 
+                  className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.selling_price ? 'border-red-400' : ''}`}
+                  style={{ 
+                    fontFamily: 'var(--font-uni-salar)',
+                    borderColor: !formData.selling_price ? 'var(--theme-card-border)' : 'var(--theme-accent)',
+                    color: 'var(--theme-foreground)'
+                  }}
+                  placeholder="0"
+                />
               </div>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <div className="flex justify-between mb-2">
-                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین:</span>
-                  <span className="font-bold">{unitCost.toLocaleString()}</span>
+
+              {/* Auto-calculated Total Price */}
+              {totalPrice > 0 && (
+                <motion.div 
+                  className="rounded-2xl p-4 border"
+                  style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderColor: '#10b981'
+                  }}
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                >
+                  <div className="flex justify-between items-center">
+                    <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                      کۆی گشتی (بڕ × نرخ):
+                    </span>
+                    <span 
+                      className="text-xl font-bold"
+                      style={{ 
+                        fontFamily: 'var(--font-uni-salar)', 
+                        color: '#10b981'
+                      }}
+                    >
+                      {totalPrice.toLocaleString()} IQD
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Profit Summary */}
+              <div 
+                className="rounded-2xl p-5 border"
+                style={{ 
+                  backgroundColor: 'var(--theme-muted)',
+                  borderColor: 'var(--theme-card-border)'
+                }}
+              >
+                <div className="flex justify-between mb-3">
+                  <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                    نرخی کڕین:
+                  </span>
+                  <span 
+                    className="font-bold"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)', 
+                      color: 'var(--theme-foreground)'
+                    }}
+                  >
+                    {unitCost.toLocaleString()} IQD
+                  </span>
                 </div>
-                <div className="flex justify-between mb-2">
-                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن:</span>
-                  <span className="font-bold">{(formData.selling_price || 0).toLocaleString()}</span>
+                <div className="flex justify-between mb-3">
+                  <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                    نرخی فرۆشتن:
+                  </span>
+                  <span 
+                    className="font-bold"
+                    style={{ 
+                      fontFamily: 'var(--font-uni-salar)', 
+                      color: 'var(--theme-foreground)'
+                    }}
+                  >
+                    {(formData.selling_price || 0).toLocaleString()} IQD
+                  </span>
                 </div>
-                <div className="flex justify-between mb-2">
-                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج:</span>
-                  <span className={`font-bold ${profitAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>{profitAmount.toLocaleString()}</span>
+                <div className="h-px my-3" style={{ backgroundColor: 'var(--theme-card-border)' }} />
+                <div className="flex justify-between mb-3">
+                  <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                    قازانج:
+                  </span>
+                  <span 
+                    className={`font-bold ${profitAmount >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {profitAmount.toLocaleString()} IQD
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>رێژەی قازانج:</span>
-                  <span className={`font-bold ${profitRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>{profitRate.toFixed(1)}%</span>
+                  <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                    رێژەی قازانج:
+                  </span>
+                  <span 
+                    className={`font-bold ${profitRate >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                    style={{ fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {profitRate.toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="flex gap-4 mt-6 justify-between">
-          <button onClick={() => setShowStockEntry(false)} className="px-6 py-3 bg-gray-400 text-white rounded-xl font-bold" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+        {/* Action Buttons */}
+        <div className="flex gap-4 mt-8 justify-between">
+          {/* Cancel Button */}
+          <button 
+            onClick={() => setShowStockEntry(false)} 
+            className="px-6 py-3 rounded-xl font-bold transition-all"
+            style={{ 
+              fontFamily: 'var(--font-uni-salar)',
+              backgroundColor: 'var(--theme-muted)',
+              color: 'var(--theme-secondary)'
+            }}
+          >
             پاشگەزبوونەوە
           </button>
+
+          {/* Previous Button */}
           {currentStep > 1 && (
-            <button onClick={prevStep} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold flex items-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              <FaArrowRight className="ml-2" />قۆناغی پێشوو
+            <button 
+              onClick={prevStep} 
+              className="px-6 py-3 rounded-xl font-bold flex items-center transition-all hover:opacity-80"
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                backgroundColor: 'transparent',
+                color: 'var(--theme-secondary)',
+                border: '1px solid var(--theme-card-border)'
+              }}
+            >
+              <FaArrowRight className="ml-2" />
+              قۆناغی پێشوو
             </button>
           )}
+
+          {/* Next Button */}
           {currentStep < 4 ? (
-            <button onClick={nextStep} disabled={!canProceed()} className={`px-6 py-3 rounded-xl font-bold flex items-center ${canProceed() ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              قۆناغی داهاتوو <FaArrowLeft className="mr-2" />
+            <button 
+              onClick={nextStep} 
+              disabled={!canProceed()} 
+              className={`px-6 py-3 rounded-xl font-bold flex items-center transition-all ${canProceed() ? 'hover:bg-blue-700' : 'opacity-50 cursor-not-allowed'}`}
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                backgroundColor: canProceed() ? '#2563eb' : 'var(--theme-muted)',
+                color: '#ffffff'
+              }}
+            >
+              قۆناغی داهاتوو
+              <FaArrowLeft className="mr-2" />
             </button>
           ) : (
-            <button onClick={submitItem} disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price} className={`px-6 py-3 rounded-xl font-bold ${formData.name?.trim() && formData.quantity && formData.selling_price ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              تۆمارکردن
+            /* Save Button with Spinner */
+            <button 
+              onClick={submitItem} 
+              disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price || isSubmitting}
+              className={`px-8 py-3 rounded-xl font-bold flex items-center transition-all ${formData.name?.trim() && formData.quantity && formData.selling_price && !isSubmitting ? 'hover:bg-green-700' : 'opacity-50 cursor-not-allowed'}`}
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                backgroundColor: isSubmitting ? '#1d4ed8' : (formData.name?.trim() && formData.quantity && formData.selling_price ? '#22c55e' : 'var(--theme-muted)'),
+                color: '#ffffff'
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <FaSpinner className="animate-spin ml-2" />
+                  تۆمارکردن...
+                </>
+              ) : (
+                <>
+                  <FaCheck className="ml-2" />
+                  تۆمارکردن
+                </>
+              )}
             </button>
           )}
         </div>

@@ -1,12 +1,14 @@
 'use client'
 
 import InvoiceTemplate from '@/components/InvoiceTemplate'
-import { formatCurrency } from '@/lib/numberUtils'
+import InvoiceDetailsModal from './components/InvoiceDetailsModal'
+import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
+import html2canvas from 'html2canvas'
 
 interface InvoiceSettings {
   id?: number
@@ -41,16 +43,57 @@ export default function InvoicesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewLogo, setPreviewLogo] = useState<string>('')
   const [previewQr, setPreviewQr] = useState<string>('')
-  const [selectedPendingSale, setSelectedPendingSale] = useState<any>(null)
+  
+  // Modal state
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
+  
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
-  
-  const handleViewPendingSale = (sale: any) => {
-    setSelectedPendingSale(sale)
+
+  // Handle viewing invoice from any tab
+  const handleViewInvoice = async (sale: any) => {
+    try {
+      // Fetch sale items
+      const { data: saleItems, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*, products(name, unit)')
+        .eq('sale_id', sale.id)
+      
+      if (itemsError) {
+        console.error('Error fetching sale items:', itemsError)
+      }
+      
+      // Fetch customer data
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name, phone1')
+        .eq('id', sale.customer_id)
+        .single()
+      
+      const saleData = {
+        ...sale,
+        customers: customerData || null,
+        sale_items: saleItems || []
+      }
+      
+      setSelectedInvoice(sale)
+      setInvoiceDetails(saleData)
+      setShowInvoiceModal(true)
+    } catch (error) {
+      console.error('Error opening invoice modal:', error)
+    }
   }
-  
-  const closePendingPreview = () => {
-    setSelectedPendingSale(null)
+
+  const handleCloseInvoiceModal = () => {
+    setShowInvoiceModal(false)
+    setSelectedInvoice(null)
+    setInvoiceDetails(null)
+  }
+
+  const handleDownloadInvoice = async () => {
+    // Implementation for download
   }
 
   useEffect(() => { fetchPendingSales(); fetchInvoices(); fetchInvoiceSettings() }, [])
@@ -330,7 +373,7 @@ export default function InvoicesPage() {
                               {/* بینین (View) - Blue */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={() => handleViewPendingSale(sale)}
+                                  onClick={() => handleViewInvoice(sale)}
                                   className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
@@ -411,6 +454,15 @@ export default function InvoicesPage() {
               </div>
             </motion.div>
           )}
+
+          {/* Invoice Details Modal */}
+          <InvoiceDetailsModal
+            showInvoiceModal={showInvoiceModal}
+            setShowInvoiceModal={setShowInvoiceModal}
+            selectedInvoice={selectedInvoice}
+            invoiceDetails={invoiceDetails}
+            onDownload={handleDownloadInvoice}
+          />
         </motion.div>
       </div>
     </div>

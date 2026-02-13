@@ -16,60 +16,97 @@ export default function UnitGrid({ units, onAddUnit, onEditUnit, onDeleteUnit }:
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4"
     >
-      {/* Add Unit Card */}
+      {/* Add Unit Card - Always show first */}
       <button
         onClick={onAddUnit}
-        className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-2 border-dashed border-purple-300/50 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] flex flex-col items-center justify-center min-h-[180px]"
+        className="p-6 rounded-2xl border-2 border-dashed shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] flex flex-col items-center justify-center min-h-[180px]"
+        style={{ 
+          backgroundColor: 'var(--theme-card-bg)',
+          borderColor: 'var(--theme-card-border)'
+        }}
       >
-        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3">
-          <FaPlus className="text-purple-600 text-xl" />
+        <div 
+          className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+          style={{ backgroundColor: 'var(--theme-muted)' }}
+        >
+          <FaPlus className="text-xl" style={{ color: 'var(--theme-accent)' }} />
         </div>
         <h3 
-          className="font-bold text-purple-700" 
-          style={{ fontFamily: 'var(--font-uni-salar)' }}
+          className="font-bold" 
+          style={{ 
+            fontFamily: 'var(--font-uni-salar)',
+            color: 'var(--theme-foreground)'
+          }}
         >
           زیادکردنی یەکە
         </h3>
       </button>
 
-      {units.map(unit => (
-        <motion.div 
-          key={unit.id}
-          whileHover={{ scale: 1.02 }}
-          className="p-6 rounded-2xl bg-white/60 backdrop-blur-md border border-white/20 shadow-lg relative group"
-        >
-          <div className="text-4xl mb-2">⚖️</div>
-          <h3 
-            className="font-bold mb-1" 
-            style={{ fontFamily: 'var(--font-uni-salar)' }}
+      {/* Show units or empty message */}
+      {units.length > 0 ? (
+        units.map(unit => (
+          <motion.div 
+            key={unit.id}
+            whileHover={{ scale: 1.02 }}
+            className="p-6 rounded-2xl shadow-lg relative group"
+            style={{ 
+              backgroundColor: 'var(--theme-card-bg)',
+              borderColor: 'var(--theme-card-border)',
+              borderWidth: '1px'
+            }}
           >
-            {unit.name}
-          </h3>
-          {unit.symbol && (
-            <p className="text-sm text-gray-500">{unit.symbol}</p>
-          )}
-          
-          {/* Action Buttons - Always Visible & Touch Friendly */}
-          <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200/50">
-            <button
-              onClick={() => onEditUnit(unit)}
-              className="w-10 h-10 flex items-center justify-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-              title="دەستکاری"
+            <div className="text-4xl mb-2">⚖️</div>
+            <h3 
+              className="font-bold mb-1" 
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                color: 'var(--theme-foreground)'
+              }}
             >
-              <FaEdit />
-            </button>
-            <button
-              onClick={() => onDeleteUnit(unit)}
-              className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
-              title="سڕینەوە"
-            >
-              <FaTrash />
-            </button>
-          </div>
-        </motion.div>
-      ))}
+              {unit.name}
+            </h3>
+            {unit.symbol && (
+              <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }} className="text-sm">{unit.symbol}</p>
+            )}
+            
+            {/* Action Buttons - Always Visible & Touch Friendly */}
+            <div className="flex justify-center gap-3 mt-4 pt-3" style={{ borderColor: 'var(--theme-card-border)', borderTopWidth: '1px' }}>
+              <button
+                onClick={() => onEditUnit(unit)}
+                className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors shadow-md"
+                style={{ backgroundColor: 'var(--theme-accent)', color: 'white' }}
+                title="دەستکاری"
+              >
+                <FaEdit />
+              </button>
+              <button
+                onClick={() => onDeleteUnit(unit)}
+                className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors shadow-md"
+                style={{ backgroundColor: '#ef4444', color: 'white' }}
+                title="سڕینەوە"
+              >
+                <FaTrash />
+              </button>
+            </div>
+          </motion.div>
+        ))
+      ) : (
+        <div 
+          className="col-span-full p-12 rounded-2xl shadow-lg text-center"
+          style={{ 
+            backgroundColor: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)',
+            borderWidth: '1px'
+          }}
+        >
+          <div className="text-6xl mb-4">⚖️</div>
+          <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.2rem', color: 'var(--theme-secondary)' }}>
+            هیچ یەکەیەک نەدۆزرایەوە
+          </p>
+        </div>
+      )}
     </motion.div>
   )
 }

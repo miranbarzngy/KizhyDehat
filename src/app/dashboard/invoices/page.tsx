@@ -18,6 +18,13 @@ interface InvoiceSettings {
   qr_code_url: string
 }
 
+// Helper function to format currency in Kurdish numerals
+const formatCurrencyKurdish = (value: any): string => {
+  if (value === null || value === undefined) return '٠'
+  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0
+  return new Intl.NumberFormat('ku-IQ', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+}
+
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('pending')
   const [formData, setFormData] = useState<InvoiceSettings>({
@@ -34,15 +41,24 @@ export default function InvoicesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewLogo, setPreviewLogo] = useState<string>('')
   const [previewQr, setPreviewQr] = useState<string>('')
+  const [selectedPendingSale, setSelectedPendingSale] = useState<any>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
+  
+  const handleViewPendingSale = (sale: any) => {
+    setSelectedPendingSale(sale)
+  }
+  
+  const closePendingPreview = () => {
+    setSelectedPendingSale(null)
+  }
 
   useEffect(() => { fetchPendingSales(); fetchInvoices(); fetchInvoiceSettings() }, [])
 
   const fetchPendingSales = async () => {
     if (!supabase) return
     try {
-      const { data } = await supabase.from('sales').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(10)
+      const { data } = await supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
       setPendingSales(data || [])
     } catch { setPendingSales([]) }
   }
@@ -246,32 +262,152 @@ export default function InvoicesPage() {
 
           {activeTab === 'pending' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="backdrop-blur-xl border shadow-sm rounded-3xl overflow-hidden" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b" style={{ borderColor: 'var(--theme-border)' }}>
-                      <th className="px-6 py-4 text-right font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
-                      <th className="px-6 py-4 text-right font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                      <th className="px-6 py-4 text-right font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                      <th className="px-6 py-4 text-center font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingSales.length > 0 ? pendingSales.map((sale) => (
-                      <motion.tr key={sale.id} className="border-b transition-colors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ borderColor: 'var(--theme-border)' }}>
-                        <td className="px-6 py-4" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>{sale.customer_id || 'نەناسراو'}</td>
-                        <td className="px-6 py-4 font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'Inter' }}>{formatCurrency(sale.total)}</td>
-                        <td className="px-6 py-4" style={{ color: 'var(--theme-secondary)', fontFamily: 'Inter' }}>{new Date(sale.date).toLocaleDateString('ku')}</td>
-                        <td className="px-6 py-4 text-center">
-                          <motion.button onClick={() => { if (confirm('پشتڕاستکردن؟')) { supabase?.from('sales').update({ status: 'completed' }).eq('id', sale.id).then(() => fetchPendingSales()) } }} className="px-3 py-1 rounded-lg text-white mr-2" whileHover={{ scale: 1.05 }} style={{ background: 'var(--theme-accent)' }}>✅</motion.button>
-                          <motion.button onClick={() => { if (confirm('هەڵوەشاندن؟')) { supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id).then(() => fetchPendingSales()) } }} className="px-3 py-1 rounded-lg text-white" whileHover={{ scale: 1.05 }} style={{ background: '#ef4444' }}>❌</motion.button>
-                        </td>
-                      </motion.tr>
-                    )) : (
-                      <tr><td colSpan={4} className="px-6 py-12 text-center" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>هیچ فرۆشتنێکی چاوەڕوانکراو نیە</td></tr>
-                    )}
-                  </tbody>
-                </table>
+              <div className="bg-white/80 dark:bg-[#2a2d3e]/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-xl rounded-3xl overflow-hidden transition-all duration-300">
+                <div className="overflow-x-auto w-full">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-50/80 dark:bg-[#2a2d3e]/60">
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>#</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>فرۆشیار</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی نرخ</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>داشکاندن</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی گشتی</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>شێواز</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>دۆخ</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                        <th className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingSales.length > 0 ? pendingSales.map((sale, index) => (
+                        <motion.tr
+                          key={sale.id}
+                          className="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-200"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            #{sale.invoice_number || sale.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {sale.customers?.name || 'کڕیاری نەناسراو'}
+                          </td>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {sale.sold_by || '-'}
+                          </td>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {formatCurrencyKurdish(sale.subtotal || 0)} د.ع
+                          </td>
+                          <td className="px-2 py-3 text-red-600 dark:text-red-400 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            -{formatCurrencyKurdish(sale.discount_amount || 0)}
+                          </td>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {formatCurrencyKurdish(sale.total)} د.ع
+                          </td>
+                          <td className="px-2 py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${
+                              sale.payment_method === 'cash' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300' :
+                              sale.payment_method === 'fib' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' :
+                              'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300'
+                            }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              {sale.payment_method === 'cash' ? '💵 کاش' :
+                               sale.payment_method === 'fib' ? '💳 ئۆنلاین' :
+                               '📝 قەرز'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2">
+                            <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                              ⏳ چاوەڕوانکراو
+                            </span>
+                          </td>
+                          <td className="px-2 py-3 text-gray-600 dark:text-gray-400 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                            {new Date(sale.date).toLocaleDateString('ku')}
+                          </td>
+                          <td className="px-2 py-3">
+                            <div className="flex flex-row-reverse gap-1 justify-center">
+                              {/* بینین (View) - Blue */}
+                              <div className="flex flex-col items-center gap-1">
+                                <motion.button
+                                  onClick={() => handleViewPendingSale(sale)}
+                                  className="w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="بینین"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                </motion.button>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
+                              </div>
+
+                              {/* تەواوکردن (Complete) - Green */}
+                              <div className="flex flex-col items-center gap-1">
+                                <motion.button
+                                  onClick={() => { if (confirm('دڵنیایت لە تەواوکردنی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'completed' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="تەواوکردن"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </motion.button>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەواو</span>
+                              </div>
+
+                              {/* گەڕاندنەوە (Refund) - Orange */}
+                              <div className="flex flex-col items-center gap-1">
+                                <motion.button
+                                  onClick={() => { if (confirm('دڵنیایت لە گەڕاندنەوەی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="گەڕاندنەوە"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                  </svg>
+                                </motion.button>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندن</span>
+                              </div>
+
+                              {/* هەڵوەشاندنەوە (Cancel) - Red */}
+                              <div className="flex flex-col items-center gap-1">
+                                <motion.button
+                                  onClick={() => { if (confirm('دڵنیایت لە هەڵوەشاندنەوەی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  title="هەڵوەشاندنەوە"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </motion.button>
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>هەڵوەش</span>
+                              </div>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={10} className="px-6 py-12 text-center">
+                            <div className="text-gray-500">
+                              <p className="text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                                هیچ فرۆشتنێکی چاوەڕوانکراو نیە
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </motion.div>
           )}

@@ -1,7 +1,7 @@
 'use client'
 
 import InvoiceTemplate from '@/components/InvoiceTemplate'
-import InvoiceDetailsModal from './components/InvoiceDetailsModal'
+import InvoiceModal from '@/components/shared/InvoiceModal'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
@@ -456,12 +456,11 @@ export default function InvoicesPage() {
           )}
 
           {/* Invoice Details Modal */}
-          <InvoiceDetailsModal
-            showInvoiceModal={showInvoiceModal}
-            setShowInvoiceModal={setShowInvoiceModal}
+          <InvoiceModal
+            showModal={showInvoiceModal}
+            setShowModal={setShowInvoiceModal}
             selectedInvoice={selectedInvoice}
             invoiceDetails={invoiceDetails}
-            onDownload={handleDownloadInvoice}
           />
         </motion.div>
       </div>

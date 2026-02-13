@@ -71,6 +71,8 @@ export default function SalesPage() {
   const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null)
   const [showInvoice, setShowInvoice] = useState(false)
   const [completedSaleData, setCompletedSaleData] = useState<any>(null)
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
 
   const getFilteredInventory = (): InventoryItem[] => selectedCategory === 'all' ? inventory : inventory.filter(i => i.category === selectedCategory)
   const getFilteredCustomers = (): Customer[] => {
@@ -114,7 +116,30 @@ export default function SalesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchAllData(); const handleClick = (e: MouseEvent) => { const t = e.target as Element; if (!t.closest('.customer-search-container')) setShowCustomerDropdown(false) }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick) }, [])
+  useEffect(() => { 
+    fetchAllData()
+    
+    // Fetch categories from Supabase
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('name', { ascending: true })
+        
+        if (error) throw error
+        setCategories(data || [])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+      } finally {
+        setCategoriesLoading(false)
+      }
+    }
+    
+    fetchCategories()
+    
+    const handleClick = (e: MouseEvent) => { const t = e.target as Element; if (!t.closest('.customer-search-container')) setShowCustomerDropdown(false) }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick) 
+  }, [])
 
   useEffect(() => {
     let finalUserName = 'کارمەند'
@@ -212,21 +237,78 @@ export default function SalesPage() {
               کاڵاکان
             </motion.h2>
             <CustomerSelector searchTerm={customerSearchTerm} showDropdown={showCustomerDropdown} filteredCustomers={getFilteredCustomers()} selectedCustomerData={selectedCustomerData} onSearchChange={setCustomerSearchTerm} onSelect={handleCustomerSelect} onDropdownChange={setShowCustomerDropdown} onCreateNew={handleCreateCustomer} />
-            <motion.div className="mb-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <select 
-                value={selectedCategory} 
-                onChange={(e) => setSelectedCategory(e.target.value)} 
-                className="w-full px-4 py-2 rounded-xl border shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none text-sm"
-                style={{ 
-                  backgroundColor: 'var(--theme-card-bg)',
-                  borderColor: 'var(--theme-card-border)',
-                  color: 'var(--theme-foreground)',
-                  fontFamily: 'var(--font-uni-salar)'
-                }}
-              >
-                <option value="all">هەموو پۆلەکان</option>
-                {groupedInventory.map((group) => <option key={group.name} value={group.name}>{group.name}</option>)}
-              </select>
+            <motion.div 
+              className="mb-2" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ delay: 0.3 }}
+            >
+              {categoriesLoading ? (
+                <div className="flex items-center justify-center py-3">
+                  <div 
+                    className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+                    style={{ 
+                      borderColor: 'var(--theme-card-border)',
+                      borderTopColor: 'transparent'
+                    }}
+                  />
+                </div>
+              ) : categories.length === 0 ? (
+                <div 
+                  className="text-center py-4 rounded-xl border backdrop-blur-xl"
+                  style={{ 
+                    backgroundColor: 'var(--theme-card-bg)',
+                    borderColor: 'var(--theme-card-border)',
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                >
+                  هیچ جۆرێک نەدۆزرایەوە
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+                  {/* All Categories Button */}
+                  <motion.button
+                    onClick={() => setSelectedCategory('all')}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border backdrop-blur-xl ${
+                      selectedCategory === 'all' 
+                        ? 'ring-2 ring-blue-500/50' 
+                        : ''
+                    }`}
+                    style={{ 
+                      backgroundColor: selectedCategory === 'all' ? 'var(--theme-accent)' : 'var(--theme-card-bg)',
+                      borderColor: selectedCategory === 'all' ? 'var(--theme-accent)' : 'var(--theme-card-border)',
+                      color: selectedCategory === 'all' ? 'white' : 'var(--theme-foreground)',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    هەموو جۆرەکان
+                  </motion.button>
+                  
+                  {/* Dynamic Category Buttons */}
+                  {categories.map((category) => (
+                    <motion.button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.name)}
+                      whileTap={{ scale: 0.95 }}
+                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border backdrop-blur-xl ${
+                        selectedCategory === category.name 
+                          ? 'ring-2 ring-blue-500/50' 
+                          : ''
+                      }`}
+                      style={{ 
+                        backgroundColor: selectedCategory === category.name ? 'var(--theme-accent)' : 'var(--theme-card-bg)',
+                        borderColor: selectedCategory === category.name ? 'var(--theme-accent)' : 'var(--theme-card-border)',
+                        color: selectedCategory === category.name ? 'white' : 'var(--theme-foreground)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      {category.name}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </div>
           <motion.div className="flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: 'none' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>

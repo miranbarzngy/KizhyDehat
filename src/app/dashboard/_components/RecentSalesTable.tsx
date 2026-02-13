@@ -16,6 +16,10 @@ interface PendingSale {
   invoice_number?: number
   customers?: { name: string } | null
   display_customer_name?: string
+  user_id?: string | null
+  sold_by?: string | null
+  seller_name?: string
+  profiles?: { name: string } | null
 }
 
 interface RecentSalesTableProps {
@@ -29,6 +33,36 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<PendingSale | null>(null)
   const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Fetch seller name from profile using user_id
+  const fetchSellerName = async (userId: string | null, soldBy: string | null): Promise<string> => {
+    // Try user_id first
+    if (userId) {
+      try {
+        const { data, error } = await supabase.from('profiles').select('name').eq('id', userId).single()
+        if (data?.name) {
+          console.log('fetchSellerName - Found by user_id:', data.name)
+          return data.name
+        }
+      } catch (e) {
+        console.log('fetchSellerName - user_id query failed:', e)
+      }
+    }
+    // Try sold_by if user_id didn't work
+    if (soldBy) {
+      try {
+        const { data, error } = await supabase.from('profiles').select('name').eq('id', soldBy).single()
+        if (data?.name) {
+          console.log('fetchSellerName - Found by sold_by:', data.name)
+          return data.name
+        }
+      } catch (e) {
+        console.log('fetchSellerName - sold_by query failed:', e)
+      }
+    }
+    console.log('fetchSellerName - No profile found, userId:', userId, 'soldBy:', soldBy)
+    return ''
+  }
 
   const fetchPendingSales = async () => {
     if (!supabase) {
@@ -93,9 +127,13 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         data = fallbackData
       }
 
-      // Map data with display_customer_name from join
-      const transformedOrders: PendingSale[] = (data || []).map(sale => {
+      // Map data with display_customer_name and seller name from profiles
+      const transformedOrders: PendingSale[] = await Promise.all((data || []).map(async (sale: any) => {
         const customer = joinFailed ? null : (sale.customers || null)
+        
+        // Fetch seller name from profile
+        const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
+        
         return {
           id: sale.id,
           total: sale.total,
@@ -103,9 +141,13 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
           date: sale.date,
           invoice_number: sale.invoice_number,
           customers: customer,
-          display_customer_name: customer?.name || 'کڕیاری گشتی'
+          display_customer_name: customer?.name || 'کڕیاری گشتی',
+          user_id: sale.user_id,
+          sold_by: sale.sold_by,
+          seller_name: sellerName || sale.sold_by || '',
+          profiles: { name: sellerName || sale.sold_by || '' }
         }
-      })
+      }))
 
       setRecentOrders(transformedOrders)
     } catch (error) {
@@ -160,8 +202,19 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         }
       }))
 
+      // Fetch seller name from profile
+      const sellerName = await fetchSellerName(order.user_id || saleData?.user_id, order.sold_by || saleData?.sold_by)
+
+      // Build the sale data with profiles for seller name display
+      const saleDataWithSeller = {
+        ...saleData,
+        sale_items: saleItemsWithNames,
+        seller_name: sellerName || order.seller_name || saleData?.sold_by || '',
+        profiles: { name: sellerName || order.seller_name || saleData?.sold_by || '' }
+      }
+
       setSelectedOrder(order)
-      setInvoiceDetails({ ...saleData, sale_items: saleItemsWithNames })
+      setInvoiceDetails(saleDataWithSeller)
       setShowInvoiceModal(true)
     } catch (error) {
       console.error('Error fetching order details:', error)

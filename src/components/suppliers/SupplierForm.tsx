@@ -22,9 +22,10 @@ interface SupplierFormProps {
     address: string
     supplier_image?: string
   } | null
+  isLoading?: boolean
 }
 
-export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, initialData = null }: SupplierFormProps) {
+export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, initialData = null, isLoading = false }: SupplierFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     company: '',
@@ -37,6 +38,9 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  
+  // Combine local isUploading with prop isLoading
+  const isSubmitting = isUploading || isLoading
 
   if (isOpen && formData.name === '' && initialData) {
     setFormData({
@@ -361,7 +365,8 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
           <div className="flex justify-end space-x-4 mt-8">
             <button
               onClick={handleClose}
-              className="px-6 py-3 rounded-xl transition-all hover:opacity-80"
+              disabled={isSubmitting}
+              className="px-6 py-3 rounded-xl transition-all hover:opacity-80 disabled:opacity-50"
               style={{ 
                 backgroundColor: 'transparent', 
                 color: 'var(--theme-secondary)',
@@ -373,7 +378,7 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
             </button>
             <button
               onClick={handleSave}
-              disabled={isUploading}
+              disabled={isSubmitting}
               className="px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all hover:opacity-90 shadow-lg disabled:opacity-50"
               style={{ 
                 background: 'var(--theme-accent)', 
@@ -381,13 +386,12 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
                 fontFamily: 'var(--font-uni-salar)'
               }}
             >
-              {isUploading ? (
+              {isSubmitting ? (
                 <>
                   <FaSpinner className="animate-spin" /> بارکردن...
                 </>
               ) : (
                 <>
-                  <FaSpinner className={isUploading ? 'animate-spin' : ''} />
                   {isEdit ? 'نوێکردنەوە' : 'زیادکردن'}
                 </>
               )}

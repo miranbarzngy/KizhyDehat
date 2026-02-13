@@ -26,6 +26,7 @@ export default function SuppliersPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
 
   useEffect(() => { fetchSuppliers() }, [])
 
@@ -34,6 +35,46 @@ export default function SuppliersPage() {
     const { data } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
     setSuppliers((data || []).map(s => ({ ...s, company: s.company || '', address: s.address || '' })))
     setLoading(false)
+  }
+
+  const handleSaveSupplier = async (data: {
+    name: string
+    company: string
+    phone: string
+    address: string
+    supplier_image?: string
+  }, selectedFile?: File | null) => {
+    if (!supabase) {
+      alert('هەڵە لە پەیوەستبوون بە داتابەیس')
+      return
+    }
+
+    setFormLoading(true)
+    try {
+      const { error } = await supabase.from('suppliers').insert({
+        name: data.name,
+        company: data.company || null,
+        phone: data.phone || null,
+        address: data.address || null,
+        supplier_image: data.supplier_image || null,
+        balance: 0
+      })
+
+      if (error) {
+        console.error('Error inserting supplier:', error)
+        alert('هەڵە لە تۆمارکردن: ' + error.message)
+        return
+      }
+
+      // Refresh the list
+      await fetchSuppliers()
+      setShowAddModal(false)
+    } catch (error) {
+      console.error('Error saving supplier:', error)
+      alert('هەڵە لە تۆمارکردن')
+    } finally {
+      setFormLoading(false)
+    }
   }
 
   const filteredSuppliers = suppliers.filter(s =>
@@ -168,7 +209,13 @@ export default function SuppliersPage() {
         )}
       </div>
 
-      <SupplierForm isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={() => {}} isEdit={false} />
+      <SupplierForm 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        onSave={handleSaveSupplier} 
+        isEdit={false}
+        isLoading={formLoading}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, ChangeEvent } from 'react'
+import { useState, useRef, ChangeEvent, useEffect } from 'react'
 import { uploadFile } from '@/lib/storage'
 import { FaImage, FaTimes, FaSpinner, FaUser, FaBuilding, FaPhone, FaMapMarkerAlt, FaCloudUploadAlt } from 'react-icons/fa'
 
@@ -42,18 +42,21 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
   // Combine local isUploading with prop isLoading
   const isSubmitting = isUploading || isLoading
 
-  if (isOpen && formData.name === '' && initialData) {
-    setFormData({
-      name: initialData.name || '',
-      company: initialData.company || '',
-      phone: initialData.phone || '',
-      address: initialData.address || '',
-      supplier_image: initialData.supplier_image || ''
-    })
-    if (initialData.supplier_image) {
-      setImagePreview(initialData.supplier_image)
+  // Use useEffect to initialize form data when initialData changes
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData({
+        name: initialData.name || '',
+        company: initialData.company || '',
+        phone: initialData.phone || '',
+        address: initialData.address || '',
+        supplier_image: initialData.supplier_image || ''
+      })
+      if (initialData.supplier_image) {
+        setImagePreview(initialData.supplier_image)
+      }
     }
-  }
+  }, [isOpen, initialData])
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

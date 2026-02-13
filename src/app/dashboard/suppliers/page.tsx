@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { FaList, FaSearch, FaTh, FaPlus } from 'react-icons/fa'
+import { FaList, FaSearch, FaTh, FaPlus, FaTimes, FaHistory, FaMoneyBillWave } from 'react-icons/fa'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -20,6 +20,17 @@ interface Supplier {
   balance: number
 }
 
+interface SupplierTransaction {
+  id: string
+  supplier_id: string
+  item_name: string
+  total_price: number
+  amount_paid: number
+  debt_amount: number
+  date: string
+  created_at: string
+}
+
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,6 +38,11 @@ export default function SuppliersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [transactions, setTransactions] = useState<SupplierTransaction[]>([])
+  const [loadingTransactions, setLoadingTransactions] = useState(false)
 
   useEffect(() => { fetchSuppliers() }, [])
 
@@ -51,6 +67,30 @@ export default function SuppliersPage() {
 
     setFormLoading(true)
     try {
+      // If editingSupplier exists, update instead of insert
+      if (editingSupplier) {
+        const { error } = await supabase.from('suppliers').update({
+          name: data.name,
+          company: data.company || null,
+          phone: data.phone || null,
+          address: data.address || null,
+          supplier_image: data.supplier_image || null,
+        }).eq('id', editingSupplier.id)
+
+        if (error) {
+          console.error('Error updating supplier:', error)
+          alert('هەڵە لە نوێکردنەوە: ' + error.message)
+          return
+        }
+
+        // Refresh the list
+        await fetchSuppliers()
+        setEditingSupplier(null)
+        setShowAddModal(false)
+        return
+      }
+
+      // INSERT new supplier
       const { error } = await supabase.from('suppliers').insert({
         name: data.name,
         company: data.company || null,
@@ -75,6 +115,69 @@ export default function SuppliersPage() {
     } finally {
       setFormLoading(false)
     }
+  }
+
+  const handleDeleteSupplier = async (supplier: Supplier) => {
+    // Confirm delete
+    const confirmed = window.confirm(`دڵنیایت لە سڕینەوەی "${supplier.name}"؟`)
+    if (!confirmed) return
+
+    if (!supabase) {
+      alert('هەڵە لە پەیوەستبوون بە داتابەیس')
+      return
+    }
+
+    try {
+      const { error } = await supabase.from('suppliers').delete().eq('id', supplier.id)
+
+      if (error) {
+        console.error('Error deleting supplier:', error)
+        alert('هەڵە لە سڕینەوە: ' + error.message)
+        return
+      }
+
+      // Refresh the list instantly
+      await fetchSuppliers()
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+      alert('هەڵە لە سڕینەوە')
+    }
+  }
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier(supplier)
+    setShowAddModal(true)
+  }
+
+  const handleHistoryClick = async (supplier: Supplier) => {
+    setSelectedSupplier(supplier)
+    setShowHistoryModal(true)
+    setLoadingTransactions(true)
+
+    if (!supabase) {
+      setLoadingTransactions(false)
+      return
+    }
+
+    try {
+      const { data } = await supabase
+        .from('supplier_transactions')
+        .select('*')
+        .eq('supplier_id', supplier.id)
+        .order('date', { ascending: false })
+
+      setTransactions(data || [])
+    } catch (error) {
+      console.error('Error fetching transactions:', error)
+      setTransactions([])
+    } finally {
+      setLoadingTransactions(false)
+    }
+  }
+
+  const handleCloseForm = () => {
+    setShowAddModal(false)
+    setEditingSupplier(null)
   }
 
   const filteredSuppliers = suppliers.filter(s =>
@@ -153,7 +256,7 @@ export default function SuppliersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6">
             {/* Add New Supplier Card - Always show first */}
             <motion.div
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { setEditingSupplier(null); setShowAddModal(true) }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="rounded-3xl p-6 flex flex-col items-center justify-center cursor-pointer min-h-[200px]"
@@ -180,9 +283,9 @@ export default function SuppliersPage() {
             {filteredSuppliers.length > 0 ? (
               filteredSuppliers.map(supplier => (
                 <SupplierCard key={supplier.id} supplier={supplier}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
-                  onHistory={() => {}}
+                  onEdit={() => handleEditSupplier(supplier)}
+                  onDelete={() => handleDeleteSupplier(supplier)}
+                  onHistory={() => handleHistoryClick(supplier)}
                   onPayment={() => {}}
                 />
               ))
@@ -205,17 +308,132 @@ export default function SuppliersPage() {
         )}
 
         {viewMode === 'table' && (
-          <SupplierTable suppliers={filteredSuppliers} onEdit={() => {}} onDelete={() => {}} />
+          <SupplierTable 
+            suppliers={filteredSuppliers} 
+            onEdit={(supplier) => handleEditSupplier(supplier)} 
+            onDelete={(supplier) => handleDeleteSupplier(supplier)} 
+          />
         )}
       </div>
 
       <SupplierForm 
         isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
+        onClose={handleCloseForm} 
         onSave={handleSaveSupplier} 
-        isEdit={false}
+        isEdit={!!editingSupplier}
+        initialData={editingSupplier}
         isLoading={formLoading}
       />
+
+      {/* History Modal */}
+      {showHistoryModal && selectedSupplier && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+          <div 
+            className="w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
+            style={{ 
+              backgroundColor: 'var(--theme-card-bg)',
+              borderColor: 'var(--theme-card-border)',
+              borderWidth: '1px'
+            }}
+          >
+            {/* Header */}
+            <div 
+              className="p-6 border-b flex justify-between items-center"
+              style={{ borderColor: 'var(--theme-card-border)' }}
+            >
+              <div>
+                <h3 
+                  className="text-xl font-bold"
+                  style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  مێژووی پارەدانەکان
+                </h3>
+                <p 
+                  className="text-sm mt-1"
+                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  {selectedSupplier.name}
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowHistoryModal(false); setSelectedSupplier(null) }}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                style={{ color: 'var(--theme-secondary)' }}
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {loadingTransactions ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+                </div>
+              ) : transactions.length > 0 ? (
+                <div className="space-y-4">
+                  {transactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="p-4 rounded-xl border"
+                      style={{
+                        backgroundColor: 'var(--theme-muted)',
+                        borderColor: 'var(--theme-card-border)'
+                      }}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 
+                            className="font-semibold"
+                            style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            {tx.item_name}
+                          </h4>
+                          <p 
+                            className="text-sm"
+                            style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            {new Date(tx.date).toLocaleDateString('ar-IQ')}
+                          </p>
+                        </div>
+                        <div className="text-left">
+                          <p 
+                            className="font-bold"
+                            style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            {tx.total_price.toFixed(2)} د.ع
+                          </p>
+                          <p 
+                            className="text-sm"
+                            style={{ color: '#16a34a', fontFamily: 'var(--font-uni-salar)' }}
+                          >
+                            پارەدراو: {tx.amount_paid.toFixed(2)} د.ع
+                          </p>
+                          {tx.debt_amount > 0 && (
+                            <p 
+                              className="text-sm"
+                              style={{ color: '#dc2626', fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              قەرز: {tx.debt_amount.toFixed(2)} د.ع
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-5xl mb-4">📋</div>
+                  <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
+                    هیچ مێژوویەک نەدۆزرایەوە
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

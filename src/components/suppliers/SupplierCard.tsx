@@ -59,10 +59,21 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
       </div>
 
       <div className="text-center mb-4">
-        <div className="text-2xl font-bold" style={{ color: displayDebt > 0 ? '#dc2626' : '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
-          {displayDebt.toFixed(2)} د.ع
-        </div>
-        <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی قەرز</div>
+        {displayDebt > 0 ? (
+          <>
+            <div className="text-2xl font-bold" style={{ color: '#dc2626', fontFamily: 'var(--font-uni-salar)' }}>
+              {displayDebt.toFixed(2)} د.ع
+            </div>
+            <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی قەرز</div>
+          </>
+        ) : (
+          <>
+            <div className="text-2xl font-bold" style={{ color: '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
+              بێ قەرز ✓
+            </div>
+            <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>هیچ قەرزێک نییە</div>
+          </>
+        )}
       </div>
 
       {/* Action Buttons - Permanently Visible */}

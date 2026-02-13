@@ -161,6 +161,39 @@ export default function SuppliersPage() {
     setShowAddModal(true)
   }
 
+  // Helper function to calculate debt dynamically
+  // Formula: Total Debt = (Sum of debt_amount from supplier_transactions) - (Sum of amount from supplier_payments)
+  const calculateDebtDynamically = async (supplierId: string): Promise<number> => {
+    if (!supabase) return 0
+    
+    try {
+      // Get sum of debt_amount from supplier_transactions
+      const { data: transactions } = await supabase
+        .from('supplier_transactions')
+        .select('debt_amount')
+        .eq('supplier_id', supplierId)
+
+      const totalDebtFromTransactions = (transactions || []).reduce((sum, tx) => sum + (tx.debt_amount || 0), 0)
+
+      // Get sum of amount from supplier_payments
+      const { data: payments } = await supabase
+        .from('supplier_payments')
+        .select('amount')
+        .eq('supplier_id', supplierId)
+
+      const totalPaidFromPayments = (payments || []).reduce((sum, pay) => sum + (pay.amount || 0), 0)
+
+      // Calculate: Total Debt = Total Debt from Transactions - Total Paid
+      const calculatedDebt = totalDebtFromTransactions - totalPaidFromPayments
+      
+      // Ensure debt is not negative
+      return Math.max(0, calculatedDebt)
+    } catch (error) {
+      console.error('Error calculating debt:', error)
+      return 0
+    }
+  }
+
   const handleHistoryClick = async (supplier: Supplier) => {
     setSelectedSupplier(supplier)
     setShowHistoryModal(true)
@@ -193,6 +226,17 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
 
       setPayments(payData || [])
+
+      // Calculate debt dynamically when modal opens
+      const calculatedDebt = await calculateDebtDynamically(supplier.id)
+      
+      // Update the selected supplier with calculated debt
+      setSelectedSupplier({ ...supplier, total_debt: calculatedDebt })
+      
+      // Also update the supplier in the suppliers list
+      setSuppliers(prev => prev.map(s => 
+        s.id === supplier.id ? { ...s, total_debt: calculatedDebt } : s
+      ))
     } catch (error) {
       console.error('Error fetching data:', error)
       setTransactions([])
@@ -206,8 +250,20 @@ export default function SuppliersPage() {
   // Handle adding a new payment
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSupplier || !paymentForm.amount || !paymentForm.date) return
+    if (!selectedSupplier || !paymentForm.amount || !paymentForm.date) {
+      alert('تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە')
+      return
+    }
 
+    const amount = parseFloat(paymentForm.amount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('تکایە بڕی پارە بە دروستی بنووسە')
+      return
+    }
+
+    // Format date as YYYY-MM-DD string
+    const dateStr = paymentForm.date
+    
     setSubmittingPayment(true)
     try {
       const response = await fetch('/api/supplier-payments', {
@@ -215,19 +271,21 @@ export default function SuppliersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           supplier_id: selectedSupplier.id,
-          amount: parseFloat(paymentForm.amount),
-          date: paymentForm.date,
-          note: paymentForm.note
+          amount: amount,
+          date: dateStr,
+          note: paymentForm.note || ''
         })
       })
 
       const result = await response.json()
-      if (!response.ok) {
+      console.log('Payment result:', result)
+      
+      if (!response.ok || !result.success) {
         alert(result.error || 'هەڵە لە تۆمارکردن')
         return
       }
 
-      // Refresh payments and supplier data
+      // Success - refresh payments list
       const { data: payData } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -235,16 +293,16 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
       setPayments(payData || [])
 
-      // Update local supplier total_debt
-      setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
-      
-      // Update suppliers list
+      // Calculate new debt
+      const newDebt = await calculateDebtDynamically(selectedSupplier.id)
+      setSelectedSupplier({ ...selectedSupplier, total_debt: newDebt })
       setSuppliers(prev => prev.map(s => 
-        s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
+        s.id === selectedSupplier.id ? { ...s, total_debt: newDebt } : s
       ))
 
       // Reset form
       setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+      alert('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
     } catch (error) {
       console.error('Error adding payment:', error)
       alert('هەڵە لە تۆمارکردن')
@@ -325,11 +383,14 @@ export default function SuppliersPage() {
         method: 'DELETE'
       })
 
-      const result = await response.json()
+      // Check if response is OK
       if (!response.ok) {
-        alert(result.error || 'هەڵە لە سڕینەوە')
+        const errorData = await response.json().catch(() => ({ error: 'هەڵە لە سڕینەوە' }))
+        alert(errorData.error || 'هەڵە لە سڕینەوە')
         return
       }
+
+      const result = await response.json()
 
       // Refresh payments
       const { data: payData } = await supabase
@@ -339,12 +400,17 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
       setPayments(payData || [])
 
+      // Calculate new debt using the API result or recalculate locally
+      const newDebt = result.newDebt !== undefined 
+        ? result.newDebt 
+        : await calculateDebtDynamically(selectedSupplier.id)
+      
       // Update local supplier total_debt
-      setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
+      setSelectedSupplier({ ...selectedSupplier, total_debt: newDebt })
       
       // Update suppliers list
       setSuppliers(prev => prev.map(s => 
-        s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
+        s.id === selectedSupplier.id ? { ...s, total_debt: newDebt } : s
       ))
     } catch (error) {
       console.error('Error deleting payment:', error)
@@ -562,7 +628,7 @@ export default function SuppliersPage() {
                     className="text-xs block"
                     style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
                   >
-                    قەرزی ئێستا
+                    {selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? 'قەرزی ئێستا' : 'دۆخی قەرز'}
                   </span>
                   <span 
                     className="text-lg font-bold"
@@ -573,7 +639,9 @@ export default function SuppliersPage() {
                       fontFamily: 'var(--font-uni-salar)' 
                     }}
                   >
-                    {(selectedSupplier.total_debt || 0).toLocaleString()} د.ع
+                    {selectedSupplier.total_debt && selectedSupplier.total_debt > 0 
+                      ? `${(selectedSupplier.total_debt || 0).toLocaleString()} د.ع`
+                      : 'بێ قەرز ✓'}
                   </span>
                 </div>
                 <button
@@ -720,53 +788,65 @@ export default function SuppliersPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
                   </div>
                 ) : payments.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>بڕی پارە</th>
-                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>تێبینی</th>
-                          <th className="text-center py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {payments.map((payment) => (
-                          <tr key={payment.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                            <td className="py-3 px-4" style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
+                  <div className="space-y-2">
+                    {payments.map((payment) => (
+                      <div 
+                        key={payment.id}
+                        className="flex items-center justify-between p-3 mb-2 rounded-xl"
+                        style={{ 
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="text-center min-w-[80px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بەروار</div>
+                            <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
                               {new Date(payment.date).toLocaleDateString('ar-IQ')}
-                            </td>
-                            <td className="py-3 px-4" style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
+                            </div>
+                          </div>
+                          <div className="text-center min-w-[100px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بڕی پارە</div>
+                            <div style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
                               {payment.amount.toLocaleString()} د.ع
-                            </td>
-                            <td className="py-3 px-4" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>
+                            </div>
+                          </div>
+                          <div className="min-w-[120px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>تێبینی</div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-uni-salar)' }}>
                               {payment.note || '-'}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => handleEditPayment(payment)}
-                                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                  title="دەستکاری"
-                                >
-                                  <FaEdit size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePayment(payment)}
-                                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                  title="سڕینەوە"
-                                >
-                                  <FaTrash size={14} style={{ color: 'rgba(255, 100, 100, 0.8)' }} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditPayment(payment)}
+                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                            title="دەستکاری"
+                            style={{ background: 'rgba(255, 255, 255, 0.1)' }}
+                          >
+                            <FaEdit size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(payment)}
+                            className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
+                            title="سڕینەوە"
+                            style={{ background: 'rgba(255, 100, 100, 0.1)' }}
+                          >
+                            <FaTrash size={14} style={{ color: 'rgba(255, 100, 100, 0.8)' }} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
+                  <div 
+                    className="text-center py-8 rounded-xl"
+                    style={{ 
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
                     <div className="text-4xl mb-2">💰</div>
                     <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'rgba(255, 255, 255, 0.5)' }}>
                       هیچ پارەدانێک نەکراوە

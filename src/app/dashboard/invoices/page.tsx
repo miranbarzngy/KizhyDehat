@@ -1,7 +1,7 @@
 'use client'
 
-import InvoiceTemplate from '@/components/InvoiceTemplate'
 import InvoiceModal from '@/components/shared/InvoiceModal'
+import { InvoiceTemplate } from '@/components/GlobalInvoiceModal'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
@@ -55,7 +55,7 @@ export default function InvoicesPage() {
   // Handle viewing invoice from any tab
   const handleViewInvoice = async (sale: any) => {
     try {
-      // Fetch sale items
+      // Fetch sale items with product info
       const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
         .select('*, products(name, unit)')
@@ -65,17 +65,26 @@ export default function InvoicesPage() {
         console.error('Error fetching sale items:', itemsError)
       }
       
+      // Transform items to include product data in a way that works with our template
+      const transformedItems = (saleItems || []).map((item: any) => ({
+        ...item,
+        products: item.products ? {
+          name: item.products.name,
+          unit: item.products.unit
+        } : null
+      }))
+      
       // Fetch customer data
-      const { data: customerData } = await supabase
+      const { data: customerData } = sale.customer_id ? await supabase
         .from('customers')
         .select('name, phone1')
         .eq('id', sale.customer_id)
-        .single()
+        .single() : { data: null }
       
       const saleData = {
         ...sale,
         customers: customerData || null,
-        sale_items: saleItems || []
+        sale_items: transformedItems || []
       }
       
       setSelectedInvoice(sale)
@@ -83,6 +92,14 @@ export default function InvoicesPage() {
       setShowInvoiceModal(true)
     } catch (error) {
       console.error('Error opening invoice modal:', error)
+      // Still open modal even if there's an error, but with empty items
+      setSelectedInvoice(sale)
+      setInvoiceDetails({
+        ...sale,
+        customers: null,
+        sale_items: []
+      })
+      setShowInvoiceModal(true)
     }
   }
 

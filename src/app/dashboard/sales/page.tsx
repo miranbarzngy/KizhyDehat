@@ -263,7 +263,7 @@ export default function SalesPage() {
                     fontFamily: 'var(--font-uni-salar)'
                   }}
                 >
-                  هیچ جۆرێک نەدۆزرایەوە
+                  هیچ جۆرە پۆلێک نەدۆزرایەوە
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">

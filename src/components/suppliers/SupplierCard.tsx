@@ -10,6 +10,7 @@ interface SupplierCardProps {
     phone: string
     supplier_image?: string
     balance: number
+    total_debt?: number
   }
   onEdit: () => void
   onDelete: () => void
@@ -18,6 +19,8 @@ interface SupplierCardProps {
 }
 
 export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, onPayment }: SupplierCardProps) {
+  // Use total_debt if available, fallback to balance
+  const displayDebt = supplier.total_debt !== undefined ? supplier.total_debt : supplier.balance
   return (
     <div
       className="relative p-6 rounded-2xl backdrop-blur-md border"
@@ -56,8 +59,8 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
       </div>
 
       <div className="text-center mb-4">
-        <div className="text-2xl font-bold" style={{ color: supplier.balance > 0 ? '#dc2626' : '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
-          {supplier.balance.toFixed(2)} د.ع
+        <div className="text-2xl font-bold" style={{ color: displayDebt > 0 ? '#dc2626' : '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
+          {displayDebt.toFixed(2)} د.ع
         </div>
         <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی قەرز</div>
       </div>
@@ -109,8 +112,8 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
           <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)', opacity: 0.7 }}>مێژوو</span>
         </div>
 
-        {/* Payment Button - Green (only if balance > 0) */}
-        {supplier.balance > 0 && (
+        {/* Payment Button - Green (only if displayDebt > 0) */}
+        {displayDebt > 0 && (
           <div className="flex flex-col items-center group cursor-pointer" onClick={onPayment}>
             <motion.button
               className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"

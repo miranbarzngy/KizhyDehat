@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { FaList, FaSearch, FaTh, FaPlus, FaTimes, FaHistory, FaMoneyBillWave } from 'react-icons/fa'
+import { FaList, FaSearch, FaTh, FaPlus, FaTimes, FaEdit, FaTrash, FaMoneyBillWave } from 'react-icons/fa'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -18,6 +18,16 @@ interface Supplier {
   address: string
   supplier_image?: string
   balance: number
+  total_debt?: number
+}
+
+interface SupplierPayment {
+  id: string
+  supplier_id: string
+  amount: number
+  date: string
+  note?: string
+  created_at: string
 }
 
 interface SupplierTransaction {
@@ -43,13 +53,20 @@ export default function SuppliersPage() {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [transactions, setTransactions] = useState<SupplierTransaction[]>([])
   const [loadingTransactions, setLoadingTransactions] = useState(false)
+  
+  // Payment management state
+  const [payments, setPayments] = useState<SupplierPayment[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+  const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<SupplierPayment | null>(null)
 
   useEffect(() => { fetchSuppliers() }, [])
 
   const fetchSuppliers = async () => {
     if (!supabase) { setSuppliers([]); setLoading(false); return }
     const { data } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
-    setSuppliers((data || []).map(s => ({ ...s, company: s.company || '', address: s.address || '' })))
+    setSuppliers((data || []).map(s => ({ ...s, company: s.company || '', address: s.address || '', total_debt: s.total_debt || s.balance || 0 })))
     setLoading(false)
   }
 
@@ -67,7 +84,6 @@ export default function SuppliersPage() {
 
     setFormLoading(true)
     try {
-      // If editingSupplier exists, update instead of insert
       if (editingSupplier) {
         const { error } = await supabase.from('suppliers').update({
           name: data.name,
@@ -83,21 +99,20 @@ export default function SuppliersPage() {
           return
         }
 
-        // Refresh the list
         await fetchSuppliers()
         setEditingSupplier(null)
         setShowAddModal(false)
         return
       }
 
-      // INSERT new supplier
       const { error } = await supabase.from('suppliers').insert({
         name: data.name,
         company: data.company || null,
         phone: data.phone || null,
         address: data.address || null,
         supplier_image: data.supplier_image || null,
-        balance: 0
+        balance: 0,
+        total_debt: 0
       })
 
       if (error) {
@@ -106,7 +121,6 @@ export default function SuppliersPage() {
         return
       }
 
-      // Refresh the list
       await fetchSuppliers()
       setShowAddModal(false)
     } catch (error) {
@@ -118,7 +132,6 @@ export default function SuppliersPage() {
   }
 
   const handleDeleteSupplier = async (supplier: Supplier) => {
-    // Confirm delete
     const confirmed = window.confirm(`دڵنیایت لە سڕینەوەی "${supplier.name}"؟`)
     if (!confirmed) return
 
@@ -136,7 +149,6 @@ export default function SuppliersPage() {
         return
       }
 
-      // Refresh the list instantly
       await fetchSuppliers()
     } catch (error) {
       console.error('Error deleting supplier:', error)
@@ -153,31 +165,210 @@ export default function SuppliersPage() {
     setSelectedSupplier(supplier)
     setShowHistoryModal(true)
     setLoadingTransactions(true)
+    setLoadingPayments(true)
+    setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+    setEditingPayment(null)
 
     if (!supabase) {
       setLoadingTransactions(false)
+      setLoadingPayments(false)
       return
     }
 
     try {
-      const { data } = await supabase
+      // Fetch transactions
+      const { data: txData } = await supabase
         .from('supplier_transactions')
         .select('*')
         .eq('supplier_id', supplier.id)
         .order('date', { ascending: false })
 
-      setTransactions(data || [])
+      setTransactions(txData || [])
+
+      // Fetch payments
+      const { data: payData } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', supplier.id)
+        .order('created_at', { ascending: false })
+
+      setPayments(payData || [])
     } catch (error) {
-      console.error('Error fetching transactions:', error)
+      console.error('Error fetching data:', error)
       setTransactions([])
+      setPayments([])
     } finally {
       setLoadingTransactions(false)
+      setLoadingPayments(false)
+    }
+  }
+
+  // Handle adding a new payment
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedSupplier || !paymentForm.amount || !paymentForm.date) return
+
+    setSubmittingPayment(true)
+    try {
+      const response = await fetch('/api/supplier-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier_id: selectedSupplier.id,
+          amount: parseFloat(paymentForm.amount),
+          date: paymentForm.date,
+          note: paymentForm.note
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        alert(result.error || 'هەڵە لە تۆمارکردن')
+        return
+      }
+
+      // Refresh payments and supplier data
+      const { data: payData } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', selectedSupplier.id)
+        .order('created_at', { ascending: false })
+      setPayments(payData || [])
+
+      // Update local supplier total_debt
+      setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
+      
+      // Update suppliers list
+      setSuppliers(prev => prev.map(s => 
+        s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
+      ))
+
+      // Reset form
+      setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+    } catch (error) {
+      console.error('Error adding payment:', error)
+      alert('هەڵە لە تۆمارکردن')
+    } finally {
+      setSubmittingPayment(false)
+    }
+  }
+
+  // Handle editing a payment
+  const handleEditPayment = (payment: SupplierPayment) => {
+    setEditingPayment(payment)
+    setPaymentForm({
+      amount: payment.amount.toString(),
+      date: payment.date,
+      note: payment.note || ''
+    })
+  }
+
+  // Handle updating a payment
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedSupplier || !editingPayment || !paymentForm.amount || !paymentForm.date) return
+
+    setSubmittingPayment(true)
+    try {
+      const response = await fetch('/api/supplier-payments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingPayment.id,
+          supplier_id: selectedSupplier.id,
+          amount: parseFloat(paymentForm.amount),
+          date: paymentForm.date,
+          note: paymentForm.note
+        })
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        alert(result.error || 'هەڵە لە نوێکردنەوە')
+        return
+      }
+
+      // Refresh payments
+      const { data: payData } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', selectedSupplier.id)
+        .order('created_at', { ascending: false })
+      setPayments(payData || [])
+
+      // Update local supplier total_debt
+      setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
+      
+      // Update suppliers list
+      setSuppliers(prev => prev.map(s => 
+        s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
+      ))
+
+      // Reset form
+      setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+      setEditingPayment(null)
+    } catch (error) {
+      console.error('Error updating payment:', error)
+      alert('هەڵە لە نوێکردنەوە')
+    } finally {
+      setSubmittingPayment(false)
+    }
+  }
+
+  // Handle deleting a payment
+  const handleDeletePayment = async (payment: SupplierPayment) => {
+    const confirmed = window.confirm('دڵنیایت لە سڕینەوەی ئەم پارەدانە؟')
+    if (!confirmed || !selectedSupplier) return
+
+    try {
+      const response = await fetch(`/api/supplier-payments?id=${payment.id}&supplier_id=${selectedSupplier.id}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        alert(result.error || 'هەڵە لە سڕینەوە')
+        return
+      }
+
+      // Refresh payments
+      const { data: payData } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', selectedSupplier.id)
+        .order('created_at', { ascending: false })
+      setPayments(payData || [])
+
+      // Update local supplier total_debt
+      setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
+      
+      // Update suppliers list
+      setSuppliers(prev => prev.map(s => 
+        s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
+      ))
+    } catch (error) {
+      console.error('Error deleting payment:', error)
+      alert('هەڵە لە سڕینەوە')
     }
   }
 
   const handleCloseForm = () => {
     setShowAddModal(false)
     setEditingSupplier(null)
+  }
+
+  const handleCloseHistoryModal = () => {
+    setShowHistoryModal(false)
+    setSelectedSupplier(null)
+    setPayments([])
+    setTransactions([])
+    setEditingPayment(null)
+    setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+  }
+
+  const cancelEditPayment = () => {
+    setEditingPayment(null)
+    setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
   }
 
   const filteredSuppliers = suppliers.filter(s =>
@@ -214,7 +405,7 @@ export default function SuppliersPage() {
           <div className="flex items-center space-x-2">
             <button 
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? '' : ''}`}
+              className={`p-2 rounded-lg transition-colors`}
               style={{ 
                 backgroundColor: viewMode === 'grid' ? 'var(--theme-accent)' : 'var(--theme-muted)',
                 color: viewMode === 'grid' ? '#ffffff' : 'var(--theme-secondary)'
@@ -224,7 +415,7 @@ export default function SuppliersPage() {
             </button>
             <button 
               onClick={() => setViewMode('table')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'table' ? '' : ''}`}
+              className={`p-2 rounded-lg transition-colors`}
               style={{ 
                 backgroundColor: viewMode === 'table' ? 'var(--theme-accent)' : 'var(--theme-muted)',
                 color: viewMode === 'table' ? '#ffffff' : 'var(--theme-secondary)'
@@ -254,7 +445,6 @@ export default function SuppliersPage() {
 
         {viewMode === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-6">
-            {/* Add New Supplier Card - Always show first */}
             <motion.div
               onClick={() => { setEditingSupplier(null); setShowAddModal(true) }}
               whileHover={{ scale: 1.02 }}
@@ -279,7 +469,6 @@ export default function SuppliersPage() {
               </span>
             </motion.div>
             
-            {/* Show suppliers or empty message */}
             {filteredSuppliers.length > 0 ? (
               filteredSuppliers.map(supplier => (
                 <SupplierCard key={supplier.id} supplier={supplier}
@@ -325,109 +514,305 @@ export default function SuppliersPage() {
         isLoading={formLoading}
       />
 
-      {/* History Modal */}
+      {/* Enhanced History/Payments Modal with Glassmorphism */}
       {showHistoryModal && selectedSupplier && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
           <div 
-            className="w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
+            className="w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             style={{ 
-              backgroundColor: 'var(--theme-card-bg)',
-              borderColor: 'var(--theme-card-border)',
-              borderWidth: '1px'
+              background: 'rgba(30, 30, 46, 0.95)',
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderWidth: '1px',
+              backdropFilter: 'blur(20px)'
             }}
           >
-            {/* Header */}
+            {/* Header with Debt Badge */}
             <div 
-              className="p-6 border-b flex justify-between items-center"
-              style={{ borderColor: 'var(--theme-card-border)' }}
+              className="p-6 border-b flex justify-between items-start"
+              style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
             >
               <div>
                 <h3 
                   className="text-xl font-bold"
-                  style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   مێژووی پارەدانەکان
                 </h3>
                 <p 
                   className="text-sm mt-1"
-                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                  style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   {selectedSupplier.name}
                 </p>
               </div>
-              <button
-                onClick={() => { setShowHistoryModal(false); setSelectedSupplier(null) }}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                style={{ color: 'var(--theme-secondary)' }}
-              >
-                <FaTimes size={20} />
-              </button>
+              <div className="flex items-center gap-4">
+                {/* Current Debt Badge */}
+                <div 
+                  className="px-4 py-2 rounded-xl"
+                  style={{ 
+                    background: selectedSupplier.total_debt && selectedSupplier.total_debt > 0 
+                      ? 'rgba(220, 38, 38, 0.2)' 
+                      : 'rgba(22, 163, 74, 0.2)',
+                    border: `1px solid ${selectedSupplier.total_debt && selectedSupplier.total_debt > 0 
+                      ? 'rgba(220, 38, 38, 0.5)' 
+                      : 'rgba(22, 163, 74, 0.5)'}`
+                  }}
+                >
+                  <span 
+                    className="text-xs block"
+                    style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    قەرزی ئێستا
+                  </span>
+                  <span 
+                    className="text-lg font-bold"
+                    style={{ 
+                      color: selectedSupplier.total_debt && selectedSupplier.total_debt > 0 
+                        ? '#fca5a5' 
+                        : '#86efac', 
+                      fontFamily: 'var(--font-uni-salar)' 
+                    }}
+                  >
+                    {(selectedSupplier.total_debt || 0).toLocaleString()} د.ع
+                  </span>
+                </div>
+                <button
+                  onClick={handleCloseHistoryModal}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  style={{ color: 'rgba(255, 255, 255, 0.7)' }}
+                >
+                  <FaTimes size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto flex-1">
-              {loadingTransactions ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
-                </div>
-              ) : transactions.length > 0 ? (
-                <div className="space-y-4">
-                  {transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="p-4 rounded-xl border"
-                      style={{
-                        backgroundColor: 'var(--theme-muted)',
-                        borderColor: 'var(--theme-card-border)'
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {/* Top Section: Add/Edit Payment Form */}
+              <div 
+                className="p-4 rounded-xl border"
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                <h4 
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  {editingPayment ? 'دەستکاری پارەدان' : 'زیادکردنی پارەدان'}
+                </h4>
+                <form onSubmit={editingPayment ? handleUpdatePayment : handleAddPayment} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Amount Input */}
+                    <div>
+                      <label 
+                        className="block text-sm mb-1"
+                        style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        بڕی پارە (IQD)
+                      </label>
+                      <input
+                        type="number"
+                        value={paymentForm.amount}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                        placeholder="0"
+                        required
+                        className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                        style={{ 
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
+                          color: '#ffffff',
+                          fontFamily: 'var(--font-uni-salar)'
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Date Input */}
+                    <div>
+                      <label 
+                        className="block text-sm mb-1"
+                        style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        بەروار
+                      </label>
+                      <input
+                        type="date"
+                        value={paymentForm.date}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                        required
+                        className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                        style={{ 
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
+                          color: '#ffffff',
+                          fontFamily: 'var(--font-uni-salar)'
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Note Input */}
+                    <div>
+                      <label 
+                        className="block text-sm mb-1"
+                        style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        تێبینی
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm.note}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, note: e.target.value })}
+                        placeholder="تێبینی..."
+                        className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                        style={{ 
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          borderColor: 'rgba(255, 255, 255, 0.2)',
+                          color: '#ffffff',
+                          fontFamily: 'var(--font-uni-salar)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Submit Button */}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={submittingPayment}
+                      className="px-6 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                      style={{ 
+                        background: 'var(--theme-accent)',
+                        color: '#ffffff',
+                        fontFamily: 'var(--font-uni-salar)'
                       }}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 
-                            className="font-semibold"
-                            style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            {tx.item_name}
-                          </h4>
-                          <p 
-                            className="text-sm"
-                            style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            {new Date(tx.date).toLocaleDateString('ar-IQ')}
-                          </p>
-                        </div>
-                        <div className="text-left">
-                          <p 
-                            className="font-bold"
-                            style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            {tx.total_price.toFixed(2)} د.ع
-                          </p>
-                          <p 
-                            className="text-sm"
-                            style={{ color: '#16a34a', fontFamily: 'var(--font-uni-salar)' }}
-                          >
-                            پارەدراو: {tx.amount_paid.toFixed(2)} د.ع
-                          </p>
-                          {tx.debt_amount > 0 && (
-                            <p 
-                              className="text-sm"
-                              style={{ color: '#dc2626', fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              قەرز: {tx.debt_amount.toFixed(2)} د.ع
+                      {submittingPayment ? '...' : editingPayment ? 'نوێکردنەوە' : 'تۆمارکردن'}
+                    </button>
+                    {editingPayment && (
+                      <button
+                        type="button"
+                        onClick={cancelEditPayment}
+                        className="px-6 py-2 rounded-lg font-semibold transition-colors"
+                        style={{ 
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          fontFamily: 'var(--font-uni-salar)'
+                        }}
+                      >
+                        هەڵوەشاندنەوە
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Bottom Section: Payments List */}
+              <div>
+                <h4 
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  لیستی پارەدانەکان
+                </h4>
+                {loadingPayments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+                  </div>
+                ) : payments.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>بڕی پارە</th>
+                          <th className="text-right py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>تێبینی</th>
+                          <th className="text-center py-3 px-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((payment) => (
+                          <tr key={payment.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                            <td className="py-3 px-4" style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
+                              {new Date(payment.date).toLocaleDateString('ar-IQ')}
+                            </td>
+                            <td className="py-3 px-4" style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
+                              {payment.amount.toLocaleString()} د.ع
+                            </td>
+                            <td className="py-3 px-4" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>
+                              {payment.note || '-'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleEditPayment(payment)}
+                                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                  title="دەستکاری"
+                                >
+                                  <FaEdit size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePayment(payment)}
+                                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                  title="سڕینەوە"
+                                >
+                                  <FaTrash size={14} style={{ color: 'rgba(255, 100, 100, 0.8)' }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-2">💰</div>
+                    <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'rgba(255, 255, 255, 0.5)' }}>
+                      هیچ پارەدانێک نەکراوە
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Transactions Section (kept for reference) */}
+              {transactions.length > 0 && (
+                <div>
+                  <h4 
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    مێژووی کڕینەکان
+                  </h4>
+                  <div className="space-y-2">
+                    {transactions.slice(0, 5).map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="p-3 rounded-lg border"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          borderColor: 'rgba(255, 255, 255, 0.1)'
+                        }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{tx.item_name}</p>
+                            <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem' }}>
+                              {new Date(tx.date).toLocaleDateString('ar-IQ')}
                             </p>
-                          )}
+                          </div>
+                          <div className="text-left">
+                            <p style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{tx.total_price.toLocaleString()} د.ع</p>
+                            {tx.debt_amount > 0 && (
+                              <p style={{ color: '#fca5a5', fontFamily: 'var(--font-uni-salar)', fontSize: '0.8rem' }}>
+                                قەرز: {tx.debt_amount.toLocaleString()} د.ع
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-5xl mb-4">📋</div>
-                  <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
-                    هیچ مێژوویەک نەدۆزرایەوە
-                  </p>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

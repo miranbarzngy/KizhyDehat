@@ -367,16 +367,26 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   const invoiceRef = useRef<HTMLDivElement>(null)
   const captureRef = useRef<HTMLDivElement>(null)
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
   const [captureData, setCaptureData] = useState<any>(null)
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!supabase) return
+      if (!supabase) {
+        setSettingsLoading(false)
+        return
+      }
       try {
         const { data, error } = await supabase.from('invoice_settings').select('*').single()
-        if (error && error.code !== 'PGRST116') console.error('Error fetching invoice settings:', error)
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching invoice settings:', error)
+        }
         setInvoiceSettings(data || null)
-      } catch (error) { console.error('Error fetching invoice settings:', error) }
+      } catch (error) { 
+        console.error('Error fetching invoice settings:', error) 
+      } finally {
+        setSettingsLoading(false)
+      }
     }
     fetchSettings()
   }, [])

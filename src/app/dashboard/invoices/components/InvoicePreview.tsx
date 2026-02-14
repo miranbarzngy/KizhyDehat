@@ -1,8 +1,10 @@
 'use client'
 
 import { formatCurrency } from '@/lib/numberUtils'
+import { supabase } from '@/lib/supabase'
 import { FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
-import { Invoice, SaleData } from './invoiceUtils'
+import { useEffect, useState } from 'react'
+import { Invoice, SaleData, InvoiceSettings } from './invoiceUtils'
 
 interface InvoicePreviewProps {
   saleData: SaleData
@@ -173,7 +175,7 @@ function InvoiceTemplate({ data }: { data: any }) {
   )
 }
 
-function buildInvoiceDataLocal(saleData: SaleData, invoice: Invoice): any {
+function buildInvoiceDataLocal(saleData: SaleData, invoice: Invoice, settings?: InvoiceSettings | null): any {
   const items = (saleData?.sale_items || []).map((item: any) => ({
     name: item?.products?.name || item?.product_name || item?.name || 'کاڵای سڕاوە',
     unit: item?.products?.unit || item?.product_unit || item?.unit || 'دانە',
@@ -197,17 +199,33 @@ function buildInvoiceDataLocal(saleData: SaleData, invoice: Invoice): any {
     subtotal,
     discount: saleData?.discount_amount || 0,
     total: invoice.total,
-    shopName: 'فرۆشگای کوردستان',
-    shopPhone: '',
-    shopAddress: '',
-    shopLogo: '',
-    qrCodeUrl: '',
-    thankYouNote: 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+    shopName: settings?.shop_name || 'فرۆشگا',
+    shopPhone: settings?.shop_phone || '',
+    shopAddress: settings?.shop_address || '',
+    shopLogo: settings?.shop_logo || '',
+    qrCodeUrl: settings?.qr_code_url || '',
+    thankYouNote: settings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
   }
 }
 
 export default function InvoicePreview({ saleData, invoice, invoiceRef }: InvoicePreviewProps) {
-  const invoiceData = buildInvoiceDataLocal(saleData, invoice)
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!supabase) return
+      try {
+        const { data, error } = await supabase.from('invoice_settings').select('*').single()
+        if (error && error.code !== 'PGRST116') console.error('Error fetching invoice settings:', error)
+        setInvoiceSettings(data || null)
+      } catch (error) { 
+        console.error('Error fetching invoice settings:', error) 
+      }
+    }
+    fetchSettings()
+  }, [])
+
+  const invoiceData = buildInvoiceDataLocal(saleData, invoice, invoiceSettings)
 
   return (
     <div ref={invoiceRef}>

@@ -176,6 +176,11 @@ export default function AddItemModal({
     }
   }
 
+  const generateReferenceId = () => {
+    // Generate a unique reference ID that will be used to link all related records
+    return crypto.randomUUID()
+  }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !supabase) return
@@ -280,11 +285,19 @@ export default function AddItemModal({
         setErrorMessage('کاڵاکە بە سەرکەوتوویی نوێکرایەوە')
         setTimeout(() => setErrorMessage(''), 3000)
       } else {
+        // Generate a unique reference_id to link all related records
+        const referenceId = generateReferenceId()
+        
         // When adding new, insert into products and track expense
-        ({ error } = await supabase.from('products').insert(productsData))
+        const productsDataWithRef = {
+          ...productsData,
+          reference_id: referenceId
+        }
+        
+        ({ error } = await supabase.from('products').insert(productsDataWithRef))
         
         if (error) throw error
-        console.log('✅ Product inserted into products table:', formData.name)
+        console.log('✅ Product inserted into products table:', formData.name, 'with reference_id:', referenceId)
         
         // Step 2: Sync to purchase_expenses for expense tracking (only for NEW items)
         if (formData.supplier_id && formData.price_of_bought > 0) {
@@ -293,42 +306,75 @@ export default function AddItemModal({
             total_purchase_price: Number(formData.price_of_bought),
             total_amount_bought: Number(formData.quantity),
             unit: formData.unit,
-            purchase_date: formData.added_date
+            purchase_date: formData.added_date,
+            reference_id: referenceId
           })
           
-          if (purchaseError) throw purchaseError
-          console.log('✅ Expense tracked in purchase_expenses:', formData.name)
+          if (purchaseError) {
+            // Rollback: Delete the product we just created
+            await supabase.from('products').delete().eq('reference_id', referenceId)
+            throw new Error(`هەڵە لە تۆمارکردنی خەرجی: ${purchaseError.message}`)
+          }
+          console.log('✅ Expense tracked in purchase_expenses:', formData.name, 'with reference_id:', referenceId)
         }
         
         // Step 3: Track transactions and debts (only for NEW items)
         if (formData.is_not_fully_paid && formData.remain_amount > 0) {
           // Partial payment - record debt
-          await supabase.from('supplier_transactions').insert({
+          const { error: transactionError } = await supabase.from('supplier_transactions').insert({
             supplier_id: formData.supplier_id,
             item_name: formData.name.trim(),
             total_price: Number(formData.price_of_bought),
             amount_paid: Number(formData.price_of_bought) - Number(formData.remain_amount),
             debt_amount: Number(formData.remain_amount),
-            date: formData.added_date
+            date: formData.added_date,
+            reference_id: referenceId
           })
-          await supabase.from('supplier_debts').insert({
+          
+          if (transactionError) {
+            // Rollback: Delete product and expense
+            await supabase.from('products').delete().eq('reference_id', referenceId)
+            await supabase.from('purchase_expenses').delete().eq('reference_id', referenceId)
+            throw new Error(`هەڵە لە تۆمارکردنی مامەڵە: ${transactionError.message}`)
+          }
+          
+          const { error: debtError } = await supabase.from('supplier_debts').insert({
             supplier_id: formData.supplier_id,
             amount: formData.remain_amount,
             note: formData.name,
-            date: formData.added_date
+            date: formData.added_date,
+            reference_id: referenceId
           })
-          console.log('✅ Partial payment tracked:', { debt: formData.remain_amount })
+          
+          if (debtError) {
+            // Rollback: Delete product, expense, and transaction
+            await supabase.from('products').delete().eq('reference_id', referenceId)
+            await supabase.from('purchase_expenses').delete().eq('reference_id', referenceId)
+            await supabase.from('supplier_transactions').delete().eq('reference_id', referenceId)
+            throw new Error(`هەڵە لە تۆمارکردنی قەرز: ${debtError.message}`)
+          }
+          
+          console.log('✅ Partial payment tracked:', { debt: formData.remain_amount, reference_id: referenceId })
         } else {
           // Full payment
-          await supabase.from('supplier_transactions').insert({
+          const { error: transactionError } = await supabase.from('supplier_transactions').insert({
             supplier_id: formData.supplier_id,
             item_name: formData.name.trim(),
             total_price: Number(formData.price_of_bought),
             amount_paid: Number(formData.price_of_bought),
             debt_amount: 0,
-            date: formData.added_date
+            date: formData.added_date,
+            reference_id: referenceId
           })
-          console.log('✅ Full payment tracked in supplier_transactions')
+          
+          if (transactionError) {
+            // Rollback: Delete product and expense
+            await supabase.from('products').delete().eq('reference_id', referenceId)
+            await supabase.from('purchase_expenses').delete().eq('reference_id', referenceId)
+            throw new Error(`هەڵە لە تۆمارکردنی مامەڵە: ${transactionError.message}`)
+          }
+          
+          console.log('✅ Full payment tracked in supplier_transactions with reference_id:', referenceId)
         }
       }
       
@@ -508,7 +554,7 @@ export default function AddItemModal({
                     type="number" 
                     value={formData.price_of_bought || ''} 
                     onChange={e => setFormData((prev: FormData) => ({...prev, price_of_bought: Number(e.target.value.replace(/^0+/, ''))}))} 
-                    className={`w-full px-4 py-3 pr-10 rounded-xl border bg-transparent ${!formData.price_of_bought ? 'border-red-400' : ''}`}
+                    className={`w-full px-4 py-3 pr-10 rounded-xl  ${!formData.price_of_bought ? 'border-red-400' : ''}`}
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: !formData.price_of_bought ? 'var(--theme-card-border)' : 'var(--theme-accent)',

@@ -197,7 +197,7 @@ export default function InventoryPage() {
                   سڕینەوە
                 </h3>
                 <p 
-                  className="mb-6"
+                  className="mb-4"
                   style={{ 
                     color: 'var(--theme-secondary)',
                     fontFamily: 'var(--font-uni-salar)' 
@@ -205,6 +205,23 @@ export default function InventoryPage() {
                 >
                   دڵنیایت لە سڕینەوەی <span className="font-bold" style={{ color: 'var(--theme-foreground)' }}>{itemToDelete.name}</span>؟
                 </p>
+                <div 
+                  className="mb-6 p-3 rounded-xl"
+                  style={{ 
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  <p 
+                    style={{ 
+                      color: '#dc2626',
+                      fontFamily: 'var(--font-uni-salar)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    ئاگاداری: سڕینەوەی ئەم کاڵایە دەبێتە هۆی سڕینەوەی خەرجییەکان و قەرزە پەیوەندیدارەکانی لای دابینکار. دڵنیای؟
+                  </p>
+                </div>
                 {deleteStatus === 'idle' && (
                   <div className="flex gap-4 justify-center">
                     <button 

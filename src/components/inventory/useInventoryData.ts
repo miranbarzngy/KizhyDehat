@@ -141,10 +141,10 @@ export function useInventoryData(): UseInventoryDataReturn {
       return
     }
     try {
-      // Optimized: Select only needed columns to reduce payload size
+      // Optimized: Select only needed columns to reduce payload size (include reference_id for cascade delete)
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived')
+        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, reference_id')
         .or('is_archived.is.null,is_archived.eq.false')
         .limit(100)
       if (error) { console.error('Error:', error); return }
@@ -243,11 +243,39 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
     setDeleteStatus('deleting')
     try {
-      const { data: expenseData } = await supabase.from('purchase_expenses').select('id').eq('item_name', itemName.trim()).single()
-      if (expenseData) { await supabase.from('purchase_expenses').delete().eq('id', expenseData.id) }
+      // First, get the reference_id from the product if it exists
+      const { data: productData } = await supabase.from('products').select('reference_id').eq('id', itemId).single()
+      const referenceId = productData?.reference_id
+
+      // Delete from supplier_debts using reference_id or note fallback
+      if (referenceId) {
+        await supabase.from('supplier_debts').delete().eq('reference_id', referenceId)
+      } else {
+        // Fallback: delete by note (product name)
+        await supabase.from('supplier_debts').delete().eq('note', itemName.trim())
+      }
+
+      // Delete from supplier_transactions using reference_id or item_name fallback
+      if (referenceId) {
+        await supabase.from('supplier_transactions').delete().eq('reference_id', referenceId)
+      } else {
+        // Fallback: delete by item_name
+        await supabase.from('supplier_transactions').delete().eq('item_name', itemName.trim())
+      }
+
+      // Delete from purchase_expenses using reference_id or item_name fallback
+      if (referenceId) {
+        await supabase.from('purchase_expenses').delete().eq('reference_id', referenceId)
+      } else {
+        // Fallback: delete by item_name
+        await supabase.from('purchase_expenses').delete().eq('item_name', itemName.trim())
+      }
+
+      // Finally delete the product itself
       await supabase.from('products').delete().eq('id', itemId)
+      
       setDeleteStatus('success')
-      setDeleteMessage(`سڕایەوە`)
+      setDeleteMessage(`کاڵا و هەموو حساباتە پەیوەندیدارەکانی بەسەرکەوتوویی سڕانەوە`)
       fetchProducts()
     } catch (e: any) {
       setDeleteStatus('error')

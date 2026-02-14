@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 import { FaEye, FaShoppingCart } from 'react-icons/fa'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 
 interface PendingSale {
   id: string
@@ -28,10 +29,8 @@ interface RecentSalesTableProps {
 
 function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
   const router = useRouter()
+  const { openModal } = useGlobalInvoiceModal()
   const [recentOrders, setRecentOrders] = useState<PendingSale[]>([])
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState<PendingSale | null>(null)
-  const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   // Fetch seller name from profile using user_id
@@ -158,6 +157,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
     }
   }
 
+  // Handle viewing invoice using global modal
   const viewOrderDetails = async (order: PendingSale) => {
     if (!supabase) return
 
@@ -213,9 +213,9 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         profiles: { name: sellerName || order.seller_name || saleData?.sold_by || '' }
       }
 
-      setSelectedOrder(order)
-      setInvoiceDetails(saleDataWithSeller)
-      setShowInvoiceModal(true)
+      // Build invoice data and open global modal
+      const invoiceData = buildInvoiceData(saleDataWithSeller, order)
+      openModal(invoiceData, order.id, 'وردەکارییەکانی پسوڵە')
     } catch (error) {
       console.error('Error fetching order details:', error)
       alert('هەڵە لە بارکردنی وردەکارییەکان')
@@ -267,12 +267,6 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
       case 'cancelled': return 'هەڵوەشێنراو'
       default: return 'چاوەڕوان'
     }
-  }
-
-  // Build invoice data using the helper function
-  const getInvoiceData = () => {
-    if (!invoiceDetails || !selectedOrder) return null
-    return buildInvoiceData(invoiceDetails, selectedOrder, null)
   }
 
   if (loading) {
@@ -505,15 +499,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
           </table>
         </div>
       </motion.div>
-
-      {/* Global Invoice Modal */}
-      <GlobalInvoiceModal
-        isOpen={showInvoiceModal}
-        onClose={() => setShowInvoiceModal(false)}
-        invoiceData={getInvoiceData()}
-        invoiceId={selectedOrder?.id}
-        title="وردەکارییەکانی پسوڵە"
-      />
+      {/* No local modal - GlobalInvoiceModal is handled by context in layout */}
     </>
   )
 }

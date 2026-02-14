@@ -1,12 +1,13 @@
 'use client'
 
 import { InvoiceTemplate } from '@/components/GlobalInvoiceModal'
-import InvoiceModal from '@/components/shared/InvoiceModal'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 
 interface InvoiceSettings {
   id?: number
@@ -26,6 +27,7 @@ const formatCurrencyKurdish = (value: any): string => {
 }
 
 export default function InvoicesPage() {
+  const { openModal } = useGlobalInvoiceModal()
   const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('pending')
   const [formData, setFormData] = useState<InvoiceSettings>({
     shop_name: 'فرۆشگای کوردستان',
@@ -41,11 +43,6 @@ export default function InvoicesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewLogo, setPreviewLogo] = useState<string>('')
   const [previewQr, setPreviewQr] = useState<string>('')
-  
-  // Modal state
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
-  const [invoiceDetails, setInvoiceDetails] = useState<any>(null)
   
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
@@ -80,7 +77,7 @@ export default function InvoicesPage() {
     return ''
   }
 
-  // Handle viewing invoice from any tab
+  // Handle viewing invoice from any tab - uses global modal
   const handleViewInvoice = async (sale: any) => {
     try {
       // Fetch sale items with product info
@@ -122,29 +119,31 @@ export default function InvoicesPage() {
       
       console.log('Invoice Data Debug - handleViewInvoice:', saleData)
       
-      setSelectedInvoice(sale)
-      setInvoiceDetails(saleData)
-      setShowInvoiceModal(true)
+      // Build invoice data and open global modal
+      const invoiceData = buildInvoiceData(saleData, sale)
+      openModal(
+        invoiceData,
+        sale.id,
+        `پسوڵە #${sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '---'}`
+      )
     } catch (error) {
       console.error('Error opening invoice modal:', error)
       // Still open modal even if there's an error, but with empty items
-      setSelectedInvoice(sale)
-      setInvoiceDetails({
+      const saleData = {
         ...sale,
         customers: null,
         sale_items: []
-      })
-      setShowInvoiceModal(true)
+      }
+      const invoiceData = buildInvoiceData(saleData, sale)
+      openModal(
+        invoiceData,
+        sale.id,
+        `پسوڵە #${sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '---'}`
+      )
     }
   }
 
-  const handleCloseInvoiceModal = () => {
-    setShowInvoiceModal(false)
-    setSelectedInvoice(null)
-    setInvoiceDetails(null)
-  }
-
-  // Handle printing invoice (reprint)
+  // Handle printing invoice (reprint) - uses global modal
   const handlePrintInvoice = async (sale: any) => {
     try {
       // Fetch sale items with product info
@@ -184,9 +183,13 @@ export default function InvoicesPage() {
         profiles: { name: sellerName || sale.sold_by || sale.seller_name || '' }
       }
       
-      setSelectedInvoice(sale)
-      setInvoiceDetails(saleData)
-      setShowInvoiceModal(true)
+      // Build invoice data and open global modal
+      const invoiceData = buildInvoiceData(saleData, sale)
+      openModal(
+        invoiceData,
+        sale.id,
+        `پسوڵە #${sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '---'}`
+      )
     } catch (error) {
       console.error('Error printing invoice:', error)
       alert('هەڵە لە کردنەوەی پسوڵە بۆ چاپکردن')
@@ -592,14 +595,7 @@ export default function InvoicesPage() {
               </div>
             </motion.div>
           )}
-
-          {/* Invoice Details Modal */}
-          <InvoiceModal
-            showModal={showInvoiceModal}
-            setShowModal={setShowInvoiceModal}
-            selectedInvoice={selectedInvoice}
-            invoiceDetails={invoiceDetails}
-          />
+          {/* No local modal needed - GlobalInvoiceModal is now handled by context */}
         </motion.div>
       </div>
     </div>

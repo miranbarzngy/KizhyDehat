@@ -7,6 +7,8 @@ import dynamic from 'next/dynamic'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
 import { useGlobalReSync } from '@/hooks/useGlobalReSync'
+import { GlobalInvoiceModalProvider, useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
 
 // Dynamic import for better code splitting
 const UserProfilePopup = dynamic(
@@ -14,45 +16,11 @@ const UserProfilePopup = dynamic(
   { loading: () => null, ssr: false }
 )
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const { user, profile, loading } = useAuth()
-  const { shopSettings } = useShopSettings()
+// Inner component that uses the global invoice modal hook
+function DashboardContent({ children, shopSettings }: { children: React.ReactNode; shopSettings: any }) {
   const [showProfilePopup, setShowProfilePopup] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [isClientReady, setIsClientReady] = useState(false)
-
-  // Activate global re-sync mechanism
-  useGlobalReSync()
-
-  // Mark client as ready after hydration
-  useEffect(() => {
-    setIsClientReady(true)
-  }, [])
-
-  // Loading state
-  if (loading || !isClientReady) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{ 
-          background: 'var(--theme-background)',
-          color: 'var(--theme-foreground)'
-        }}
-      >
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
-      </div>
-    )
-  }
-
-  // Not authenticated
-  if (!user) {
-    return null
-  }
-
+  
   return (
     <div 
       className="min-h-screen transition-colors duration-300"
@@ -96,6 +64,70 @@ export default function DashboardLayout({
         onClose={() => setShowProfilePopup(false)}
         shopSettings={shopSettings}
       />
+
+      {/* Global Invoice Modal - Always rendered, controlled by context */}
+      <GlobalInvoiceModalWrapper />
     </div>
+  )
+}
+
+// Wrapper component to use the hook inside the provider
+function GlobalInvoiceModalWrapper() {
+  const { isOpen, invoiceData, invoiceId, title, closeModal } = useGlobalInvoiceModal()
+  
+  return (
+    <GlobalInvoiceModal
+      isOpen={isOpen}
+      onClose={closeModal}
+      invoiceData={invoiceData}
+      invoiceId={invoiceId}
+      title={title}
+    />
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { user, profile, loading } = useAuth()
+  const { shopSettings } = useShopSettings()
+  const [isClientReady, setIsClientReady] = useState(false)
+
+  // Activate global re-sync mechanism
+  useGlobalReSync()
+
+  // Mark client as ready after hydration
+  useEffect(() => {
+    setIsClientReady(true)
+  }, [])
+
+  // Loading state
+  if (loading || !isClientReady) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{ 
+          background: 'var(--theme-background)',
+          color: 'var(--theme-foreground)'
+        }}
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+      </div>
+    )
+  }
+
+  // Not authenticated
+  if (!user) {
+    return null
+  }
+
+  return (
+    <GlobalInvoiceModalProvider>
+      <DashboardContent shopSettings={shopSettings}>
+        {children}
+      </DashboardContent>
+    </GlobalInvoiceModalProvider>
   )
 }

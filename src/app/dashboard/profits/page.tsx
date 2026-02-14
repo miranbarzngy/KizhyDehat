@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
-import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
 import ProfitFilters from './components/ProfitFilters'
 import ProfitStats, { SalesTypeCards } from './components/ProfitStats'
 import ProfitsCharts from './components/ProfitsCharts'
@@ -11,8 +10,10 @@ import SalesTab from './components/SalesTab'
 import ProfitsTab from './components/ProfitsTab'
 import ExpensesTab from './components/ExpensesTab'
 import { ProfitItem, SaleItem, ExpenseItem, PurchaseExpense, ChartData, InvoiceSettings, OverviewStats, ActiveTab } from './components/types'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 
 export default function ProfitsPage() {
+  const { openModal } = useGlobalInvoiceModal()
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => { setIsMounted(true) }, [])
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
@@ -25,32 +26,34 @@ export default function ProfitsPage() {
   const [purchaseExpenses, setPurchaseExpenses] = useState<PurchaseExpense[]>([])
   const [generalExpenses, setGeneralExpenses] = useState<ExpenseItem[]>([])
   const [chartData, setChartData] = useState<ChartData[]>([])
-  const [showInvoice, setShowInvoice] = useState(false)
-  const [selectedInvoiceData, setSelectedInvoiceData] = useState<any>(null)
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('')
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-
-  const fetchInvoiceSettings = async () => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase.from('invoice_settings').select('*').single()
-      if (error && error.code !== 'PGRST116') throw error
-      setInvoiceSettings(data || null)
-    } catch (error) { console.error('Error fetching invoice settings:', error) }
-  }
-  useEffect(() => { fetchInvoiceSettings() }, [])
 
   const handleViewPurchaseInvoice = async (purchaseId: string) => {
     if (!supabase) return
     try {
       const { data: purchaseData, error } = await supabase.from('purchase_expenses').select('*').eq('id', purchaseId).single()
       if (error) throw error
-      const invoiceData = { invoiceNumber: 0, customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر', customerPhone: purchaseData.supplier_phone || '', sellerName: '', date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'), time: '--:--', paymentMethod: 'purchase', items: [{ name: purchaseData.item_name || 'کاڵا', unit: purchaseData.unit || '', quantity: purchaseData.total_amount_bought || 0, price: purchaseData.total_amount_bought ? purchaseData.total_purchase_price / purchaseData.total_amount_bought : 0, total: purchaseData.total_purchase_price }], subtotal: purchaseData.total_purchase_price || 0, discount: 0, total: purchaseData.total_purchase_price || 0 }
-      setSelectedInvoiceId(purchaseId)
-      setSelectedInvoiceData(invoiceData)
-      setShowInvoice(true)
+      const invoiceData = { 
+        invoiceNumber: 0, 
+        customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر', 
+        customerPhone: purchaseData.supplier_phone || '', 
+        sellerName: '', 
+        date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'), 
+        time: '--:--', 
+        paymentMethod: 'purchase', 
+        items: [{ 
+          name: purchaseData.item_name || 'کاڵا', 
+          unit: purchaseData.unit || '', 
+          quantity: purchaseData.total_amount_bought || 0, 
+          price: purchaseData.total_amount_bought ? purchaseData.total_purchase_price / purchaseData.total_amount_bought : 0, 
+          total: purchaseData.total_purchase_price 
+        }], 
+        subtotal: purchaseData.total_purchase_price || 0, 
+        discount: 0, 
+        total: purchaseData.total_purchase_price || 0 
+      }
+      openModal(invoiceData, purchaseId, 'پسوڵەی کڕین')
     } catch (error) { console.error('Error fetching purchase invoice:', error); alert('هەڵە لە وەرگرتنی پسوڵەی کڕین') }
   }
 
@@ -60,10 +63,26 @@ export default function ProfitsPage() {
       const { data: saleData, error } = await supabase.from('sales').select(`id, invoice_number, total, payment_method, date, created_at, discount_amount, subtotal, customers!left(name, phone1), sale_items(quantity, price, total, products!inner(name))`).eq('id', saleId).single()
       if (error) throw error
       const customers = Array.isArray(saleData.customers) ? saleData.customers[0] : saleData.customers
-      const invoiceData = { invoiceNumber: saleData.invoice_number || 0, customerName: customers?.name || 'نەناسراو', customerPhone: customers?.phone1 || '', sellerName: '', date: new Date(saleData.date).toLocaleDateString('ku'), time: '--:--', paymentMethod: saleData.payment_method, items: (saleData.sale_items || []).map((item: any) => ({ name: item.products?.name || 'ناوی کاڵا نەناسراو', unit: '', quantity: item.quantity, price: item.price, total: item.total })), subtotal: saleData.subtotal || saleData.total + (saleData.discount_amount || 0), discount: saleData.discount_amount || 0, total: saleData.total }
-      setSelectedInvoiceId(saleId)
-      setSelectedInvoiceData(invoiceData)
-      setShowInvoice(true)
+      const invoiceData = { 
+        invoiceNumber: saleData.invoice_number || 0, 
+        customerName: customers?.name || 'نەناسراو', 
+        customerPhone: customers?.phone1 || '', 
+        sellerName: '', 
+        date: new Date(saleData.date).toLocaleDateString('ku'), 
+        time: '--:--', 
+        paymentMethod: saleData.payment_method, 
+        items: (saleData.sale_items || []).map((item: any) => ({ 
+          name: item.products?.name || 'ناوی کاڵا نەناسراو', 
+          unit: '', 
+          quantity: item.quantity, 
+          price: item.price, 
+          total: item.total 
+        })), 
+        subtotal: saleData.subtotal || saleData.total + (saleData.discount_amount || 0), 
+        discount: saleData.discount_amount || 0, 
+        total: saleData.total 
+      }
+      openModal(invoiceData, saleId, 'پسوڵە')
     } catch (error) { console.error('Error fetching invoice:', error); alert('هەڵە لە وەرگرتنی پسوڵە') }
   }
 
@@ -226,14 +245,7 @@ export default function ProfitsPage() {
         </div>
       </div>
 
-      {/* Global Invoice Modal */}
-      <GlobalInvoiceModal
-        isOpen={showInvoice}
-        onClose={() => setShowInvoice(false)}
-        invoiceData={selectedInvoiceData}
-        invoiceId={selectedInvoiceId}
-        title="پسوڵە"
-      />
+      {/* No local modal - GlobalInvoiceModal is handled by context in layout */}
     </div>
   )
 }

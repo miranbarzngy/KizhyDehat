@@ -5,11 +5,11 @@ import { calculateUnitPrice, convertUnits, safeStringToNumber } from '@/lib/numb
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
 import ProductCard from './_components/ProductCard'
 import CartSidebar from './_components/CartSidebar'
 import CustomerSelector from './_components/CustomerSelector'
 import UnitModal from './_components/UnitModal'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 
 interface InventoryItem {
   id: string
@@ -40,18 +40,9 @@ interface CartItem {
   baseQuantity: number
 }
 
-interface InvoiceSettings {
-  id: string
-  shop_name: string
-  shop_phone: string
-  shop_address: string
-  shop_logo: string
-  thank_you_note: string
-  qr_code_url: string
-}
-
 export default function SalesPage() {
   const { user, profile } = useAuth()
+  const { openModal } = useGlobalInvoiceModal()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -64,12 +55,10 @@ export default function SalesPage() {
   const [discount, setDiscount] = useState(0)
   const [customerRequired, setCustomerRequired] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
   const [userName, setUserName] = useState('')
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null)
-  const [showInvoice, setShowInvoice] = useState(false)
   const [completedSaleData, setCompletedSaleData] = useState<any>(null)
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
@@ -82,7 +71,7 @@ export default function SalesPage() {
   }
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-  const fetchWithRetry = async <T>(fetchFn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T | null> => {
+  const fetchWithRetry = async <T,>(fetchFn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T | null> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try { return await fetchFn() } catch (err) { if (attempt < maxRetries) await wait(delayMs) }
     }
@@ -111,8 +100,6 @@ export default function SalesPage() {
     }, 3, 1000)
     if (custResult) setCustomers(custResult)
 
-    const { data } = await supabase.from('invoice_settings').select('*').single()
-    setInvoiceSettings(data || null)
     setLoading(false)
   }
 
@@ -209,17 +196,26 @@ export default function SalesPage() {
         }
       }
 
-      setCompletedSaleData({
-        invoiceNumber: 0, customerName: customerName || 'نەناسراو', customerPhone, sellerName: profileName,
-        seller_name: profileName, profiles: { name: profileName },
-        date: new Date().toLocaleDateString('ku'), time: new Date().toLocaleTimeString('ku'), paymentMethod,
+      // Create invoice data for global modal
+      const invoiceData = {
+        invoiceNumber: 0,
+        customerName: customerName || 'نەناسراو',
+        customerPhone,
+        sellerName: profileName,
+        seller_name: profileName,
+        profiles: { name: profileName },
+        date: new Date().toLocaleDateString('ku'),
+        time: new Date().toLocaleTimeString('ku'),
+        paymentMethod,
         items: cart.map(item => ({ name: item.item.name, unit: item.unit, quantity: item.quantity, price: item.price, total: item.total })),
-        subtotal: total + discount, discount, total,
-        shopName: invoiceSettings?.shop_name || 'فرۆشگای کوردستان', shopPhone: invoiceSettings?.shop_phone,
-        shopAddress: invoiceSettings?.shop_address, shopLogo: invoiceSettings?.shop_logo,
-        qrCodeUrl: invoiceSettings?.qr_code_url, thankYouNote: invoiceSettings?.thank_you_note || 'سوپاس!'
-      })
-      setShowInvoice(true)
+        subtotal: total + discount,
+        discount,
+        total
+      }
+
+      // Open global modal instead of local state
+      openModal(invoiceData, saleData.id, 'پسوڵەی فرۆشتن')
+
       setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false)
     } catch (error) { console.error('Error:', error); alert('هەڵە لە تۆمارکردن') }
   }
@@ -280,7 +276,7 @@ export default function SalesPage() {
                   هیچ جۆرە پۆلێک نەدۆزرایەوە
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+                <div className="grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
                   {/* All Categories Button */}
                   <motion.button
                     onClick={() => setSelectedCategory('all')}
@@ -414,7 +410,7 @@ export default function SalesPage() {
         onCreateCustomer={handleCreateCustomer} 
       />
       <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
-      <GlobalInvoiceModal isOpen={showInvoice} onClose={() => setShowInvoice(false)} invoiceData={completedSaleData} />
+      {/* No local modal - GlobalInvoiceModal is handled by context in layout */}
     </div>
   )
 }

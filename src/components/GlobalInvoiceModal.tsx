@@ -370,7 +370,10 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [captureData, setCaptureData] = useState<any>(null)
 
+  // Fetch settings every time the modal opens to ensure latest data
   useEffect(() => {
+    if (!isOpen) return
+    
     const fetchSettings = async () => {
       if (!supabase) {
         setSettingsLoading(false)
@@ -381,6 +384,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
         if (error && error.code !== 'PGRST116') {
           console.error('Error fetching invoice settings:', error)
         }
+        console.log('GlobalInvoiceModal - Fetched settings:', data)
         setInvoiceSettings(data || null)
       } catch (error) { 
         console.error('Error fetching invoice settings:', error) 
@@ -389,19 +393,21 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       }
     }
     fetchSettings()
-  }, [])
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen && invoiceData) {
+      // Priority: invoiceData > invoiceSettings (from DB) > fallback
       const data = {
         ...invoiceData,
-        shopName: invoiceData.shopName || invoiceSettings?.shop_name || 'فرۆشگای کوردستان',
-        shopPhone: invoiceData.shopPhone || invoiceSettings?.shop_phone || '',
-        shopAddress: invoiceData.shopAddress || invoiceSettings?.shop_address || '',
-        shopLogo: invoiceData.shopLogo || invoiceSettings?.shop_logo || '',
-        qrCodeUrl: invoiceData.qrCodeUrl || invoiceSettings?.qr_code_url || '',
-        thankYouNote: invoiceData.thankYouNote || invoiceSettings?.thank_you_note || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین.'
+        shopName: invoiceSettings?.shop_name || invoiceData.shopName || '',
+        shopPhone: invoiceSettings?.shop_phone || invoiceData.shopPhone || '',
+        shopAddress: invoiceSettings?.shop_address || invoiceData.shopAddress || '',
+        shopLogo: invoiceSettings?.shop_logo || invoiceData.shopLogo || '',
+        qrCodeUrl: invoiceSettings?.qr_code_url || invoiceData.qrCodeUrl || '',
+        thankYouNote: invoiceSettings?.thank_you_note || invoiceData.thankYouNote || ''
       }
+      console.log('GlobalInvoiceModal - Final shopName:', data.shopName)
       setCaptureData(data)
     }
   }, [isOpen, invoiceData, invoiceSettings])

@@ -166,8 +166,8 @@ function InvoiceTemplate({ data }: { data: any }) {
             <img src={data.qrCodeUrl} alt="QR" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
           </div>
         )}
-        <div style={{ textAlign: 'center', fontSize: '12px', color: '#6b7280', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>{data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}</div>
-        <div style={{ textAlign: 'center', fontSize: '9px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
+        <div style={{ textAlign: 'center', fontSize: '12px', color: '#000000', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>{data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}</div>
+        <div style={{ textAlign: 'center', fontSize: '9px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
       </div>
     </div>
   )

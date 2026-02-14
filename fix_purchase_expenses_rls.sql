@@ -1,19 +1,27 @@
--- Fix RLS policies for purchase_expenses to allow DELETE operations
+-- RLS Policies for purchase_expenses table
+-- Run this in Supabase SQL Editor
 
--- First, check existing policies
-SELECT * FROM pg_policies WHERE tablename = 'purchase_expenses';
-
--- Drop existing DELETE policy if it exists (we'll recreate it)
-DROP POLICY IF EXISTS "Allow authenticated users to delete purchase expenses" ON purchase_expenses;
-
--- Create DELETE policy for authenticated users
-CREATE POLICY "Allow authenticated users to delete purchase expenses"
-ON purchase_expenses
-FOR DELETE
-USING (auth.role() = 'authenticated');
-
--- Also check if RLS is enabled
+-- First, enable RLS on purchase_expenses if not already enabled
 ALTER TABLE purchase_expenses ENABLE ROW LEVEL SECURITY;
 
--- Verify the policies
-SELECT policyname, cmd, roles FROM pg_policies WHERE tablename = 'purchase_expenses';
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow authenticated users to read purchase_expenses" ON purchase_expenses;
+DROP POLICY IF EXISTS "Allow authenticated users to insert purchase_expenses" ON purchase_expenses;
+DROP POLICY IF EXISTS "Allow authenticated users to update purchase_expenses" ON purchase_expenses;
+DROP POLICY IF EXISTS "Allow authenticated users to delete purchase_expenses" ON purchase_expenses;
+
+-- Allow authenticated users to read purchase_expenses
+CREATE POLICY "Allow authenticated users to read purchase_expenses" ON purchase_expenses
+FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Allow authenticated users to insert purchase_expenses
+CREATE POLICY "Allow authenticated users to insert purchase_expenses" ON purchase_expenses
+FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- Allow authenticated users to update purchase_expenses
+CREATE POLICY "Allow authenticated users to update purchase_expenses" ON purchase_expenses
+FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Allow authenticated users to delete purchase_expenses
+CREATE POLICY "Allow authenticated users to delete purchase_expenses" ON purchase_expenses
+FOR DELETE USING (auth.role() = 'authenticated');

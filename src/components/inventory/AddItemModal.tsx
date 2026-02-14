@@ -193,7 +193,11 @@ export default function AddItemModal({
 
   const canProceed = () => {
     if (currentStep === 1) return formData.supplier_id && formData.price_of_bought > 0
-    if (currentStep === 2) return formData.quantity > 0
+    if (currentStep === 2) {
+      const hasQuantity = formData.quantity && formData.quantity > 0
+      const hasUnit = formData.unit && formData.unit !== '' && formData.unit !== null
+      return hasQuantity && hasUnit
+    }
     if (currentStep === 3) return formData.name?.trim() && formData.category
     return true
   }
@@ -209,7 +213,7 @@ export default function AddItemModal({
   const prevStep = () => setCurrentStep(Math.max(currentStep - 1, 1))
 
   const submitItem = async () => {
-    if (!formData.name?.trim() || !formData.quantity || !formData.selling_price) {
+    if (!formData.name?.trim() || !formData.quantity || !formData.selling_price || !formData.unit) {
       setErrorMessage('تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە')
       return
     }
@@ -675,7 +679,7 @@ export default function AddItemModal({
                     style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
                   >
               <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
-                    یەکە
+                    یەکە *
                   </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -697,10 +701,10 @@ export default function AddItemModal({
                           <select 
                             value={formData.unit || ''} 
                             onChange={e => setFormData({...formData, unit: e.target.value})} 
-                            className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent"
+                            className={`w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent ${!formData.unit ? 'border-red-400' : ''}`}
                             style={{ 
                               fontFamily: 'var(--font-uni-salar)',
-                              borderColor: 'var(--theme-accent)',
+                              borderColor: !formData.unit ? 'var(--theme-card-border)' : 'var(--theme-accent)',
                               color: 'var(--theme-foreground)',
                               backgroundColor: 'var(--theme-muted)'
                             }}
@@ -1236,11 +1240,11 @@ export default function AddItemModal({
             /* Save Button with Spinner */
             <button 
               onClick={submitItem} 
-              disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price || isSubmitting}
-              className={`px-8 py-3 rounded-xl font-bold flex items-center transition-all ${formData.name?.trim() && formData.quantity && formData.selling_price && !isSubmitting ? 'hover:bg-green-700' : 'opacity-50 cursor-not-allowed'}`}
+              disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price || !formData.unit || isSubmitting}
+              className={`px-8 py-3 rounded-xl font-bold flex items-center transition-all ${formData.name?.trim() && formData.quantity && formData.selling_price && formData.unit && !isSubmitting ? 'hover:bg-green-700' : 'opacity-50 cursor-not-allowed'}`}
               style={{ 
                 fontFamily: 'var(--font-uni-salar)',
-                backgroundColor: isSubmitting ? '#1d4ed8' : (formData.name?.trim() && formData.quantity && formData.selling_price ? '#22c55e' : 'var(--theme-muted)'),
+                backgroundColor: isSubmitting ? '#1d4ed8' : (formData.name?.trim() && formData.quantity && formData.selling_price && formData.unit ? '#22c55e' : 'var(--theme-muted)'),
                 color: '#ffffff'
               }}
             >

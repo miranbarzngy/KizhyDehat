@@ -243,6 +243,21 @@ export default function SalesPage() {
       openModal(invoiceData, saleData.id, 'پسوڵەی فرۆشتن')
 
       setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false)
+      
+      // Refresh inventory to show updated stock amounts
+      const invResult = await fetchWithRetry(async () => {
+        const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0)
+        if (error) throw error
+        return data
+      }, 3, 1000)
+
+      if (invResult) {
+        setInventory(invResult.map((item: any) => ({
+          ...item, category: item.category || 'ئەوانی تر', name: item.name,
+          total_amount_bought: item.total_amount_bought, selling_price_per_unit: item.selling_price_per_unit,
+          cost_per_unit: item.cost_per_unit
+        })))
+      }
     } catch (error) { console.error('Error:', error); alert('هەڵە لە تۆمارکردن') }
   }
 

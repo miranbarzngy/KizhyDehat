@@ -55,6 +55,14 @@ export default function CustomersPage() {
 
   useEffect(() => { fetchCustomers() }, [])
 
+  useEffect(() => {
+    if (selectedCustomer) {
+      fetchPaymentHistory(selectedCustomer.id)
+    } else {
+      setPaymentHistory([])
+    }
+  }, [selectedCustomer])
+
   const fetchCustomers = async () => {
     if (!supabase) {
       setCustomers([
@@ -70,6 +78,57 @@ export default function CustomersPage() {
       setCustomers(data || [])
     } catch (error) { console.error(error) }
     finally { setLoading(false) }
+  }
+
+  const fetchPaymentHistory = async (customerId: string) => {
+    if (!supabase) {
+      setPaymentHistory([])
+      return
+    }
+    try {
+      // Fetch sales for this customer
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select('id, date, total, payment_method, status, created_at, discount_amount, subtotal, invoice_number')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false })
+
+      if (salesError) {
+        console.error('Error fetching sales:', salesError)
+        setPaymentHistory([])
+        return
+      }
+
+      // Fetch sale items for each sale
+      const history: PaymentHistory[] = []
+      
+      if (salesData && salesData.length > 0) {
+        for (const sale of salesData) {
+          const { data: itemsData } = await supabase
+            .from('sale_items')
+            .select('item_name, quantity, unit, price, total')
+            .eq('sale_id', sale.id)
+          
+          const items = itemsData?.map(item => `${item.quantity} ${item.unit} ${item.item_name}`).join('، ') || ''
+          
+          history.push({
+            id: sale.id,
+            date: sale.date || sale.created_at,
+            amount: sale.total,
+            items: items,
+            note: sale.discount_amount ? `داشکاندن: ${sale.discount_amount}` : '',
+            type: sale.payment_method === 'debt' ? 'sale' : 'payment',
+            payment_method: sale.payment_method,
+            sale_id: sale.id
+          })
+        }
+      }
+      
+      setPaymentHistory(history)
+    } catch (error) {
+      console.error('Error fetching payment history:', error)
+      setPaymentHistory([])
+    }
   }
 
   const filteredCustomers = customers.filter(c => 
@@ -239,18 +298,94 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Empty State for Demo */}
+                {/* Purchase History */}
                 <div 
-                  className="rounded-3xl p-12 text-center shadow-lg border"
+                  className="rounded-3xl p-6 shadow-lg border"
                   style={{ 
                     backgroundColor: 'var(--theme-card-bg)',
                     borderColor: 'var(--theme-card-border)'
                   }}
                 >
-                  <div className="text-6xl mb-4">📋</div>
-                  <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
-                    مێژووی کڕینەکان بەردەست نیە لە دۆمۆدا
-                  </p>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 
+                      className="text-xl font-semibold"
+                      style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      مێژووی کڕینەکان
+                    </h3>
+                    <span style={{ color: 'var(--theme-secondary)' }}>{paymentHistory.length}</span>
+                  </div>
+
+                  {paymentHistory.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-5xl mb-3">📋</div>
+                      <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
+                        هیچ مێژوویەک نیە
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {paymentHistory.map((history, index) => (
+                        <motion.div
+                          key={history.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="p-4 rounded-xl border"
+                          style={{ 
+                            backgroundColor: 'var(--theme-muted)',
+                            borderColor: 'var(--theme-card-border)'
+                          }}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p 
+                                className="font-semibold"
+                                style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                              >
+                                {history.items || 'کاڵا'}
+                              </p>
+                              <p 
+                                className="text-sm"
+                                style={{ color: 'var(--theme-secondary)', fontFamily: 'Inter' }}
+                              >
+                                {history.date ? new Date(history.date).toLocaleDateString('ku') : '-'}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p 
+                                className="font-bold"
+                                style={{ 
+                                  color: history.type === 'sale' ? '#ef4444' : '#22c55e',
+                                  fontFamily: 'Inter'
+                                }}
+                              >
+                                {formatCurrency(history.amount)}
+                              </p>
+                              <span 
+                                className="text-xs px-2 py-1 rounded-full"
+                                style={{ 
+                                  backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
+                                  color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
+                                  fontFamily: 'var(--font-uni-salar)'
+                                }}
+                              >
+                                {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
+                              </span>
+                            </div>
+                          </div>
+                          {history.note && (
+                            <p 
+                              className="text-xs"
+                              style={{ color: '#ef4444', fontFamily: 'var(--font-uni-salar)' }}
+                            >
+                              {history.note}
+                            </p>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : (

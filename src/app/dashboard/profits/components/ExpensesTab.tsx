@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, Box, FileText, Receipt } from 'lucide-react'
+import { Box, FileText, Receipt } from 'lucide-react'
 import { PurchaseExpense, ExpenseItem, ExpensesTab as ExpensesTabType } from './types'
 import { formatCurrency } from '@/lib/numberUtils'
 
@@ -115,7 +115,6 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
                 <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
                 <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کۆی</th>
                 <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-                <th className="px-4 py-4 text-center text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
               </tr>
             </thead>
             <tbody>
@@ -144,24 +143,6 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
                     {formatCurrency(expense.total_purchase_price)}
                   </td>
                   <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.purchase_date}</td>
-                  <td className="px-4 py-3 text-center">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => onViewPurchaseInvoice(expense.id)}
-                      className="relative group bg-gradient-to-r from-green-500 to-emerald-500 text-white p-3 rounded-full shadow-lg hover:shadow-green-500/30 transition-all duration-300"
-                      title="پیشاندانی پسوڵە"
-                    >
-                      <Eye className="w-5 h-5" />
-                      {/* Kurdish Label below icon */}
-                      <span 
-                        className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-                        style={{ fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        بینین
-                      </span>
-                    </motion.button>
-                  </td>
                 </tr>
               ))}
             </tbody>

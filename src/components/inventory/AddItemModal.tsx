@@ -176,11 +176,6 @@ export default function AddItemModal({
     }
   }
 
-  const generateReferenceId = () => {
-    // Generate a unique reference ID that will be used to link all related records
-    return crypto.randomUUID()
-  }
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !supabase) return
@@ -286,7 +281,7 @@ export default function AddItemModal({
         setTimeout(() => setErrorMessage(''), 3000)
       } else {
         // Generate a unique reference_id to link all related records
-        const referenceId = generateReferenceId()
+        const referenceId = crypto.randomUUID()
         
         // When adding new, insert into products and track expense
         const productsDataWithRef = {
@@ -385,9 +380,20 @@ export default function AddItemModal({
       setIsSubmitting(false)
       setShowStockEntry(false)
       onSuccess()
-    } catch (e: any) {
-      console.error('❌ Error saving:', e.message, e.details, e.hint)
-      setErrorMessage(`هەڵە: ${e?.message || 'نادیار'}`)
+    } catch (err) {
+      // Safer error handling - avoid accessing properties that might not exist
+      console.error('❌ Error saving:', err)
+      let errorMsg = 'نادیار'
+      if (err instanceof Error) {
+        errorMsg = err.message
+      } else if (err && typeof err === 'object') {
+        // Try to get message from supabase error object
+        const anyErr = err as any
+        errorMsg = anyErr?.message || anyErr?.error_description || JSON.stringify(err)
+      } else if (typeof err === 'string') {
+        errorMsg = err
+      }
+      setErrorMessage(`هەڵە: ${errorMsg}`)
       setIsSubmitting(false)
     } finally {
       resumeSync('AddItemModal.submitItem')

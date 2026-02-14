@@ -5,9 +5,138 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import StatCards from './_components/StatCards.tsx'
 import DashboardCharts from './_components/DashboardCharts.tsx'
 import RecentSalesTable from './_components/RecentSalesTable.tsx'
+import StatCards from './_components/StatCards.tsx'
+
+// Gradient Clock Widget Component
+function GradientClockWidget() {
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Get hours, minutes, seconds and AM/PM
+  const hours = currentTime.getHours()
+  const minutes = currentTime.getMinutes()
+  const seconds = currentTime.getSeconds()
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  
+  // Convert to 12-hour format
+  const displayHours = hours % 12 || 12
+  const displayMinutes = minutes.toString().padStart(2, '0')
+  const displaySeconds = seconds.toString().padStart(2, '0')
+
+  // Format date in Kurdish - week day and date on separate lines
+  const kurdishDays = ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'هەینی', 'شەممە']
+  const dayName = kurdishDays[currentTime.getDay()]
+  const dayNumber = currentTime.getDate()
+  const monthNumber = currentTime.getMonth() + 1
+  const formattedDate = `${dayName}`
+  const formattedMonthDay = `${monthNumber} , ${dayNumber}`
+
+  return (
+    <div 
+      className="px-6 py-4 rounded-2xl shadow-lg"
+      style={{
+        background: 'linear-gradient(145deg, #0f1729, #1a1f35)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        minWidth: '200px'
+      }}
+    >
+      {/* Time Display */}
+      <div dir="ltr" className="flex items-start justify-center gap-1">
+        {/* Hours */}
+        <span 
+          className="text-4xl md:text-5xl font-bold"
+          style={{
+            background: 'linear-gradient(90deg, #67e8f9, #a855f7, #f472b6, #fb923c)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}
+        >
+          {displayHours}
+        </span>
+
+        {/* Colon */}
+        <span 
+          className="text-4xl md:text-5xl font-bold text-gray-500 mt-1"
+          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+        >
+          :
+        </span>
+
+        {/* Minutes */}
+        <span 
+          className="text-4xl md:text-5xl font-bold"
+          style={{
+            background: 'linear-gradient(90deg, #67e8f9, #a855f7, #f472b6, #fb923c)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}
+        >
+          {displayMinutes}
+        </span>
+
+        {/* Comma and Seconds */}
+        <span 
+          className="text-2xl md:text-3xl font-bold text-gray-500 mt-2"
+          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+        >
+           :{displaySeconds}
+        </span>
+
+        {/* AM/PM */}
+        <span 
+          className="text-sm font-semibold mt-2 mr-1"
+          style={{
+            color: '#fbbf24',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}
+        >
+          {ampm}
+        </span>
+      </div>
+
+      {/* Date Display */}
+      <div className="mt-2 text-center flex flex-col items-center">
+        <span 
+          className="text-sm md:text-base"
+          style={{
+            background: 'linear-gradient(90deg, #c084fc, #f472b6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'var(--font-uni-salar)'
+          }}
+        >
+          {formattedDate}
+        </span>
+        <span 
+          className="text-sm md:text-base"
+          style={{
+            background: 'linear-gradient(90deg, #c084fc, #f472b6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'var(--font-uni-salar)'
+          }}
+        >
+          {formattedMonthDay}
+        </span>
+      </div>
+    </div>
+  )
+}
 
 interface ChartData {
   date: string
@@ -240,26 +369,8 @@ export default function DashboardPage() {
               پێشبینینی گشتیی کاروباری فرۆشگاکەت
             </p>
           </div>
-          <div className="flex flex-col items-end">
-            <span 
-              className="text-3xl font-bold"
-              style={{ 
-                color: 'var(--theme-foreground)',
-                fontFamily: 'Inter' 
-              }}
-            >
-              {formattedTime}
-            </span>
-            <span 
-              className="text-2xl font-bold"
-              style={{ 
-                color: 'var(--theme-accent)',
-                fontFamily: 'var(--font-uni-salar)' 
-              }}
-            >
-              {formattedDate}
-            </span>
-          </div>
+          {/* Gradient Clock Widget */}
+          <GradientClockWidget />
         </div>
 
         {/* Quick Action & Main Stats Cards */}

@@ -241,13 +241,18 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     if (!supabase) return
     try {
-      // Fetch all sales
-      const { data: salesData } = await supabase.from('sales').select('*').order('created_at', { ascending: false })
+      // Fetch all sales WITH customer data
+      const { data: salesData } = await supabase.from('sales').select('*, customers(name, phone1)').order('created_at', { ascending: false })
       
       // For each sale, fetch the seller name using user_id and sold_by
       const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
         const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
-        return { ...sale, seller_name: sellerName || sale.sold_by || '', profiles: { name: sellerName || sale.sold_by || '' } }
+        return { 
+          ...sale, 
+          seller_name: sellerName || sale.sold_by || '', 
+          profiles: { name: sellerName || sale.sold_by || '' },
+          customers: sale.customers || null
+        }
       }))
       
       setInvoices(mappedData)

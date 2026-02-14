@@ -419,7 +419,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
         <style>
           @font-face {
             font-family: 'UniSalar';
-            src: url('https://fonts.cdnfonts.com/s/74947/UniSalarF-Regular.woff') format('woff');
+            src: url('/fonts/UniSalar_F_007.otf') format('opentype');
             font-weight: normal;
             font-style: normal;
           }
@@ -436,7 +436,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
           }
           
           body {
-            font-family: 'UniSalar', 'Segoe UI', sans-serif;
+            font-family: 'UniSalar', 'Noto Naskh Arabic', 'Segoe UI', sans-serif;
             direction: rtl;
             width: 68mm;
             margin: 0;

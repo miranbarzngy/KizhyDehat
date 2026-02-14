@@ -156,14 +156,29 @@ export function useInventoryData(): UseInventoryDataReturn {
   const fetchArchivedItems = useCallback(async () => {
     if (!supabase) return
     try { 
-      // Optimized: Select only needed columns
-      const { data } = await supabase
+      // Select all needed columns including sales statistics
+      const { data, error } = await supabase
         .from('products')
-        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived')
+        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, total_sold, total_revenue, total_profit, total_discounts, created_at')
         .or('is_archived.eq.true,total_amount_bought.lte.0')
         .limit(50); 
-      setArchivedItems(data || []) 
-    } catch (e) { console.error(e) }
+      
+      if (error) {
+        console.error('Error fetching archived items:', error)
+        // Fallback: try without the new columns if they don't exist yet
+        const { data: fallbackData } = await supabase
+          .from('products')
+          .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, created_at')
+          .or('is_archived.eq.true,total_amount_bought.lte.0')
+          .limit(50)
+        setArchivedItems(fallbackData || [])
+      } else {
+        setArchivedItems(data || [])
+      }
+    } catch (e) { 
+      console.error('Exception fetching archived items:', e) 
+      setArchivedItems([])
+    }
   }, [])
 
   const fetchCategories = useCallback(async () => {

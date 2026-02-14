@@ -157,6 +157,27 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
     }
   }
 
+  // Handle approving a sale (complete and decrement quantities)
+  const approveOrder = async (order: PendingSale) => {
+    if (!supabase) return
+    
+    if (!confirm('دڵنیایت لە تەواوکردنی ئەم فرۆشتنە؟')) {
+      return
+    }
+    
+    try {
+      // Use RPC call to atomically approve sale and decrement quantities
+      const { error } = await supabase.rpc('approve_sale', { p_sale_id: order.id })
+      if (error) throw error
+      
+      alert('فرۆشتنەکە بە سەرکەوتوویی تەواوکرا!')
+      fetchPendingSales()
+    } catch (error) {
+      console.error('Error approving sale:', error)
+      alert('هەڵە لە تەواوکردنی فرۆشتنەکە')
+    }
+  }
+
   // Handle viewing invoice using global modal
   const viewOrderDetails = async (order: PendingSale) => {
     if (!supabase) return

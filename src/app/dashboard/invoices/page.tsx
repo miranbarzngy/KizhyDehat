@@ -485,7 +485,20 @@ export default function InvoicesPage() {
                               {/* تەواوکردن (Complete) - Green */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={() => { if (confirm('دڵنیایت لە تەواوکردنی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'completed' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  onClick={async () => { 
+                                    if (confirm('دڵنیایت لە تەواوکردنی ئەم فرۆشتنە؟')) { 
+                                      try {
+                                        // Use RPC call to atomically approve sale and decrement quantities
+                                        const { error } = await supabase?.rpc('approve_sale', { p_sale_id: sale.id });
+                                        if (error) throw error;
+                                        await fetchPendingSales();
+                                        alert('فرۆشتنەکە بە سەرکەوتوویی تەواوکرا!');
+                                      } catch (err: any) {
+                                        console.error('Error approving sale:', err);
+                                        alert('هەڵە لە تەواوکردنی فرۆشتنەکە: ' + (err.message || 'هەڵەی نەناسراو'));
+                                      }
+                                    } 
+                                  }}
                                   className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
@@ -501,7 +514,19 @@ export default function InvoicesPage() {
                               {/* گەڕاندنەوە (Refund) - Orange */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={() => { if (confirm('دڵنیایت لە گەڕاندنەوەی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  onClick={async () => { 
+                                    if (confirm('دڵنیایت لە گەڕاندنەوەی ئەم فرۆشتنە؟')) { 
+                                      try {
+                                        // Revert stock first, then update status
+                                        await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
+                                        await supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id)
+                                        await fetchPendingSales()
+                                      } catch (err) {
+                                        console.error('Error refunding sale:', err)
+                                        alert('هەڵە لە گەڕاندنەوە')
+                                      }
+                                    } 
+                                  }}
                                   className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
@@ -517,7 +542,19 @@ export default function InvoicesPage() {
                               {/* هەڵوەشاندنەوە (Cancel) - Red */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={() => { if (confirm('دڵنیایت لە هەڵوەشاندنەوەی ئەم فرۆشتنە؟')) { supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id).then(() => fetchPendingSales()) } }}
+                                  onClick={async () => { 
+                                    if (confirm('دڵنیایت لە هەڵوەشاندنەوەی ئەم فرۆشتنە؟')) { 
+                                      try {
+                                        // Revert stock first, then update status
+                                        await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
+                                        await supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id)
+                                        await fetchPendingSales()
+                                      } catch (err) {
+                                        console.error('Error cancelling sale:', err)
+                                        alert('هەڵە لە هەڵوەشاندنەوە')
+                                      }
+                                    } 
+                                  }}
                                   className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}

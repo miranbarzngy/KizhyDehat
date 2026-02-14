@@ -135,12 +135,26 @@ export default function SalesPage() {
     setUserName(finalUserName)
   }, [profile, user])
 
-  const addToCart = (item: InventoryItem) => { setSelectedItem(item); setQuantityInput(''); setShowUnitModal(true) }
+  const addToCart = (item: InventoryItem) => { 
+    // Safety check: prevent adding if not enough stock
+    if (item.total_amount_bought <= 0) {
+      alert('بڕی پێویست لە کۆگا نەماوە!')
+      return
+    }
+    setSelectedItem(item); setQuantityInput(''); setShowUnitModal(true) 
+  }
 
   const addUnitItem = () => {
     if (!selectedItem || !quantityInput) return
     const quantity = safeStringToNumber(quantityInput)
     if (quantity <= 0) return
+    
+    // Safety check: prevent adding more than available stock
+    if (quantity > selectedItem.total_amount_bought) {
+      alert('بڕی پێویست لە کۆگا نەماوە!')
+      return
+    }
+    
     const unitPrice = calculateUnitPrice(selectedItem.selling_price_per_unit, selectedItem.unit, selectedItem.unit, quantity)
     const cartItem: CartItem = {
       id: Date.now().toString(), item: selectedItem, quantity,
@@ -179,6 +193,18 @@ export default function SalesPage() {
       }))
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems)
       if (itemsError) throw itemsError
+
+      // Immediate stock decrement when sale is created (optimistic update)
+      for (const item of cart) {
+        const { error: decrementError } = await supabase
+          .from('products')
+          .update({ total_amount_bought: item.item.total_amount_bought - item.baseQuantity })
+          .eq('id', item.item.id)
+        
+        if (decrementError) {
+          console.error('Error decrementing stock:', decrementError)
+        }
+      }
 
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
       const customerPhone = customers.find(c => c.id === selectedCustomer)?.phone1

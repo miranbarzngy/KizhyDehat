@@ -110,11 +110,11 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
           <GlassTable>
             <thead className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-rose-500/10">
               <tr>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کۆی</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کۆی</th>
+                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
               </tr>
             </thead>
             <tbody>
@@ -196,9 +196,9 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
           <GlassTable>
             <thead className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-rose-500/10">
               <tr>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوضێحات</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوضێحات</th>
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
               </tr>
             </thead>
             <tbody>

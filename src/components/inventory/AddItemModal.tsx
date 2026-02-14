@@ -4,18 +4,18 @@ import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { 
-  FaArrowLeft, 
-  FaArrowRight, 
-  FaCheck, 
-  FaExclamationTriangle, 
-  FaUpload, 
-  FaBox, 
-  FaTag, 
-  FaBalanceScale, 
+import {
+  FaArrowLeft,
+  FaArrowRight,
+  FaBalanceScale,
+  FaBox,
   FaCalculator,
+  FaCheck,
+  FaExclamationTriangle,
+  FaSpinner,
+  FaTag,
   FaTrash,
-  FaSpinner
+  FaUpload
 } from 'react-icons/fa'
 import type { Product } from './types'
 
@@ -30,6 +30,8 @@ interface AddItemModalProps {
   suppliers: any[]
   units: any[]
   onSuccess: () => void
+  onAddUnit?: () => void
+  onAddCategory?: () => void
 }
 
 interface Supplier { id: string; name: string }
@@ -48,7 +50,9 @@ export default function AddItemModal({
   setFormData,
   suppliers,
   units,
-  onSuccess
+  onSuccess,
+  onAddUnit,
+  onAddCategory
 }: AddItemModalProps) {
   const { pauseSync, resumeSync } = useSyncPause()
   const [categories, setCategories] = useState<Category[]>([])
@@ -58,63 +62,76 @@ export default function AddItemModal({
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch categories from database
+  // Fetch categories from database - runs every time modal opens
   useEffect(() => {
-    const fetchCategories = async () => {
+    if (!showStockEntry) return
+    
+    const fetchData = async () => {
       setCategoriesLoading(true)
-      if (!supabase) {
-        setCategories([
-          { id: '1', name: 'خۆراك' },
-          { id: '2', name: 'خواردن' },
-          { id: '3', name: 'ئاو' }
-        ])
-        setCategoriesLoading(false)
-        return
-      }
-      try {
-        const { data } = await supabase.from('categories').select('*').order('name')
-        setCategories(data || [])
-      } catch (error) {
-        console.error('Error fetching categories:', error)
-        setCategories([
-          { id: '1', name: 'خۆراك' },
-          { id: '2', name: 'خواردن' }
-        ])
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-    fetchCategories()
-  }, [])
-
-  // Fetch units from database
-  useEffect(() => {
-    const fetchUnits = async () => {
       setUnitsLoading(true)
+      
       if (!supabase) {
-        setLocalUnits([
-          { id: '1', name: 'دانە', symbol: 'د' },
-          { id: '2', name: 'کیلۆ', symbol: 'ک' },
-          { id: '3', name: 'مەتر', symbol: 'م' }
-        ])
+        console.log('No supabase client - using props')
+        // Use props if available
+        if (units && units.length > 0) {
+          const uniqueCategories = categories.filter((c: any, i: number, arr: any[]) => 
+            arr.findIndex((x: any) => x.name === c.name) === i
+          )
+          setCategories(uniqueCategories)
+        }
+        setCategoriesLoading(false)
+        if (units && units.length > 0) {
+          const uniqueUnits = units.filter((u: any, i: number, arr: any[]) => 
+            arr.findIndex((x: any) => x.name === u.name) === i
+          )
+          console.log('Using units from props:', uniqueUnits)
+          setLocalUnits(uniqueUnits)
+        }
         setUnitsLoading(false)
         return
       }
+      
       try {
-        const { data } = await supabase.from('units').select('*').order('name')
-        setLocalUnits(data || [])
+        console.log('Fetching categories and units from database...')
+        
+        // Fetch categories
+        const { data: categoriesData, error: categoriesError } = await supabase.from('categories').select('*').order('name')
+        if (categoriesError) {
+          console.error('Error fetching categories:', categoriesError)
+          setCategories([])
+        } else {
+          console.log('Categories fetched:', categoriesData)
+          const uniqueCategories = categoriesData ? categoriesData.filter((category, index, self) => 
+            index === self.findIndex((c) => c.name === category.name)
+          ) : []
+          setCategories(uniqueCategories)
+        }
+        
+        // Fetch units
+        const { data: unitsData, error: unitsError } = await supabase.from('units').select('*').order('name')
+        if (unitsError) {
+          console.error('Error fetching units:', unitsError)
+          setLocalUnits([])
+        } else {
+          console.log('Units fetched from DB:', unitsData)
+          const uniqueUnits = unitsData ? unitsData.filter((unit, index, self) => 
+            index === self.findIndex((u) => u.name === unit.name)
+          ) : []
+          console.log('Unique units:', uniqueUnits)
+          setLocalUnits(uniqueUnits)
+        }
       } catch (error) {
-        console.error('Error fetching units:', error)
-        setLocalUnits([
-          { id: '1', name: 'دانە', symbol: 'د' },
-          { id: '2', name: 'کیلۆ', symbol: 'ک' }
-        ])
+        console.error('Exception fetching data:', error)
+        setCategories([])
+        setLocalUnits([])
       } finally {
+        setCategoriesLoading(false)
         setUnitsLoading(false)
       }
     }
-    fetchUnits()
-  }, [])
+    
+    fetchData()
+  }, [showStockEntry, units])
 
   // Block browser refresh during submission
   useEffect(() => {
@@ -574,7 +591,7 @@ export default function AddItemModal({
                     type="number" 
                     value={formData.quantity || ''} 
                     onChange={e => setFormData({...formData, quantity: Number(e.target.value.replace(/^0+/, ''))})} 
-                    className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.quantity ? 'border-red-400' : ''}`}
+                    className={`w-full px-4 py-3 rounded-xl border  transition-all ${!formData.quantity ? 'border-red-400' : ''}`}
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: !formData.quantity ? 'var(--theme-card-border)' : 'var(--theme-accent)',
@@ -590,48 +607,69 @@ export default function AddItemModal({
                     className="block text-sm mb-2 flex items-center gap-2"
                     style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
                   >
-                    <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
+              <FaCalculator className="text-sm" style={{ color: 'var(--theme-accent)' }} />
                     یەکە
                   </label>
-                  <div className="relative">
-                    {unitsLoading ? (
-                      <div 
-                        className="w-full px-4 py-3 rounded-xl border flex items-center justify-center"
-                        style={{ 
-                          fontFamily: 'var(--font-uni-salar)',
-                          borderColor: 'var(--theme-card-border)',
-                          color: 'var(--theme-secondary)',
-                          backgroundColor: 'var(--theme-muted)'
-                        }}
-                      >
-                        <FaSpinner className="animate-spin ml-2" />
-                        چاوەڕێبە...
-                      </div>
-                    ) : (
-                      <>
-                        <select 
-                          value={formData.unit} 
-                          onChange={e => setFormData({...formData, unit: e.target.value})} 
-                          className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent"
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      {unitsLoading ? (
+                        <div 
+                          className="w-full px-4 py-3 rounded-xl border flex items-center justify-center"
                           style={{ 
                             fontFamily: 'var(--font-uni-salar)',
-                            borderColor: 'var(--theme-accent)',
-                            color: 'var(--theme-foreground)',
+                            borderColor: 'var(--theme-card-border)',
+                            color: 'var(--theme-secondary)',
                             backgroundColor: 'var(--theme-muted)'
                           }}
                         >
-                          <option value="دانە">دانە</option>
-                          {localUnits.map((u: Unit) => (
-                            <option key={u.id} value={u.name}>
-                              {u.name} {u.symbol ? `(${u.symbol})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <FaCalculator 
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
-                          style={{ color: 'var(--theme-secondary)' }}
-                        />
-                      </>
+                          <FaSpinner className="animate-spin ml-2" />
+                          چاوەڕێبە...
+                        </div>
+                      ) : (
+                        <>
+                          <select 
+                            value={formData.unit || ''} 
+                            onChange={e => setFormData({...formData, unit: e.target.value})} 
+                            className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none bg-transparent"
+                            style={{ 
+                              fontFamily: 'var(--font-uni-salar)',
+                              borderColor: 'var(--theme-accent)',
+                              color: 'var(--theme-foreground)',
+                              backgroundColor: 'var(--theme-muted)'
+                            }}
+                          >
+                            <option value="">هەڵبژێرە</option>
+                            {localUnits.length === 0 ? (
+                              <option value="" disabled>یەکە نییە - زیادکراوەکە بکە</option>
+                            ) : (
+                              localUnits.map((u: Unit) => (
+                                <option key={u.id} value={u.name}>
+                                  {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                          <FaCalculator 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                            style={{ color: 'var(--theme-secondary)' }}
+                          />
+                        </>
+                      )}
+                    </div>
+                    {onAddUnit && (
+                      <button
+                        type="button"
+                        onClick={onAddUnit}
+                        className="px-3 py-2 rounded-xl font-bold transition-all flex items-center justify-center"
+                        style={{ 
+                          fontFamily: 'var(--font-uni-salar)',
+                          backgroundColor: 'var(--theme-accent)',
+                          color: '#ffffff'
+                        }}
+                        title="زیادکردنی یەکە"
+                      >
+                        +
+                      </button>
                     )}
                   </div>
                 </div>
@@ -745,7 +783,7 @@ export default function AddItemModal({
                   type="text" 
                   value={formData.name || ''} 
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} 
-                  className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.name?.trim() ? 'border-red-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-xl border transition-all ${!formData.name?.trim() ? 'border-red-400' : ''}`}
                   style={{ 
                     fontFamily: 'var(--font-uni-salar)',
                     borderColor: !formData.name?.trim() ? 'var(--theme-card-border)' : 'var(--theme-accent)',
@@ -792,7 +830,11 @@ export default function AddItemModal({
                         }}
                       >
                         <option value="">هەڵبژێرە</option>
-                        {categories.map((c: Category) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {categories.length === 0 ? (
+                          <option value="" disabled>هیچ پۆلێک نییە</option>
+                        ) : (
+                          categories.map((c: Category) => <option key={c.id} value={c.name}>{c.name}</option>)
+                        )}
                       </select>
                       <FaTag 
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
@@ -816,7 +858,7 @@ export default function AddItemModal({
                     type="text" 
                     value={formData.barcode1 || ''} 
                     onChange={e => setFormData(prev => ({ ...prev, barcode1: e.target.value }))} 
-                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    className="w-full px-4 py-3 rounded-xl "
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: 'var(--theme-card-border)',
@@ -835,7 +877,7 @@ export default function AddItemModal({
                     type="text" 
                     value={formData.barcode2 || ''} 
                     onChange={e => setFormData(prev => ({ ...prev, barcode2: e.target.value }))} 
-                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    className="w-full px-4 py-3 rounded-xl "
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: 'var(--theme-card-border)',
@@ -857,7 +899,7 @@ export default function AddItemModal({
                     value={formData.barcode3 || ''} 
                     onChange={e => setFormData(prev => ({ ...prev, barcode3: e.target.value }))} 
                     onBlur={handleBarcode3Blur} 
-                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    className="w-full px-4 py-3 rounded-xl "
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: 'var(--theme-card-border)',
@@ -894,13 +936,13 @@ export default function AddItemModal({
                     className="block text-sm mb-1"
                     style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
                   >
-                    بەرواری زیادکردن
+                    بەرواری کڕین
                   </label>
                   <input 
                     type="date" 
                     value={formData.added_date || ''} 
                     onChange={e => setFormData(prev => ({ ...prev, added_date: e.target.value }))} 
-                    className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                    className="w-full px-4 py-3 rounded-xl"
                     style={{ 
                       fontFamily: 'var(--font-uni-salar)',
                       borderColor: 'var(--theme-card-border)',
@@ -913,7 +955,7 @@ export default function AddItemModal({
                     className="block text-sm mb-1"
                     style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}
                   >
-                    بەرواری تەواوبوون
+                    بەرواری بەسەرچوون
                   </label>
                   <input 
                     type="date" 
@@ -940,7 +982,7 @@ export default function AddItemModal({
                 <textarea 
                   value={formData.note || ''} 
                   onChange={e => setFormData(prev => ({ ...prev, note: e.target.value }))} 
-                  className="w-full px-4 py-3 rounded-xl border bg-transparent"
+                  className="w-full px-4 py-3 rounded-xl "
                   rows={2}
                   style={{ 
                     fontFamily: 'var(--font-uni-salar)',
@@ -974,7 +1016,7 @@ export default function AddItemModal({
                   type="number" 
                   value={formData.selling_price || ''} 
                   onChange={e => setFormData(prev => ({ ...prev, selling_price: Number(e.target.value.replace(/^0+/, '')) }))} 
-                  className={`w-full px-4 py-3 rounded-xl border bg-transparent ${!formData.selling_price ? 'border-red-400' : ''}`}
+                  className={`w-full px-4 py-3 rounded-xl  ${!formData.selling_price ? 'border-red-800' : ''}`}
                   style={{ 
                     fontFamily: 'var(--font-uni-salar)',
                     borderColor: !formData.selling_price ? 'var(--theme-card-border)' : 'var(--theme-accent)',
@@ -1022,7 +1064,7 @@ export default function AddItemModal({
               >
                 <div className="flex justify-between mb-3">
                   <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
-                    نرخی کڕین:
+                    نرخی کڕین بە تاک:
                   </span>
                   <span 
                     className="font-bold"
@@ -1036,7 +1078,7 @@ export default function AddItemModal({
                 </div>
                 <div className="flex justify-between mb-3">
                   <span style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-secondary)' }}>
-                    نرخی فرۆشتن:
+                    نرخی فرۆشتن بە تاک:
                   </span>
                   <span 
                     className="font-bold"

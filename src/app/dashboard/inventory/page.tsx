@@ -165,6 +165,7 @@ export default function InventoryPage() {
           suppliers={suppliers} 
           units={units} 
           onSuccess={fetchProducts} 
+          onAddUnit={handleAddUnit}
         />
 
         {/* Delete Modal */}

@@ -117,12 +117,12 @@ export default function SalesTab({ cashSales, onlineSales, payLaterSales, onView
       <GlassTable>
         <thead className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10">
           <tr>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخ</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کات</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
-            <th className="px-4 py-4 text-center text-xs font-bold text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
+            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
+            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخ</th>
+            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کات</th>
+            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
+            <th className="px-4 py-4 text-center text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
           </tr>
         </thead>
         <tbody>

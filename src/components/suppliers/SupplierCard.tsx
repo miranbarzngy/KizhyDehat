@@ -123,22 +123,7 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
           <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)', opacity: 0.7 }}>مێژوو</span>
         </div>
 
-        {/* Payment Button - Green (only if displayDebt > 0) */}
-        {displayDebt > 0 && (
-          <div className="flex flex-col items-center group cursor-pointer" onClick={onPayment}>
-            <motion.button
-              className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
-              title="دانەوە"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </motion.button>
-            <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)', opacity: 0.7 }}>دانەوە</span>
-          </div>
-        )}
+        {/* Payment Button - Green (only if displayDebt > 0) - Removed per user request */}
       </div>
     </div>
   )

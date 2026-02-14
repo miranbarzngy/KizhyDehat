@@ -143,58 +143,7 @@ export default function InvoicesPage() {
     }
   }
 
-  // Handle printing invoice (reprint) - uses global modal
-  const handlePrintInvoice = async (sale: any) => {
-    try {
-      // Fetch sale items with product info
-      const { data: saleItems, error: itemsError } = await supabase
-        .from('sale_items')
-        .select('*, products(name, unit)')
-        .eq('sale_id', sale.id)
-      
-      if (itemsError) {
-        console.error('Error fetching sale items:', itemsError)
-      }
-      
-      // Transform items
-      const transformedItems = (saleItems || []).map((item: any) => ({
-        ...item,
-        products: item.products ? {
-          name: item.products.name,
-          unit: item.products.unit
-        } : null
-      }))
-      
-      // Fetch customer data
-      const { data: customerData } = sale.customer_id ? await supabase
-        .from('customers')
-        .select('name, phone1')
-        .eq('id', sale.customer_id)
-        .single() : { data: null }
-      
-      // Fetch seller name from profile
-      const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
-      
-      const saleData = {
-        ...sale,
-        customers: customerData || null,
-        sale_items: transformedItems || [],
-        seller_name: sellerName || sale.sold_by || sale.seller_name || '',
-        profiles: { name: sellerName || sale.sold_by || sale.seller_name || '' }
-      }
-      
-      // Build invoice data and open global modal
-      const invoiceData = buildInvoiceData(saleData, sale)
-      openModal(
-        invoiceData,
-        sale.id,
-        `پسوڵە #${sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '---'}`
-      )
-    } catch (error) {
-      console.error('Error printing invoice:', error)
-      alert('هەڵە لە کردنەوەی پسوڵە بۆ چاپکردن')
-    }
-  }
+  // Print functionality removed per user request
 
   // Handle refund invoice
   const handleRefundInvoice = async (sale: any) => {
@@ -445,7 +394,7 @@ export default function InvoicesPage() {
           {activeTab === 'invoices' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <input type="text" placeholder="گەڕان..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full mb-6 px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)', color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }} />
-              <InvoiceTable filteredInvoices={filteredInvoices} onView={handleViewInvoice} onReprint={handlePrintInvoice} onRefund={handleRefundInvoice} />
+              <InvoiceTable filteredInvoices={filteredInvoices} onView={handleViewInvoice} onRefund={handleRefundInvoice} />
             </motion.div>
           )}
 

@@ -7,14 +7,12 @@ import { Invoice } from './invoiceUtils'
 interface InvoiceTableProps {
   filteredInvoices: Invoice[]
   onView: (invoice: Invoice) => void
-  onReprint: (invoice: Invoice) => void
   onRefund: (invoice: Invoice) => void
 }
 
 export default function InvoiceTable({
   filteredInvoices,
   onView,
-  onReprint,
   onRefund
 }: InvoiceTableProps) {
   return (
@@ -112,21 +110,7 @@ export default function InvoiceTable({
                       <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
                     </div>
 
-                    {/* چاپکردن - Green */}
-                    <div className="flex flex-col items-center gap-1">
-                      <motion.button
-                        onClick={() => onReprint(invoice)}
-                        className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title="چاپکردن"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </motion.button>
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>چاپکردن</span>
-                    </div>
+                    {/* Print button removed per user request */}
 
                     {/* گەڕاندنەوە - Orange (only if not refunded/cancelled) */}
                     {invoice.status !== 'refunded' && invoice.status !== 'cancelled' && (

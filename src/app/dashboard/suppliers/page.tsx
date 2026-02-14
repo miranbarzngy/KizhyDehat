@@ -65,8 +65,66 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = async () => {
     if (!supabase) { setSuppliers([]); setLoading(false); return }
-    const { data } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
-    setSuppliers((data || []).map(s => ({ ...s, company: s.company || '', address: s.address || '', total_debt: s.total_debt || s.balance || 0 })))
+    
+    // Fetch suppliers
+    const { data: suppliersData } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
+    
+    if (!suppliersData || suppliersData.length === 0) {
+      setSuppliers([])
+      setLoading(false)
+      return
+    }
+
+    // Get all supplier IDs
+    const supplierIds = suppliersData.map(s => s.id)
+
+    // Efficiently calculate debt using a single query approach
+    // Get sum of debt_amount from supplier_transactions grouped by supplier_id
+    const { data: transactionDebts } = await supabase
+      .from('supplier_transactions')
+      .select('supplier_id, debt_amount')
+      .in('supplier_id', supplierIds)
+
+    // Get sum of payments from supplier_payments grouped by supplier_id
+    const { data: payments } = await supabase
+      .from('supplier_payments')
+      .select('supplier_id, amount')
+      .in('supplier_id', supplierIds)
+
+    // Create lookup maps for efficient calculation
+    const debtFromTransactions: Record<string, number> = {}
+    const paidFromPayments: Record<string, number> = {}
+
+    // Sum up debts from transactions
+    transactionDebts?.forEach(tx => {
+      if (tx.supplier_id && tx.debt_amount) {
+        debtFromTransactions[tx.supplier_id] = (debtFromTransactions[tx.supplier_id] || 0) + tx.debt_amount
+      }
+    })
+
+    // Sum up payments
+    payments?.forEach(pay => {
+      if (pay.supplier_id && pay.amount) {
+        paidFromPayments[pay.supplier_id] = (paidFromPayments[pay.supplier_id] || 0) + pay.amount
+      }
+    })
+
+    // Calculate total debt for each supplier
+    // Formula: Total Debt = (Sum of debt_amount from transactions) - (Sum of payments)
+    const suppliersWithDebt = suppliersData.map(s => {
+      const totalDebtFromTx = debtFromTransactions[s.id] || 0
+      const totalPaid = paidFromPayments[s.id] || 0
+      const calculatedDebt = Math.max(0, totalDebtFromTx - totalPaid)
+      
+      return {
+        ...s,
+        company: s.company || '',
+        address: s.address || '',
+        total_debt: calculatedDebt
+      }
+    })
+
+    setSuppliers(suppliersWithDebt)
     setLoading(false)
   }
 

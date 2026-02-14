@@ -284,13 +284,28 @@ export default function AddItemModal({
         const referenceId = crypto.randomUUID()
         
         // When adding new, insert into products and track expense
-        const productsDataWithRef = {
-          ...productsData,
+        // Create the object with reference_id inline to avoid hoisting issues
+        const insertResult = await supabase.from('products').insert({
+          name: productsData.name,
+          total_amount_bought: productsData.total_amount_bought,
+          unit: productsData.unit,
+          total_purchase_price: productsData.total_purchase_price,
+          selling_price_per_unit: productsData.selling_price_per_unit,
+          cost_per_unit: productsData.cost_per_unit,
+          category: productsData.category,
+          image: productsData.image,
+          barcode1: productsData.barcode1,
+          barcode2: productsData.barcode2,
+          barcode3: productsData.barcode3,
+          barcode4: productsData.barcode4,
+          added_date: productsData.added_date,
+          expire_date: productsData.expire_date,
+          supplier_id: productsData.supplier_id,
+          note: productsData.note,
           reference_id: referenceId
-        }
+        })
         
-        ({ error } = await supabase.from('products').insert(productsDataWithRef))
-        
+        const error = insertResult.error
         if (error) throw error
         console.log('✅ Product inserted into products table:', formData.name, 'with reference_id:', referenceId)
         

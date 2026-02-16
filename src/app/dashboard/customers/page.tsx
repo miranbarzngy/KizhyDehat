@@ -1412,7 +1412,7 @@ export default function CustomersPage() {
         )}
       </AnimatePresence>
 
-      {/* Customer Payment Modal */}
+      {/* Customer Payment Modal - DESIGN MATCHES SUPPLIER MODAL */}
       <AnimatePresence>
         {showPaymentModal && selectedCustomer && (
           <motion.div
@@ -1427,287 +1427,274 @@ export default function CustomersPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              className="w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
               style={{ 
-                backgroundColor: 'var(--theme-card-bg)',
-                borderColor: 'var(--theme-card-border)',
-                borderWidth: '1px'
+                background: 'rgba(30, 30, 46, 0.95)',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: '1px',
+                backdropFilter: 'blur(20px)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
+              {/* Header with Debt Badge - Matches Supplier Modal */}
               <div 
-                className="p-6 border-b flex items-center justify-between"
-                style={{ borderColor: 'var(--theme-card-border)' }}
+                className="p-6 border-b flex justify-between items-start"
+                style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
               >
                 <div>
                   <h3 
-                    className="text-2xl font-bold"
-                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    className="text-xl font-bold"
+                    style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                   >
-                    پارەدانەوەی قەرز
+                    مێژووی پارەدانەکان
                   </h3>
                   <p 
-                    className="text-lg mt-1"
-                    style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                    className="text-sm mt-1"
+                    style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
                   >
                     {selectedCustomer.name}
                   </p>
                 </div>
-                <button
-                  onClick={closePaymentModal}
-                  className="p-3 rounded-xl transition-colors hover:opacity-80"
-                  style={{ 
-                    backgroundColor: 'var(--theme-muted)',
-                    color: 'var(--theme-secondary)',
-                    minWidth: '44px',
-                    minHeight: '44px'
-                  }}
-                >
-                  <FaTimes className="text-xl" />
-                </button>
-              </div>
-
-              {/* Modal Content */}
-              <div className="p-6 overflow-y-auto flex-1">
-                {/* Current Debt Display */}
-                <div 
-                  className="mb-6 p-6 rounded-2xl"
-                  style={{ backgroundColor: 'var(--theme-muted)' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p 
-                        className="text-lg"
-                        style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        قەرزی ئێستا
-                      </p>
-                      <p 
-                        className="text-4xl font-bold mt-2"
-                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'Inter' }}
-                      >
-                        {formatCurrency(selectedCustomer.total_debt)}
-                        <span className="text-lg mr-2" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
-                      </p>
-                    </div>
-                    <div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: selectedCustomer.total_debt > 0 ? '#fee2e2' : '#dcfce7' }}
+                <div className="flex items-center gap-4">
+                  {/* Current Debt Badge - Matches Supplier Modal */}
+                  <div 
+                    className="px-4 py-2 rounded-xl"
+                    style={{ 
+                      background: selectedCustomer.total_debt && selectedCustomer.total_debt > 0 
+                        ? 'rgba(220, 38, 38, 0.2)' 
+                        : 'rgba(22, 163, 74, 0.2)',
+                      border: `1px solid ${selectedCustomer.total_debt && selectedCustomer.total_debt > 0 
+                        ? 'rgba(220, 38, 38, 0.5)' 
+                        : 'rgba(22, 163, 74, 0.5)'}`
+                    }}
+                  >
+                    <span 
+                      className="text-xs block"
+                      style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
                     >
-                      <FaDollarSign 
-                        className="text-3xl" 
-                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e' }} 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Form */}
-                <form onSubmit={editingPayment ? handleUpdatePayment : handleAddPayment}>
-                  <div className="space-y-4 mb-6">
-                    {/* Amount Field */}
-                    <div>
-                      <label 
-                        className="block text-sm font-medium mb-2"
-                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        بڕی پارە (دینار) *
-                      </label>
-                      <input
-                        type="number"
-                        value={paymentForm.amount}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                        placeholder="بڕی پارەکە بنووسە"
-                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none text-left"
-                        dir="ltr"
-                        style={{
-                          backgroundColor: 'var(--theme-muted)',
-                          borderColor: 'var(--theme-card-border)',
-                          color: 'var(--theme-foreground)',
-                          fontFamily: 'var(--font-uni-salar)',
-                          minHeight: '48px',
-                          fontSize: '1.25rem'
-                        }}
-                      />
-                    </div>
-
-                    {/* Date Field */}
-                    <div>
-                      <label 
-                        className="block text-sm font-medium mb-2"
-                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        بەروار *
-                      </label>
-                      <input
-                        type="date"
-                        value={paymentForm.date}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, date: e.target.value }))}
-                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none"
-                        style={{
-                          backgroundColor: 'var(--theme-muted)',
-                          borderColor: 'var(--theme-card-border)',
-                          color: 'var(--theme-foreground)',
-                          fontFamily: 'var(--font-uni-salar)',
-                          minHeight: '48px'
-                        }}
-                      />
-                    </div>
-
-                    {/* Note Field */}
-                    <div>
-                      <label 
-                        className="block text-sm font-medium mb-2"
-                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                      >
-                        تێبینی
-                      </label>
-                      <textarea
-                        value={paymentForm.note}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, note: e.target.value }))}
-                        placeholder="تێبینی هەبێت..."
-                        rows={3}
-                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none resize-none"
-                        style={{
-                          backgroundColor: 'var(--theme-muted)',
-                          borderColor: 'var(--theme-card-border)',
-                          color: 'var(--theme-foreground)',
-                          fontFamily: 'var(--font-uni-salar)',
-                          minHeight: '100px'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Form Buttons */}
-                  <div className="flex gap-4">
-                    {editingPayment && (
-                      <button
-                        type="button"
-                        onClick={cancelEditPayment}
-                        className="px-6 py-4 rounded-xl transition-all hover:opacity-80 font-semibold"
-                        style={{ 
-                          backgroundColor: 'var(--theme-muted)', 
-                          color: 'var(--theme-secondary)',
-                          fontFamily: 'var(--font-uni-salar)',
-                          minHeight: '52px'
-                        }}
-                      >
-                        پاشگەزبوونەوە
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={submittingPayment || !paymentForm.amount || !paymentForm.date}
-                      className="flex-1 px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:opacity-90 disabled:opacity-50"
+                      {selectedCustomer.total_debt && selectedCustomer.total_debt > 0 ? 'قەرزی ئێستا' : 'دۆخی قەرز'}
+                    </span>
+                    <span 
+                      className="text-lg font-bold"
                       style={{ 
-                        background: 'var(--theme-accent)', 
-                        color: '#ffffff',
-                        fontFamily: 'var(--font-uni-salar)',
-                        minHeight: '52px'
+                        color: selectedCustomer.total_debt && selectedCustomer.total_debt > 0 
+                          ? '#fca5a5' 
+                          : '#86efac', 
+                        fontFamily: 'var(--font-uni-salar)' 
                       }}
                     >
-                      {submittingPayment ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                          <span>تکایە...</span>
-                        </>
-                      ) : (
-                        <span className="text-lg">{editingPayment ? 'نوێکردنەوە' : 'تۆمارکردن'}</span>
-                      )}
-                    </button>
+                      {selectedCustomer.total_debt && selectedCustomer.total_debt > 0 
+                        ? `${(selectedCustomer.total_debt || 0).toLocaleString()} د.ع`
+                        : 'بێ قەرز ✓'}
+                    </span>
                   </div>
-                </form>
+                  <button
+                    onClick={closePaymentModal}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ color: 'rgba(255, 255, 255, 0.7)' }}
+                  >
+                    <FaTimes size={20} />
+                  </button>
+                </div>
+              </div>
 
-                {/* Payment History List */}
-                <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--theme-card-border)' }}>
+              {/* Content */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                {/* Top Section: Add/Edit Payment Form - Matches Supplier Modal */}
+                <div 
+                  className="p-4 rounded-xl border"
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)'
+                  }}
+                >
                   <h4 
-                    className="text-xl font-bold mb-4"
-                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {editingPayment ? 'دەستکاری پارەدان' : 'زیادکردنی پارەدان'}
+                  </h4>
+                  <form onSubmit={editingPayment ? handleUpdatePayment : handleAddPayment} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Amount Input - Matches Supplier Modal */}
+                      <div>
+                        <label 
+                          className="block text-sm mb-1"
+                          style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          بڕی پارە (IQD)
+                        </label>
+                        <input
+                          type="number"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                          placeholder="0"
+                          required
+                          className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                          style={{ 
+                            background: 'rgba(0, 0, 0, 0.3)',
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-uni-salar)'
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Date Input - Matches Supplier Modal */}
+                      <div>
+                        <label 
+                          className="block text-sm mb-1"
+                          style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          بەروار
+                        </label>
+                        <input
+                          type="date"
+                          value={paymentForm.date}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                          required
+                          className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                          style={{ 
+                            background: 'rgba(0, 0, 0, 0.3)',
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-uni-salar)'
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Note Input - Matches Supplier Modal */}
+                      <div>
+                        <label 
+                          className="block text-sm mb-1"
+                          style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}
+                        >
+                          تێبینی
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm.note}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, note: e.target.value })}
+                          placeholder="تێبینی..."
+                          className="w-full px-3 py-2 rounded-lg border outline-none focus:ring-2"
+                          style={{ 
+                            background: 'rgba(0, 0, 0, 0.3)',
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-uni-salar)'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Submit Button - Matches Supplier Modal */}
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={submittingPayment}
+                        className="px-6 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                        style={{ 
+                          background: 'var(--theme-accent)',
+                          color: '#ffffff',
+                          fontFamily: 'var(--font-uni-salar)'
+                        }}
+                      >
+                        {submittingPayment ? '...' : editingPayment ? 'نوێکردنەوە' : 'تۆمارکردن'}
+                      </button>
+                      {editingPayment && (
+                        <button
+                          type="button"
+                          onClick={cancelEditPayment}
+                          className="px-6 py-2 rounded-lg font-semibold transition-colors"
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            fontFamily: 'var(--font-uni-salar)'
+                          }}
+                        >
+                          هەڵوەشاندنەوە
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Bottom Section: Payments List - Matches Supplier Modal */}
+                <div>
+                  <h4 
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                   >
                     لیستی پارەدانەکان
                   </h4>
-
                   {loadingPayments ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div 
-                          key={i}
-                          className="h-16 rounded-xl animate-pulse"
-                          style={{ backgroundColor: 'var(--theme-muted)' }}
-                        />
-                      ))}
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
                     </div>
-                  ) : customerPayments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
-                        هیچ پارەدانێک نییە
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
+                  ) : customerPayments.length > 0 ? (
+                    <div className="space-y-2">
                       {customerPayments.map((payment) => (
-                        <div
+                        <div 
                           key={payment.id}
-                          className="p-4 rounded-xl flex items-center justify-between"
-                          style={{ backgroundColor: 'var(--theme-muted)' }}
+                          className="flex items-center justify-between p-3 mb-2 rounded-xl"
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                          }}
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4">
-                              <div>
-                                <p 
-                                  className="font-bold text-lg"
-                                  style={{ color: '#22c55e', fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  {formatCurrency(payment.amount)}
-                                  <span className="text-sm mr-1" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
-                                </p>
-                                <p 
-                                  className="text-sm"
-                                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  {payment.date ? new Date(payment.date).toLocaleDateString('ku') : '-'}
-                                </p>
+                          <div className="flex items-center gap-4">
+                            <div className="text-center min-w-[80px]">
+                              <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بەروار</div>
+                              <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
+                                {new Date(payment.date).toLocaleDateString('ar-IQ')}
                               </div>
-                              {payment.note && (
-                                <p 
-                                  className="text-sm"
-                                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-                                >
-                                  {payment.note}
-                                </p>
-                              )}
+                            </div>
+                            <div className="text-center min-w-[100px]">
+                              <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بڕی پارە</div>
+                              <div style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>
+                                {payment.amount.toLocaleString()} د.ع
+                              </div>
+                            </div>
+                            <div className="min-w-[120px]">
+                              <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>تێبینی</div>
+                              <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-uni-salar)' }}>
+                                {payment.note || '-'}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleEditPayment(payment)}
-                              className="p-3 rounded-lg transition-colors hover:opacity-80"
-                              style={{ 
-                                backgroundColor: '#3b82f6', 
-                                color: '#ffffff',
-                                minWidth: '40px',
-                                minHeight: '40px'
-                              }}
+                              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                              title="دەستکاری"
+                              style={{ background: 'rgba(255, 255, 255, 0.1)' }}
                             >
-                              <FaEdit className="text-sm" />
+                              <FaEdit size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
                             </button>
                             <button
                               onClick={() => handleDeletePayment(payment)}
-                              className="p-3 rounded-lg transition-colors hover:opacity-80"
-                              style={{ 
-                                backgroundColor: '#ef4444', 
-                                color: '#ffffff',
-                                minWidth: '40px',
-                                minHeight: '40px'
-                              }}
+                              className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
+                              title="سڕینەوە"
+                              style={{ background: 'rgba(255, 100, 100, 0.1)' }}
                             >
-                              <FaTrash className="text-sm" />
+                              <FaTrash size={14} style={{ color: 'rgba(255, 100, 100, 0.8)' }} />
                             </button>
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : (
+                    <div 
+                      className="text-center py-8 rounded-xl"
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}
+                    >
+                      <div className="text-4xl mb-2">💰</div>
+                      <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'rgba(255, 255, 255, 0.5)' }}>
+                        هیچ پارەدانێک نەکراوە
+                      </p>
                     </div>
                   )}
                 </div>

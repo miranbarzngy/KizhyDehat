@@ -361,9 +361,6 @@ export function InvoiceTemplate({ data }: { data: any }) {
 }
 
 export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoiceId, title = 'وردەکارییەکانی پسوڵە' }: GlobalInvoiceModalProps) {
-  // Debug: Log invoice data when component renders
-  console.log('GlobalInvoiceModal - invoiceData:', invoiceData)
-  
   const invoiceRef = useRef<HTMLDivElement>(null)
   const captureRef = useRef<HTMLDivElement>(null)
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
@@ -384,7 +381,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
         if (error && error.code !== 'PGRST116') {
           console.error('Error fetching invoice settings:', error)
         }
-        console.log('GlobalInvoiceModal - Fetched settings:', data)
         setInvoiceSettings(data || null)
       } catch (error) { 
         console.error('Error fetching invoice settings:', error) 
@@ -407,7 +403,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
         qrCodeUrl: invoiceSettings?.qr_code_url || invoiceData.qrCodeUrl || '',
         thankYouNote: invoiceSettings?.thank_you_note || invoiceData.thankYouNote || ''
       }
-      console.log('GlobalInvoiceModal - Final shopName:', data.shopName)
       setCaptureData(data)
     }
   }, [isOpen, invoiceData, invoiceSettings])
@@ -418,347 +413,99 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       return
     }
     
-    // Create a print-specific window with 68mm optimized invoice
     const printWindow = window.open('', '_blank', 'width=300,height=600')
     if (!printWindow) {
       window.print()
       return
     }
     
-    // 68mm thermal printer invoice - Matched to Invoice_144 design
-    const printContent = `
-      <!DOCTYPE html>
-      <html dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <title>پسوڵە - Invoice</title>
-        <style>
-          @font-face {
-            font-family: 'UniSalar';
-            src: url('/fonts/UniSalar_F_007.otf') format('opentype');
-            font-weight: normal;
-            font-style: normal;
-          }
-          
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          @page {
-            size: 72mm auto;
-            margin: 0;
-          }
-          
-          body {
-            font-family: 'UniSalar', 'Noto Naskh Arabic', 'Segoe UI', sans-serif;
-            direction: rtl;
-            width: 68mm;
-            margin: 0;
-            padding: 2mm;
-            font-size: 8px;
-            line-height: 1.4;
-            color: #000000;
-            background: #fff;
-            font-weight: bold;
-          }
-          
-          /* Header Section - 3 Columns */
-          .header-section {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2mm;
-            padding-bottom: 2mm;
-            border-bottom: 1px dashed #eee;
-          }
-          
-          .header-col {
-            display: flex;
-            flex-direction: column;
-            gap: 1mm;
-          }
-          
-          .header-col.left { text-align: right; }
-          .header-col.center { text-align: center; }
-          .header-col.right { text-align: left; }
-          
-          .header-label {
-            font-size: 6px;
-            color: #666;
-            margin-bottom: 0.5mm;
-          }
-          
-          .header-value {
-            font-size: 7px;
-            color: #000;
-          }
-          
-          .shop-logo {
-            width: 18mm;
-            height: 18mm;
-            margin: 0 auto 1mm;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 1px solid #ddd;
-          }
-          
-          .shop-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-          
-          .shop-name {
-            font-size: 9px;
-            font-weight: bold;
-            margin-bottom: 1mm;
-          }
-          
-          .shop-info {
-            font-size: 6px;
-            color: #666;
-          }
-          
-          .payment-section {
-            text-align: center;
-            margin: 2mm 0;
-            padding: 1mm 0;
-          }
-          
-          .payment-label {
-            font-size: 6px;
-            color: #666;
-            margin-bottom: 0.5mm;
-          }
-          
-          .payment-value {
-            font-size: 8px;
-            font-weight: bold;
-          }
-          
-          .divider {
-            border-top: 1px dashed #eee;
-            margin: 2mm 0;
-          }
-          
-          /* Items Table */
-          .items-header {
-            display: flex;
-            font-size: 6px;
-            font-weight: bold;
-            padding-bottom: 1mm;
-            margin-bottom: 1mm;
-            border-bottom: 1px solid #ddd;
-          }
-          
-          .items-header .col-name { flex: 3; text-align: right; }
-          .items-header .col-unit { flex: 1; text-align: center; }
-          .items-header .col-qty { flex: 1; text-align: center; }
-          .items-header .col-price { flex: 1.5; text-align: left; }
-          
-          .item-row {
-            display: flex;
-            font-size: 7px;
-            padding: 0.5mm 0;
-          }
-          
-          .item-row .col-name { flex: 3; text-align: right; word-break: break-word; }
-          .item-row .col-unit { flex: 1; text-align: center; }
-          .item-row .col-qty { flex: 1; text-align: center; }
-          .item-row .col-price { flex: 1.5; text-align: left; font-weight: bold; }
-          
-          /* Totals */
-          .totals-section {
-            margin-top: 2mm;
-          }
-          
-          .total-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 7px;
-            margin-bottom: 1mm;
-          }
-          
-          .total-row.subtotal {
-            justify-content: flex-end;
-          }
-          
-          .total-row.discount {
-            color: #cc0000;
-            justify-content: flex-end;
-          }
-          
-          .total-row.grand-total {
-            justify-content: flex-end;
-            margin-top: 1mm;
-          }
-          
-          .grand-total-box {
-            text-align: center;
-            padding: 2mm;
-            background: #f5f5f5;
-            border-radius: 4px;
-            margin-top: 2mm;
-          }
-          
-          .grand-total-box .label {
-            font-size: 7px;
-            margin-bottom: 1mm;
-          }
-          
-          .grand-total-box .value {
-            font-size: 9px;
-            font-weight: bold;
-          }
-          
-          /* QR Code */
-          .qr-section {
-            text-align: center;
-            margin-top: 3mm;
-          }
-          
-          .qr-section img {
-            width: 18mm;
-            height: 18mm;
-            object-fit: contain;
-          }
-          
-          /* Footer */
-          .footer-thanks {
-            text-align: center;
-            font-size: 7px;
-            margin-top: 3mm;
-            color: #333;
-          }
-          
-          .footer-copyright {
-            text-align: center;
-            font-size: 5px;
-            color: #999;
-            margin-top: 2mm;
-          }
-          
-          @media print {
-            body {
-              width: 68mm !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <!-- Header Section - 3 Columns -->
-        <div class="header-section">
-          <!-- LEFT: بەرەوار, تەلەفۆن, فرۆشیار -->
-          <div class="header-col left">
-            <div>
-              <div class="header-label">بەروار</div>
-              <div class="header-value">${captureData.date || '-'} ${captureData.time || ''}</div>
-            </div>
-            ${captureData.customerPhone ? `
-            <div>
-              <div class="header-label">تەلەفۆن</div>
-              <div class="header-value">${toKurdishDigits(captureData.customerPhone)}</div>
-            </div>
-            ` : ''}
-            <div>
-              <div class="header-label">فرۆشیار</div>
-              <div class="header-value">${captureData.profiles?.name || captureData.seller_name || captureData.sold_by || captureData.sellerName || 'کارمەند'}</div>
-            </div>
-          </div>
-          
-          <!-- CENTER: Logo + Shop Name + Address/Phone -->
-          <div class="header-col center">
-            ${captureData.shopLogo ? `
-              <div class="shop-logo">
-                <img src="${captureData.shopLogo}" alt="${captureData.shopName || 'فرۆشگا'}" />
-              </div>
-            ` : ''}
-            <div class="shop-name">${captureData.shopName || 'فرۆشگای کوردستان'}</div>
-            ${captureData.shopAddress ? `<div class="shop-info">${captureData.shopAddress}</div>` : ''}
-            ${captureData.shopPhone ? `<div class="shop-info">${toKurdishDigits(captureData.shopPhone)}</div>` : ''}
-          </div>
-          
-          <!-- RIGHT: ژمارەی پسوڵە, کڕیار -->
-          <div class="header-col right">
-            <div>
-              <div class="header-label">ژمارەی پسوڵە</div>
-              <div class="header-value" style="font-size: 9px;">${captureData.invoiceNumber && captureData.invoiceNumber > 0 ? '#' + toKurdishDigits(captureData.invoiceNumber) : 'پسوڵەی کاتی'}</div>
-            </div>
-            <div>
-              <div class="header-label">کڕیار</div>
-              <div class="header-value">${captureData.customerName || 'نەناسراو'}</div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Payment Method -->
-        <div class="payment-section">
-          <div class="payment-label">شێوازی پارەدان</div>
-          <div class="payment-value">${getPaymentStatus(captureData)}</div>
-        </div>
-        
-        <div class="divider"></div>
-        
-        <!-- Items Header -->
-        <div class="items-header">
-          <div class="col-name">ناوی کاڵا</div>
-          <div class="col-unit">یەکە</div>
-          <div class="col-qty">بڕ</div>
-          <div class="col-price">نرخ</div>
-        </div>
-        
-        <!-- Items List -->
-        <div class="items-list">
-          ${getItemsHtmlNew(captureData)}
-        </div>
-        
-        <div class="divider"></div>
-        
-        <!-- Totals -->
-        <div class="totals-section">
-          <div class="total-row subtotal">
-            <span>کۆی نرخ:</span>
-            <span style="margin-right: 3mm;">${toKurdishDigits(formatCurrency(captureData.subtotal || 0))} د.ع</span>
-          </div>
-          ${captureData.discount > 0 ? `
-            <div class="total-row discount">
-              <span>داشکاندن:</span>
-              <span style="margin-right: 3mm;">-${toKurdishDigits(formatCurrency(captureData.discount || 0))} د.ع</span>
-            </div>
-          ` : ''}
-          
-          <div class="grand-total-box">
-            <div class="label">کۆی گشتی</div>
-            <div class="value">${toKurdishDigits(formatCurrency(captureData.total || 0))} د.ع</div>
-          </div>
-        </div>
-        
-        <!-- QR Code -->
-        ${captureData.qrCodeUrl ? `
-          <div class="qr-section">
-            <img src="${captureData.qrCodeUrl}" alt="QR" />
-          </div>
-        ` : ''}
-        
-        <!-- Footer -->
-        <div class="footer-thanks">
-          ${captureData.thankYouNote || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین'}
-        </div>
-        <div class="footer-copyright">
-          گەشەپێدانی سیستەم لە لایەن Click Group<br />
-          07701466787
-        </div>
-      </body>
-      </html>
-    `
+    const printContent = `<!DOCTYPE html>
+<html dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>پسوڵە - Invoice</title>
+  <style>
+    @font-face { font-family: 'UniSalar'; src: url('/fonts/UniSalar_F_007.otf') format('opentype'); }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: 72mm auto; margin: 0; }
+    body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0; padding: 2mm; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
+    .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #eee; }
+    .header-col { display: flex; flex-direction: column; gap: 1mm; }
+    .header-col.left { text-align: right; }
+    .header-col.center { text-align: center; }
+    .header-col.right { text-align: left; }
+    .header-label { font-size: 6px; color: #666; margin-bottom: 0.5mm; }
+    .header-value { font-size: 7px; color: #000; }
+    .shop-logo { width: 18mm; height: 18mm; margin: 0 auto 1mm; border-radius: 50%; overflow: hidden; border: 1px solid #ddd; }
+    .shop-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .shop-name { font-size: 9px; font-weight: bold; margin-bottom: 1mm; }
+    .shop-info { font-size: 6px; color: #666; }
+    .payment-section { text-align: center; margin: 2mm 0; padding: 1mm 0; }
+    .payment-label { font-size: 6px; color: #666; margin-bottom: 0.5mm; }
+    .payment-value { font-size: 8px; font-weight: bold; }
+    .divider { border-top: 1px dashed #eee; margin: 2mm 0; }
+    .items-header { display: flex; font-size: 6px; font-weight: bold; padding-bottom: 1mm; margin-bottom: 1mm; border-bottom: 1px solid #ddd; }
+    .items-header .col-name { flex: 3; text-align: right; }
+    .items-header .col-unit { flex: 1; text-align: center; }
+    .items-header .col-qty { flex: 1; text-align: center; }
+    .items-header .col-price { flex: 1.5; text-align: left; }
+    .item-row { display: flex; font-size: 7px; padding: 0.5mm 0; }
+    .item-row .col-name { flex: 3; text-align: right; word-break: break-word; }
+    .item-row .col-unit { flex: 1; text-align: center; }
+    .item-row .col-qty { flex: 1; text-align: center; }
+    .item-row .col-price { flex: 1.5; text-align: left; font-weight: bold; }
+    .totals-section { margin-top: 2mm; }
+    .total-row { display: flex; justify-content: space-between; font-size: 7px; margin-bottom: 1mm; }
+    .total-row.subtotal { justify-content: flex-end; }
+    .total-row.discount { color: #cc0000; justify-content: flex-end; }
+    .total-row.grand-total { justify-content: flex-end; margin-top: 1mm; }
+    .grand-total-box { text-align: center; padding: 2mm; background: #f5f5f5; border-radius: 4px; margin-top: 2mm; }
+    .grand-total-box .label { font-size: 7px; margin-bottom: 1mm; }
+    .grand-total-box .value { font-size: 9px; font-weight: bold; }
+    .qr-section { text-align: center; margin-top: 3mm; }
+    .qr-section img { width: 18mm; height: 18mm; object-fit: contain; }
+    .footer-thanks { text-align: center; font-size: 7px; margin-top: 3mm; color: #333; }
+    .footer-copyright { text-align: center; font-size: 5px; color: #999; margin-top: 2mm; }
+    @media print { body { width: 68mm !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <div class="header-section">
+    <div class="header-col left">
+      <div><div class="header-label">بەروار</div><div class="header-value">${captureData.date || '-'} ${captureData.time || ''}</div></div>
+      ${captureData.customerPhone ? `<div><div class="header-label">تەلەفۆن</div><div class="header-value">${toKurdishDigits(captureData.customerPhone)}</div></div>` : ''}
+      <div><div class="header-label">فرۆشیار</div><div class="header-value">${captureData.profiles?.name || captureData.seller_name || captureData.sold_by || captureData.sellerName || 'کارمەند'}</div></div>
+    </div>
+    <div class="header-col center">
+      ${captureData.shopLogo ? `<div class="shop-logo"><img src="${captureData.shopLogo}" alt="${captureData.shopName || 'فرۆشگا'}" /></div>` : ''}
+      <div class="shop-name">${captureData.shopName || 'فرۆشگای کوردستان'}</div>
+      ${captureData.shopAddress ? `<div class="shop-info">${captureData.shopAddress}</div>` : ''}
+      ${captureData.shopPhone ? `<div class="shop-info">${toKurdishDigits(captureData.shopPhone)}</div>` : ''}
+    </div>
+    <div class="header-col right">
+      <div><div class="header-label">ژمارەی پسوڵە</div><div class="header-value" style="font-size: 9px;">${captureData.invoiceNumber && captureData.invoiceNumber > 0 ? '#' + toKurdishDigits(captureData.invoiceNumber) : 'پسوڵەی کاتی'}</div></div>
+      <div><div class="header-label">کڕیار</div><div class="header-value">${captureData.customerName || 'نەناسراو'}</div></div>
+    </div>
+  </div>
+  <div class="payment-section"><div class="payment-label">شێوازی پارەدان</div><div class="payment-value">${getPaymentStatus(captureData)}</div></div>
+  <div class="divider"></div>
+  <div class="items-header"><div class="col-name">ناوی کاڵا</div><div class="col-unit">یەکە</div><div class="col-qty">بڕ</div><div class="col-price">نرخ</div></div>
+  <div class="items-list">${getItemsHtmlNew(captureData)}</div>
+  <div class="divider"></div>
+  <div class="totals-section">
+    <div class="total-row subtotal"><span>کۆی نرخ:</span><span style="margin-right: 3mm;">${toKurdishDigits(formatCurrency(captureData.subtotal || 0))} د.ع</span></div>
+    ${captureData.discount > 0 ? `<div class="total-row discount"><span>داشکاندن:</span><span style="margin-right: 3mm;">-${toKurdishDigits(formatCurrency(captureData.discount || 0))} د.ع</span></div>` : ''}
+    <div class="grand-total-box"><div class="label">کۆی گشتی</div><div class="value">${toKurdishDigits(formatCurrency(captureData.total || 0))} د.ع</div></div>
+  </div>
+  ${captureData.qrCodeUrl ? `<div class="qr-section"><img src="${captureData.qrCodeUrl}" alt="QR" /></div>` : ''}
+  <div class="footer-thanks">${captureData.thankYouNote || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین'}</div>
+  <div class="footer-copyright">گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
+</body>
+</html>`
     
     printWindow.document.write(printContent)
     printWindow.document.close()
     
-    // Wait for content to load then print
     printWindow.onload = () => {
       setTimeout(() => {
         printWindow.focus()
@@ -768,7 +515,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }
   }
 
-  // Helper function to get payment status text
   const getPaymentStatus = (data: any) => {
     switch (data?.paymentMethod) {
       case 'cash': return 'نەختینە'
@@ -779,30 +525,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }
   }
 
-  // Helper function to generate items HTML - Use item_name from sale_items directly, fallback to 'کاڵای بێ ناو'
-  const getItemsHtml = (data: any) => {
-    const items = data?.sale_items || data?.invoice_items || data?.items || []
-    if (!items || items.length === 0) {
-      return '<div style="text-align: center; font-size: 8px; color: #666;">داتا بوونی نییە</div>'
-    }
-    
-    return items.map((item: any) => {
-      const name = item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو'
-      const qty = toKurdishDigits(item?.quantity || item?.qty || item?.amount || 0)
-      const unit = item?.unit || item?.product_unit || 'دانە'
-      const total = toKurdishDigits(formatCurrency(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0)))
-      
-      return `
-        <div class="item-row">
-          <div class="col-name">${name}</div>
-          <div class="col-qty">${qty} ${unit}</div>
-          <div class="col-price">${total}</div>
-        </div>
-      `
-    }).join('')
-  }
-
-  // Helper function to generate items HTML with 4 columns (name, unit, qty, price) - Use item_name from sale_items directly
   const getItemsHtmlNew = (data: any) => {
     const items = data?.sale_items || data?.invoice_items || data?.items || []
     if (!items || items.length === 0) {
@@ -815,14 +537,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       const unit = item?.unit || item?.product_unit || 'دانە'
       const total = toKurdishDigits(formatCurrency(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0)))
       
-      return `
-        <div class="item-row">
-          <div class="col-name">${name}</div>
-          <div class="col-unit">${unit}</div>
-          <div class="col-qty">${qty}</div>
-          <div class="col-price">${total}</div>
-        </div>
-      `
+      return `<div class="item-row"><div class="col-name">${name}</div><div class="col-unit">${unit}</div><div class="col-qty">${qty}</div><div class="col-price">${total}</div></div>`
     }).join('')
   }
 
@@ -864,7 +579,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
 
   if (!isOpen || !invoiceData) return null
 
-  // Use a stable key - only change when invoiceId changes
   const modalKey = `invoice-modal-${invoiceId || 'default'}`
 
   return (
@@ -872,7 +586,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       {isOpen && (
         <motion.div key={modalKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -888,7 +601,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
               </button>
             </div>
             
-            {/* Invoice Preview */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6" style={{ maxHeight: 'calc(95vh - 180px)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
               <div className="invoice-preview-wrapper" style={{ width: '100%', maxWidth: '700px', backgroundColor: 'white' }}>
                 <style jsx>{`
@@ -905,7 +617,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
               </div>
             </div>
             
-            {/* Footer Buttons */}
             <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 md:p-6 print:hidden">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-right order-2 sm:order-1">
@@ -931,7 +642,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
         </motion.div>
       )}
       
-      {/* Hidden Capture Area */}
       <div ref={captureRef} id="invoice-capture-area" style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -9999, display: 'none', backgroundColor: 'white' }}>
         {captureData && (
           <div style={{ fontFamily: "'Uni Salar', 'var(--font-uni-salar)', sans-serif", direction: 'rtl', width: '800px', minHeight: '1000px', backgroundColor: 'white', padding: '40px', boxSizing: 'border-box', lineHeight: '1.6', fontSize: '18px' }}>
@@ -943,19 +653,28 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   )
 }
 
+// FIXED: buildInvoiceData function - Correct discount calculation
 export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_number?: number; total: number; date: string; payment_method?: string }, settings?: any): any {
   const items = (saleData?.sale_items || []).map((item: any) => ({
-    // Use item_name directly from sale_items table - no join with products needed
-    // Fallback to 'کاڵای بێ ناو' (Unnamed Item) if item_name is missing
     name: item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو',
     unit: item?.products?.unit || item?.product_unit || item?.unit || 'دانە',
     quantity: item?.quantity || item?.qty || 0,
     price: item?.price || item?.product_price || 0,
     total: item?.total || (item?.price || item?.product_price || 0) * (item?.quantity || item?.qty || 0)
   }))
-  const subtotal = items.reduce((sum: number, item: any) => sum + item.total, 0) + (saleData?.discount_amount || 0)
+  
+  // FIX: Subtotal should be the sum of item totals WITHOUT adding discount
+  // Formula: Subtotal = Sum(Item Totals)
+  const subtotal = items.reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0)
+  
+  // FIX: Total should be Subtotal - Discount
+  // Formula: Total = Subtotal - Discount
+  const discountAmount = Number(saleData?.discount_amount) || 0
+  const total = subtotal - discountAmount
+  
   // Format time in 12-hour format with Kurdish numerals
   const formattedTime = formatTimeKurdish(invoice.date || new Date().toISOString())
+  
   return {
     invoiceNumber: invoice.invoice_number || 0,
     customerName: saleData?.customers?.name || saleData?.customer_name || 'نەناسراو',
@@ -967,8 +686,8 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',
     items,
     subtotal,
-    discount: saleData?.discount_amount || 0,
-    total: invoice.total,
+    discount: discountAmount,
+    total,
     shopName: settings?.shop_name || 'فرۆشگای کوردستان',
     shopPhone: settings?.shop_phone || '',
     shopAddress: settings?.shop_address || '',

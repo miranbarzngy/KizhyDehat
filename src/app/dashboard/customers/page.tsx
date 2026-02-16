@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
+import { FaDollarSign } from 'react-icons/fa'
 
 interface Customer {
   id: string
@@ -96,6 +97,18 @@ export default function CustomersPage() {
   
   // Use callback ref to avoid the ref object error
   let fileInputRef: HTMLInputElement | null = null
+  
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [customerPayments, setCustomerPayments] = useState<any[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
+  const [submittingPayment, setSubmittingPayment] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    note: ''
+  })
+  const [editingPayment, setEditingPayment] = useState<any>(null)
   
   // Handle add customer form submission
   const handleAddCustomer = async () => {
@@ -487,6 +500,187 @@ export default function CustomersPage() {
     }
   }
 
+  // Fetch customer payments for the payment modal
+  const fetchCustomerPayments = async (customerId: string) => {
+    setLoadingPayments(true)
+    if (!supabase) {
+      setLoadingPayments(false)
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from('customer_payments')
+        .select('*')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setCustomerPayments(data || [])
+    } catch (error) {
+      console.error('Error fetching customer payments:', error)
+      setCustomerPayments([])
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
+  // Handle adding a new payment
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCustomer || !paymentForm.amount || !paymentForm.date) {
+      alert('تکایە هەموو زانیارییە پێویستەکان پڕبکەرەوە')
+      return
+    }
+    
+    const amount = parseFloat(paymentForm.amount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('تکایە بڕی پارە بە دروستی بنووسە')
+      return
+    }
+
+    setSubmittingPayment(true)
+    try {
+      const response = await fetch('/api/customer-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: selectedCustomer.id,
+          amount: amount,
+          date: paymentForm.date,
+          note: paymentForm.note || ''
+        })
+      })
+      const result = await response.json()
+      
+      if (!response.ok || !result.success) {
+        alert(result.error || 'هەڵە لە تۆمارکردن')
+        return
+      }
+
+      // Refresh payments
+      fetchCustomerPayments(selectedCustomer.id)
+      
+      // Update customer debt in UI
+      const updatedCustomer = { ...selectedCustomer, total_debt: result.newDebt }
+      setSelectedCustomer(updatedCustomer)
+      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c))
+      
+      // Reset form
+      setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+      alert('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
+    } catch (error) {
+      console.error('Error adding payment:', error)
+      alert('هەڵە لە تۆمارکردن')
+    } finally {
+      setSubmittingPayment(false)
+    }
+  }
+
+  // Handle updating a payment
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCustomer || !editingPayment || !paymentForm.amount || !paymentForm.date) return
+
+    setSubmittingPayment(true)
+    try {
+      const response = await fetch('/api/customer-payments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingPayment.id,
+          customer_id: selectedCustomer.id,
+          amount: parseFloat(paymentForm.amount),
+          date: paymentForm.date,
+          note: paymentForm.note
+        })
+      })
+      const result = await response.json()
+      
+      if (!response.ok) {
+        alert(result.error || 'هەڵە لە نوێکردنەوە')
+        return
+      }
+
+      // Refresh payments
+      fetchCustomerPayments(selectedCustomer.id)
+      
+      // Update customer debt
+      if (result.newDebt !== undefined) {
+        const updatedCustomer = { ...selectedCustomer, total_debt: result.newDebt }
+        setSelectedCustomer(updatedCustomer)
+        setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c))
+      }
+      
+      // Reset form
+      setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+      setEditingPayment(null)
+    } catch (error) {
+      console.error('Error updating payment:', error)
+      alert('هەڵە لە نوێکردنەوە')
+    } finally {
+      setSubmittingPayment(false)
+    }
+  }
+
+  // Handle deleting a payment
+  const handleDeletePayment = async (payment: any) => {
+    if (!selectedCustomer) return
+    
+    const confirmed = window.confirm('دڵنیایت لە سڕینەوەی ئەم پارەدانە؟')
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/customer-payments?id=${payment.id}&customer_id=${selectedCustomer.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'هەڵە لە سڕینەوە' }))
+        alert(errorData.error || 'هەڵە لە سڕینەوە')
+        return
+      }
+
+      const result = await response.json()
+      
+      // Refresh payments
+      fetchCustomerPayments(selectedCustomer.id)
+      
+      // Update customer debt
+      if (result.newDebt !== undefined) {
+        const updatedCustomer = { ...selectedCustomer, total_debt: result.newDebt }
+        setSelectedCustomer(updatedCustomer)
+        setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c))
+      }
+    } catch (error) {
+      console.error('Error deleting payment:', error)
+      alert('هەڵە لە سڕینەوە')
+    }
+  }
+
+  // Edit a payment
+  const handleEditPayment = (payment: any) => {
+    setEditingPayment(payment)
+    setPaymentForm({
+      amount: payment.amount.toString(),
+      date: payment.date,
+      note: payment.note || ''
+    })
+  }
+
+  // Cancel edit payment
+  const cancelEditPayment = () => {
+    setEditingPayment(null)
+    setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+  }
+
+  // Close payment modal
+  const closePaymentModal = () => {
+    setShowPaymentModal(false)
+    setCustomerPayments([])
+    setEditingPayment(null)
+    setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
+  }
+
   const filteredCustomers = customers.filter(c => 
     !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone1.includes(searchTerm)
   )
@@ -736,7 +930,12 @@ export default function CustomersPage() {
                       <span className="font-semibold">سڕینەوە</span>
                     </button>
                     <button
-                      onClick={() => alert('پارەدانەوەی قەرز')}
+                      onClick={() => {
+                        if (selectedCustomer) {
+                          setShowPaymentModal(true)
+                          fetchCustomerPayments(selectedCustomer.id)
+                        }
+                      }}
                       disabled={selectedCustomer.total_debt <= 0}
                       className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ 
@@ -1206,6 +1405,311 @@ export default function CustomersPage() {
                       <span className="text-lg">{isEditing ? 'نوێکردنەوە' : 'زیادکردن'}</span>
                     )}
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Customer Payment Modal */}
+      <AnimatePresence>
+        {showPaymentModal && selectedCustomer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center p-4 z-50"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
+            onClick={closePaymentModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)',
+                borderWidth: '1px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div 
+                className="p-6 border-b flex items-center justify-between"
+                style={{ borderColor: 'var(--theme-card-border)' }}
+              >
+                <div>
+                  <h3 
+                    className="text-2xl font-bold"
+                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    پارەدانەوەی قەرز
+                  </h3>
+                  <p 
+                    className="text-lg mt-1"
+                    style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    {selectedCustomer.name}
+                  </p>
+                </div>
+                <button
+                  onClick={closePaymentModal}
+                  className="p-3 rounded-xl transition-colors hover:opacity-80"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)',
+                    color: 'var(--theme-secondary)',
+                    minWidth: '44px',
+                    minHeight: '44px'
+                  }}
+                >
+                  <FaTimes className="text-xl" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto flex-1">
+                {/* Current Debt Display */}
+                <div 
+                  className="mb-6 p-6 rounded-2xl"
+                  style={{ backgroundColor: 'var(--theme-muted)' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p 
+                        className="text-lg"
+                        style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        قەرزی ئێستا
+                      </p>
+                      <p 
+                        className="text-4xl font-bold mt-2"
+                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'Inter' }}
+                      >
+                        {formatCurrency(selectedCustomer.total_debt)}
+                        <span className="text-lg mr-2" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
+                      </p>
+                    </div>
+                    <div 
+                      className="w-16 h-16 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: selectedCustomer.total_debt > 0 ? '#fee2e2' : '#dcfce7' }}
+                    >
+                      <FaDollarSign 
+                        className="text-3xl" 
+                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e' }} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Form */}
+                <form onSubmit={editingPayment ? handleUpdatePayment : handleAddPayment}>
+                  <div className="space-y-4 mb-6">
+                    {/* Amount Field */}
+                    <div>
+                      <label 
+                        className="block text-sm font-medium mb-2"
+                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        بڕی پارە (دینار) *
+                      </label>
+                      <input
+                        type="number"
+                        value={paymentForm.amount}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                        placeholder="بڕی پارەکە بنووسە"
+                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none text-left"
+                        dir="ltr"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px',
+                          fontSize: '1.25rem'
+                        }}
+                      />
+                    </div>
+
+                    {/* Date Field */}
+                    <div>
+                      <label 
+                        className="block text-sm font-medium mb-2"
+                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        بەروار *
+                      </label>
+                      <input
+                        type="date"
+                        value={paymentForm.date}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, date: e.target.value }))}
+                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Note Field */}
+                    <div>
+                      <label 
+                        className="block text-sm font-medium mb-2"
+                        style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        تێبینی
+                      </label>
+                      <textarea
+                        value={paymentForm.note}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, note: e.target.value }))}
+                        placeholder="تێبینی هەبێت..."
+                        rows={3}
+                        className="w-full px-4 py-4 rounded-xl border transition-all focus:ring-2 outline-none resize-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '100px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Form Buttons */}
+                  <div className="flex gap-4">
+                    {editingPayment && (
+                      <button
+                        type="button"
+                        onClick={cancelEditPayment}
+                        className="px-6 py-4 rounded-xl transition-all hover:opacity-80 font-semibold"
+                        style={{ 
+                          backgroundColor: 'var(--theme-muted)', 
+                          color: 'var(--theme-secondary)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '52px'
+                        }}
+                      >
+                        پاشگەزبوونەوە
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={submittingPayment || !paymentForm.amount || !paymentForm.date}
+                      className="flex-1 px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:opacity-90 disabled:opacity-50"
+                      style={{ 
+                        background: 'var(--theme-accent)', 
+                        color: '#ffffff',
+                        fontFamily: 'var(--font-uni-salar)',
+                        minHeight: '52px'
+                      }}
+                    >
+                      {submittingPayment ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>تکایە...</span>
+                        </>
+                      ) : (
+                        <span className="text-lg">{editingPayment ? 'نوێکردنەوە' : 'تۆمارکردن'}</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Payment History List */}
+                <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--theme-card-border)' }}>
+                  <h4 
+                    className="text-xl font-bold mb-4"
+                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    لیستی پارەدانەکان
+                  </h4>
+
+                  {loadingPayments ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div 
+                          key={i}
+                          className="h-16 rounded-xl animate-pulse"
+                          style={{ backgroundColor: 'var(--theme-muted)' }}
+                        />
+                      ))}
+                    </div>
+                  ) : customerPayments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
+                        هیچ پارەدانێک نییە
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {customerPayments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="p-4 rounded-xl flex items-center justify-between"
+                          style={{ backgroundColor: 'var(--theme-muted)' }}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <p 
+                                  className="font-bold text-lg"
+                                  style={{ color: '#22c55e', fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  {formatCurrency(payment.amount)}
+                                  <span className="text-sm mr-1" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
+                                </p>
+                                <p 
+                                  className="text-sm"
+                                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  {payment.date ? new Date(payment.date).toLocaleDateString('ku') : '-'}
+                                </p>
+                              </div>
+                              {payment.note && (
+                                <p 
+                                  className="text-sm"
+                                  style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  {payment.note}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditPayment(payment)}
+                              className="p-3 rounded-lg transition-colors hover:opacity-80"
+                              style={{ 
+                                backgroundColor: '#3b82f6', 
+                                color: '#ffffff',
+                                minWidth: '40px',
+                                minHeight: '40px'
+                              }}
+                            >
+                              <FaEdit className="text-sm" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(payment)}
+                              className="p-3 rounded-lg transition-colors hover:opacity-80"
+                              style={{ 
+                                backgroundColor: '#ef4444', 
+                                color: '#ffffff',
+                                minWidth: '40px',
+                                minHeight: '40px'
+                              }}
+                            >
+                              <FaTrash className="text-sm" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

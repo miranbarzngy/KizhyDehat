@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
+import { FaPlus, FaPhone, FaEdit, FaTrash, FaMoneyBillWave, FaSearch, FaTimes, FaUserPlus, FaFileInvoice, FaPrint, FaEye } from 'react-icons/fa'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 
 interface Customer {
   id: string
@@ -24,6 +27,28 @@ interface PaymentHistory {
   type: 'sale' | 'payment'
   payment_method?: string
   sale_id?: string
+  invoice_number?: number
+  subtotal?: number
+  discount_amount?: number
+}
+
+interface InvoiceSettings {
+  id: string
+  shop_name: string
+  shop_phone: string
+  shop_address: string
+  shop_logo: string
+  thank_you_note: string
+  qr_code_url: string
+}
+
+interface SaleItem {
+  id: string
+  item_name: string
+  quantity: number
+  unit: string
+  price: number
+  total: number
 }
 
 const CustomerImage = ({ customer, className = "" }: { customer: Customer, className?: string }) => (
@@ -52,6 +77,73 @@ export default function CustomersPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const [newCustomer, setNewCustomer] = useState({ name: '', phone1: '', phone2: '', location: '', image: null as File | null })
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // Use global invoice modal context
+  const { openModal } = useGlobalInvoiceModal()
+  
+  // Invoice data state for building invoice
+  const [invoiceItems, setInvoiceItems] = useState<SaleItem[]>([])
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
+
+  // Kurdish numeral formatter
+  const toKurdishDigits = (value: any): string => {
+    if (value === null || value === undefined) return '٠'
+    const str = String(value)
+    const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
+    return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
+  }
+
+  // Handle clicking on a history item to view invoice
+  const handleViewInvoice = async (history: PaymentHistory) => {
+    if (!supabase) {
+      // Mock data for demo
+      const mockItems = [
+        { id: '1', item_name: 'کاڵای ١', quantity: 2, unit: 'دانە', price: 10000, total: 20000 },
+        { id: '2', item_name: 'کاڵای ٢', quantity: 1, unit: 'دانە', price: 15000, total: 15000 },
+      ]
+      const mockSettings = {
+        shop_name: 'فرۆشگای کوردستان',
+        shop_phone: '07501234567',
+        shop_address: 'هەولێر',
+      }
+      const invoiceData = buildInvoiceData(
+        { sale_items: mockItems, customers: selectedCustomer },
+        { id: history.id, invoice_number: 0, total: history.amount, date: history.date, payment_method: history.payment_method },
+        mockSettings
+      )
+      openModal(invoiceData, history.id, 'پسوڵە')
+      return
+    }
+    
+    try {
+      // Fetch sale items
+      const { data: itemsData } = await supabase
+        .from('sale_items')
+        .select('id, item_name, quantity, unit, price, total')
+        .eq('sale_id', history.id)
+
+      // Fetch invoice settings
+      const { data: settingsData } = await supabase
+        .from('invoice_settings')
+        .select('*')
+        .single()
+
+      const invoiceData = buildInvoiceData(
+        { sale_items: itemsData || [], customers: selectedCustomer },
+        { id: history.id, invoice_number: history.invoice_number, total: history.amount, date: history.date, payment_method: history.payment_method },
+        settingsData || undefined
+      )
+      
+      openModal(invoiceData, history.id, 'پسوڵە')
+    } catch (error) {
+      console.error('Error fetching invoice data:', error)
+    }
+  }
+
+  // Handle print
+  const handlePrint = () => {
+    window.print()
+  }
 
   useEffect(() => { fetchCustomers() }, [])
 
@@ -162,7 +254,55 @@ export default function CustomersPage() {
               borderColor: 'var(--theme-card-border)'
             }}
           >
-            <div className="flex items-center justify-between mb-6">
+            {/* New Customer Button - Touch Friendly */}
+            <button
+              onClick={() => setShowAddCustomer(true)}
+              className="w-full mb-6 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold text-lg transition-all hover:opacity-90 active:scale-[0.98] shadow-lg"
+              style={{ 
+                backgroundColor: 'var(--theme-accent)',
+                color: '#ffffff',
+                fontFamily: 'var(--font-uni-salar)',
+                minHeight: '52px'
+              }}
+            >
+              <FaPlus className="text-xl" />
+              <span>زیادکردنی کڕیار</span>
+            </button>
+
+            {/* Search Bar - Touch Friendly */}
+            <div className="mb-6 relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="گەڕان بەناوی یان تەلەفۆن..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-5 py-4 pr-14 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)',
+                    borderColor: 'var(--theme-card-border)',
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)',
+                    minHeight: '52px'
+                  }}
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {searchTerm ? (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="p-2 rounded-full hover:bg-red-100 active:bg-red-200 transition-colors"
+                      style={{ minWidth: '44px', minHeight: '44px' }}
+                    >
+                      <FaTimes className="text-red-500 text-lg" />
+                    </button>
+                  ) : (
+                    <FaSearch className="text-gray-400 text-lg" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-4">
               <h2 
                 className="text-xl font-semibold"
                 style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
@@ -172,43 +312,28 @@ export default function CustomersPage() {
               <span style={{ color: 'var(--theme-secondary)' }}>{filteredCustomers.length}</span>
             </div>
 
-            <div className="mb-6 relative">
-              <input
-                type="text"
-                placeholder="گەڕان..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all"
-                style={{ 
-                  backgroundColor: 'var(--theme-muted)',
-                  borderColor: 'var(--theme-card-border)',
-                  color: 'var(--theme-foreground)',
-                  fontFamily: 'var(--font-uni-salar)'
-                }}
-              />
-            </div>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pb-4">
               {filteredCustomers.map((customer, index) => (
                 <motion.div
                   key={customer.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`p-3 rounded-xl cursor-pointer transition-all ${
+                  className={`rounded-xl cursor-pointer transition-all active:scale-[0.98] ${
                     selectedCustomer?.id === customer.id ? '' : ''
                   }`}
                   style={{ 
                     backgroundColor: selectedCustomer?.id === customer.id ? 'var(--theme-accent)' : 'var(--theme-muted)',
-                    borderColor: 'var(--theme-card-border)'
+                    borderColor: 'var(--theme-card-border)',
+                    minHeight: '72px'
                   }}
                   onClick={() => setSelectedCustomer(customer)}
                 >
-                  <div className="flex items-center space-x-3">
-                    <CustomerImage customer={customer} className="w-10 h-10" />
-                    <div className="flex-1">
+                  <div className="flex items-center p-4 gap-3">
+                    <CustomerImage customer={customer} className="w-12 h-12 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <h3 
-                        className="font-medium"
+                        className="font-medium text-lg truncate"
                         style={{ 
                           color: selectedCustomer?.id === customer.id ? '#ffffff' : 'var(--theme-foreground)',
                           fontFamily: 'var(--font-uni-salar)'
@@ -217,7 +342,7 @@ export default function CustomersPage() {
                         {customer.name}
                       </h3>
                       <p 
-                        className="text-sm"
+                        className="text-base"
                         style={{ 
                           color: selectedCustomer?.id === customer.id ? 'rgba(255,255,255,0.8)' : 'var(--theme-secondary)',
                           fontFamily: 'Inter'
@@ -226,9 +351,9 @@ export default function CustomersPage() {
                         {customer.phone1}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <p 
-                        className="text-sm font-semibold"
+                        className="text-base font-bold"
                         style={{ 
                           color: selectedCustomer?.id === customer.id ? '#ffffff' : customer.total_debt > 0 ? '#ef4444' : '#22c55e',
                           fontFamily: 'Inter'
@@ -263,7 +388,7 @@ export default function CustomersPage() {
                     borderColor: 'var(--theme-card-border)'
                   }}
                 >
-                  <div className="flex items-center space-x-8">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                     <CustomerImage customer={selectedCustomer} className="w-24 h-24" />
                     <div className="flex-1">
                       <h2 
@@ -272,29 +397,84 @@ export default function CustomersPage() {
                       >
                         {selectedCustomer.name}
                       </h2>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</p>
-                          <p className="font-semibold" style={{ color: 'var(--theme-foreground)', fontFamily: 'Inter' }}>{selectedCustomer.phone1}</p>
+                          <p className="text-sm mb-1" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>تەلەفۆن</p>
+                          <a 
+                            href={`tel:${selectedCustomer.phone1}`}
+                            className="font-semibold text-lg flex items-center gap-2 p-2 -mx-2 rounded-lg hover:bg-blue-50 active:bg-blue-100 transition-colors"
+                            style={{ color: 'var(--theme-accent)', fontFamily: 'Inter' }}
+                          >
+                            <FaPhone className="text-sm" />
+                            {selectedCustomer.phone1}
+                          </a>
                         </div>
                         <div>
-                          <p className="text-sm" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</p>
-                          <p className="font-semibold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>{selectedCustomer.location || 'نەناسراو'}</p>
+                          <p className="text-sm mb-1" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>ناونیشان</p>
+                          <p className="font-semibold text-lg" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>{selectedCustomer.location || 'نەناسراو'}</p>
                         </div>
                       </div>
                     </div>
                     <div 
-                      className="text-center p-4 rounded-2xl"
+                      className="text-center p-6 rounded-2xl min-w-[160px]"
                       style={{ backgroundColor: 'var(--theme-muted)' }}
                     >
-                      <p className="text-sm mb-2" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>قەرز</p>
+                      <p className="text-lg mb-2" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>قەرز</p>
                       <p 
-                        className="text-2xl font-bold"
+                        className="text-4xl font-bold"
                         style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'Inter' }}
                       >
                         {formatCurrency(selectedCustomer.total_debt)}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Action Buttons - Touch Friendly */}
+                  <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t" style={{ borderColor: 'var(--theme-card-border)' }}>
+                    <button
+                      onClick={() => alert('دەستکاریکردنی کڕیار')}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95"
+                      style={{ 
+                        backgroundColor: '#3b82f6', 
+                        color: '#ffffff',
+                        minHeight: '80px',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      <FaEdit className="text-2xl" />
+                      <span className="font-semibold">دەستکاری</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('دڵنیایت لە سڕینەوەی ئەم کڕیارە؟')) {
+                          alert('سڕینەوە')
+                        }
+                      }}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95"
+                      style={{ 
+                        backgroundColor: '#ef4444', 
+                        color: '#ffffff',
+                        minHeight: '80px',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      <FaTrash className="text-2xl" />
+                      <span className="font-semibold">سڕینەوە</span>
+                    </button>
+                    <button
+                      onClick={() => alert('پارەدانەوەی قەرز')}
+                      disabled={selectedCustomer.total_debt <= 0}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ 
+                        backgroundColor: selectedCustomer.total_debt > 0 ? '#22c55e' : '#9ca3af', 
+                        color: '#ffffff',
+                        minHeight: '80px',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      <FaMoneyBillWave className="text-2xl" />
+                      <span className="font-semibold">پارەدان</span>
+                    </button>
                   </div>
                 </div>
 
@@ -331,14 +511,14 @@ export default function CustomersPage() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="p-4 rounded-xl border"
+                          className="p-4 rounded-xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
                           style={{ 
                             backgroundColor: 'var(--theme-muted)',
                             borderColor: 'var(--theme-card-border)'
                           }}
                         >
                           <div className="flex justify-between items-start mb-2">
-                            <div>
+                            <div className="flex-1">
                               <p 
                                 className="font-semibold"
                                 style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
@@ -352,7 +532,7 @@ export default function CustomersPage() {
                                 {history.date ? new Date(history.date).toLocaleDateString('ku') : '-'}
                               </p>
                             </div>
-                            <div className="text-right">
+                            <div className="flex flex-col items-end gap-2">
                               <p 
                                 className="font-bold"
                                 style={{ 
@@ -362,16 +542,34 @@ export default function CustomersPage() {
                               >
                                 {formatCurrency(history.amount)}
                               </p>
-                              <span 
-                                className="text-xs px-2 py-1 rounded-full"
-                                style={{ 
-                                  backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
-                                  color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
-                                  fontFamily: 'var(--font-uni-salar)'
-                                }}
-                              >
-                                {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className="text-xs px-2 py-1 rounded-full"
+                                  style={{ 
+                                    backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
+                                    color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
+                                    fontFamily: 'var(--font-uni-salar)'
+                                  }}
+                                >
+                                  {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleViewInvoice(history)
+                                  }}
+                                  className="rounded-full transition-all hover:opacity-80 active:scale-90 flex items-center justify-center"
+                                  style={{ 
+                                    backgroundColor: 'var(--theme-accent)',
+                                    color: '#ffffff',
+                                    width: '40px',
+                                    height: '40px'
+                                  }}
+                                  title="بینینی پسوڵە"
+                                >
+                                  <FaEye className="text-lg" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                           {history.note && (
@@ -407,6 +605,7 @@ export default function CustomersPage() {
           </AnimatePresence>
         </div>
       </div>
+
     </div>
   )
 }

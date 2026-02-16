@@ -864,7 +864,8 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
 
   if (!isOpen || !invoiceData) return null
 
-  const modalKey = `invoice-modal-${invoiceId || 'default'}-${Date.now()}`
+  // Use a stable key - only change when invoiceId changes
+  const modalKey = `invoice-modal-${invoiceId || 'default'}`
 
   return (
     <AnimatePresence>

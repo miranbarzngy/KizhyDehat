@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion, AnimatePresence } from 'framer-motion'
-import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
-import { FaPlus, FaPhone, FaEdit, FaTrash, FaMoneyBillWave, FaSearch, FaTimes, FaUserPlus, FaFileInvoice, FaPrint, FaEye, FaCamera } from 'react-icons/fa'
-import { uploadFile } from '@/lib/storage'
-import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import { formatCurrency } from '@/lib/numberUtils'
+import { uploadFile } from '@/lib/storage'
+import { supabase } from '@/lib/supabase'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
 
 interface Customer {
   id: string
@@ -86,7 +86,9 @@ export default function CustomersPage() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddCustomer, setShowAddCustomer] = useState(false)
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone1: '', phone2: '', location: '', image: null as File | null })
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone1: '', phone2: '', location: '', image: null as File | null, existingImage: '' })
   const [searchTerm, setSearchTerm] = useState('')
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -197,11 +199,110 @@ export default function CustomersPage() {
     }
   }
 
+  // Open edit modal with customer data
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer)
+    setNewCustomer({
+      name: customer.name,
+      phone1: customer.phone1,
+      phone2: customer.phone2 || '',
+      location: customer.location || '',
+      image: null,
+      existingImage: customer.image || ''
+    })
+    setImagePreview(customer.image || null)
+    setIsEditing(true)
+    setShowAddCustomer(true)
+  }
+
+  // Handle update customer
+  const handleUpdateCustomer = async () => {
+    if (!newCustomer.name.trim()) {
+      alert('ناو پێویستە')
+      return
+    }
+
+    if (!editingCustomer) return
+
+    setIsUploading(true)
+    try {
+      let imageUrl = editingCustomer.image || ''
+
+      // Upload new image if selected
+      if (newCustomer.image) {
+        try {
+          const uploadedUrl = await uploadFile(newCustomer.image, 'customers')
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl
+          }
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError)
+        }
+      }
+
+      if (!supabase) {
+        // Mock for demo
+        const updatedCustomer = {
+          ...editingCustomer,
+          name: newCustomer.name,
+          phone1: newCustomer.phone1,
+          phone2: newCustomer.phone2,
+          location: newCustomer.location,
+          image: imageUrl
+        }
+        setCustomers(prev => prev.map(c => c.id === editingCustomer.id ? updatedCustomer : c))
+        setSelectedCustomer(updatedCustomer)
+        setShowAddCustomer(false)
+        setIsEditing(false)
+        setEditingCustomer(null)
+        resetForm()
+        alert('کڕیارەکە نوێکرایەوە')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('customers')
+        .update({
+          name: newCustomer.name,
+          phone1: newCustomer.phone1,
+          phone2: newCustomer.phone2,
+          location: newCustomer.location,
+          image: imageUrl || null
+        })
+        .eq('id', editingCustomer.id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error updating customer:', error)
+        alert('هەڵە لە نوێکردنەوەی کڕیار')
+        return
+      }
+
+      if (data) {
+        setCustomers(prev => prev.map(c => c.id === editingCustomer.id ? data : c))
+        setSelectedCustomer(data)
+        setShowAddCustomer(false)
+        setIsEditing(false)
+        setEditingCustomer(null)
+        resetForm()
+        alert('کڕیارەکە نوێکرایەوە')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('هەڵە لە نوێکردنەوەی کڕیار')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   // Reset form when modal closes
   const resetForm = () => {
-    setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+    setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
     setImagePreview(null)
     setShowAddCustomer(false)
+    setIsEditing(false)
+    setEditingCustomer(null)
   }
 
   // Use global invoice modal context
@@ -295,6 +396,9 @@ export default function CustomersPage() {
     finally { setLoading(false) }
   }
 
+  // State for pending sales count
+  const [pendingSalesCount, setPendingSalesCount] = useState(0)
+
   const fetchPaymentHistory = async (customerId: string) => {
     // Clear previous history and show loading
     setPaymentHistory([])
@@ -305,11 +409,21 @@ export default function CustomersPage() {
       return
     }
     try {
-      // Fetch sales for this customer - include sold_by and user_id fields
+      // First, fetch pending sales count for this customer
+      const { data: pendingData } = await supabase
+        .from('sales')
+        .select('id', { count: 'exact' })
+        .eq('customer_id', customerId)
+        .eq('status', 'pending')
+      
+      setPendingSalesCount(pendingData?.length || 0)
+
+      // Fetch ONLY completed sales for the purchase history (approved/completed only)
       const { data: salesData, error: salesError } = await supabase
         .from('sales')
         .select('id, date, total, payment_method, status, created_at, discount_amount, subtotal, invoice_number, sold_by, user_id')
         .eq('customer_id', customerId)
+        .in('status', ['completed', 'approved'])  // Only approved/completed sales appear in history
         .order('created_at', { ascending: false })
 
       if (salesError) {
@@ -592,7 +706,7 @@ export default function CustomersPage() {
                   {/* Action Buttons - Touch Friendly */}
                   <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t" style={{ borderColor: 'var(--theme-card-border)' }}>
                     <button
-                      onClick={() => alert('دەستکاریکردنی کڕیار')}
+                      onClick={() => handleEditCustomer(selectedCustomer)}
                       className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95"
                       style={{ 
                         backgroundColor: '#3b82f6', 
@@ -646,7 +760,7 @@ export default function CustomersPage() {
                     borderColor: 'var(--theme-card-border)'
                   }}
                 >
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-4">
                     <h3 
                       className="text-xl font-semibold"
                       style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
@@ -659,6 +773,25 @@ export default function CustomersPage() {
                       <span style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>{sortedPaymentHistory.length}</span>
                     )}
                   </div>
+
+                  {/* Pending Sales Notice */}
+                  {pendingSalesCount > 0 && (
+                    <div 
+                      className="mb-4 p-3 rounded-xl flex items-center gap-2"
+                      style={{ 
+                        backgroundColor: 'rgb(255, 16, 16)',
+                        border: '1px solid rgb(231, 0, 0)'
+                      }}
+                    >
+                      <span style={{ color: '#f50b0b', fontFamily: 'var(--font-uni-salar)' }}>⏳</span>
+                      <span 
+                        className="text-sm"
+                        style={{ color: '#000000', fontFamily: 'var(--font-uni-salar)' }}
+                      >
+                        {toKurdishDigits(pendingSalesCount)} فرۆشتنی چاوەڕوانکراو {pendingSalesCount === 1 } 
+                      </span>
+                    </div>
+                  )}
 
                   {historyLoading ? (
                     // Skeleton Loader
@@ -845,7 +978,7 @@ export default function CustomersPage() {
                   className="text-2xl font-bold mb-6 text-center"
                   style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
                 >
-                  زیادکردنی کڕیار
+                  {isEditing ? 'دەستکاریکردنی کڕیار' : 'زیادکردنی کڕیار'}
                 </h3>
 
                 {/* Circular Image Upload */}
@@ -1052,7 +1185,7 @@ export default function CustomersPage() {
                     پاشگەزبوونەوە
                   </button>
                   <button
-                    onClick={handleAddCustomer}
+                    onClick={isEditing ? handleUpdateCustomer : handleAddCustomer}
                     disabled={isUploading}
                     className="px-10 py-4 rounded-xl font-bold flex items-center gap-3 transition-all hover:opacity-90 shadow-lg disabled:opacity-50"
                     style={{ 
@@ -1070,7 +1203,7 @@ export default function CustomersPage() {
                         <span className="text-lg">تکایە...</span>
                       </>
                     ) : (
-                      <span className="text-lg">زیادکردن</span>
+                      <span className="text-lg">{isEditing ? 'نوێکردنەوە' : 'زیادکردن'}</span>
                     )}
                   </button>
                 </div>

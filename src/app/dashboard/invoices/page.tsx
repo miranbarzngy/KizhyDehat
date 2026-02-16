@@ -4,7 +4,7 @@ import { InvoiceTemplate } from '@/components/GlobalInvoiceModal'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
-import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload } from 'react-icons/fa'
+import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload, FaFilter, FaTimes, FaSearch } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
@@ -43,6 +43,12 @@ export default function InvoicesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewLogo, setPreviewLogo] = useState<string>('')
   const [previewQr, setPreviewQr] = useState<string>('')
+  
+  // Date filter state
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
+  // Search query state
+  const [searchQuery, setSearchQuery] = useState<string>('')
   
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
@@ -174,8 +180,49 @@ export default function InvoicesPage() {
   const fetchPendingSales = async () => {
     if (!supabase) return
     try {
-      // Fetch sales with customer data
-      const { data: salesData } = await supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+      // Build query with optional date filters and search
+      let query = supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+      
+      // Apply date filters if provided
+      if (startDate) {
+        query = query.gte('created_at', startDate)
+      }
+      if (endDate) {
+        // Add one day to include the entire end date
+        const endDateObj = new Date(endDate)
+        endDateObj.setDate(endDateObj.getDate() + 1)
+        query = query.lt('created_at', endDateObj.toISOString())
+      }
+      
+      // Apply search filter if provided - search by customer name (via customers relation) or invoice number
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase()
+        // Check if search query is numeric - treat as invoice number
+        const isNumeric = /^\d+$/.test(searchQuery)
+        
+        if (isNumeric) {
+          // Search by invoice number
+          query = query.eq('invoice_number', parseInt(searchQuery))
+        } else {
+          // Search by customer name - use text search on customer_id
+          // First fetch matching customers
+          const { data: matchingCustomers } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('name', `%${searchLower}%`)
+          
+          if (matchingCustomers && matchingCustomers.length > 0) {
+            const customerIds = matchingCustomers.map(c => c.id)
+            query = query.in('customer_id', customerIds)
+          } else {
+            // No matching customers, return empty
+            setPendingSales([])
+            return
+          }
+        }
+      }
+      
+      const { data: salesData } = await query
       
       // For each sale, fetch the seller name using user_id and sold_by
       const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
@@ -190,8 +237,49 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     if (!supabase) return
     try {
-      // Fetch all sales WITH customer data
-      const { data: salesData } = await supabase.from('sales').select('*, customers(name, phone1)').order('created_at', { ascending: false })
+      // Build query with optional date filters and search
+      let query = supabase.from('sales').select('*, customers(name, phone1)').order('created_at', { ascending: false })
+      
+      // Apply date filters if provided
+      if (startDate) {
+        query = query.gte('created_at', startDate)
+      }
+      if (endDate) {
+        // Add one day to include the entire end date
+        const endDateObj = new Date(endDate)
+        endDateObj.setDate(endDateObj.getDate() + 1)
+        query = query.lt('created_at', endDateObj.toISOString())
+      }
+      
+      // Apply search filter if provided - search by customer name or invoice number
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase()
+        // Check if search query is numeric - treat as invoice number
+        const isNumeric = /^\d+$/.test(searchQuery)
+        
+        if (isNumeric) {
+          // Search by invoice number
+          query = query.eq('invoice_number', parseInt(searchQuery))
+        } else {
+          // Search by customer name - use text search
+          // First fetch matching customers
+          const { data: matchingCustomers } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('name', `%${searchLower}%`)
+          
+          if (matchingCustomers && matchingCustomers.length > 0) {
+            const customerIds = matchingCustomers.map(c => c.id)
+            query = query.in('customer_id', customerIds)
+          } else {
+            // No matching customers, return empty
+            setInvoices([])
+            return
+          }
+        }
+      }
+      
+      const { data: salesData } = await query
       
       // For each sale, fetch the seller name using user_id and sold_by
       const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
@@ -206,6 +294,32 @@ export default function InvoicesPage() {
       
       setInvoices(mappedData)
     } catch { setInvoices([]) }
+  }
+
+  // Apply filters (date + search)
+  const applyFilters = () => {
+    fetchPendingSales()
+    fetchInvoices()
+  }
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setSearchQuery('')
+    fetchPendingSales()
+    fetchInvoices()
+  }
+
+  // Handle search input change with debounce
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+  }
+
+  // Apply search when user types (debounced via button or Enter)
+  const applySearch = () => {
+    fetchPendingSales()
+    fetchInvoices()
   }
 
   const fetchInvoiceSettings = async () => {
@@ -307,6 +421,9 @@ export default function InvoicesPage() {
     thankYouNote: formData.thank_you_note
   }
 
+  // Check if any filter is active
+  const hasActiveFilters = startDate || endDate || searchQuery
+
   return (
     <div className="p-4 md:p-6 w-full">
       <div className="w-full max-w-[2800px] mx-auto">
@@ -316,6 +433,93 @@ export default function InvoicesPage() {
             <div className="flex items-center space-x-2" style={{ color: 'var(--theme-secondary)' }}>
               <FaFileInvoice style={{ color: 'var(--theme-accent)' }} />
               <span style={{ fontFamily: 'var(--font-uni-salar)' }}>{filteredInvoices.length} پسوڵە</span>
+            </div>
+          </div>
+
+          {/* Filters UI */}
+          <div className="mb-6 p-4 backdrop-blur-xl border shadow-sm rounded-2xl" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>گەڕان</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+                  placeholder="گەڕان بەناوی کڕیار یان ژمارەی پسوڵە..."
+                  className="w-full px-4 py-3 pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)', 
+                    borderColor: 'var(--theme-card-border)', 
+                    color: 'var(--theme-foreground)', 
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                />
+                <button
+                  onClick={applySearch}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors"
+                  style={{ color: 'var(--theme-accent)' }}
+                >
+                  <FaSearch />
+                </button>
+              </div>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1 w-full md:w-auto">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>لە بەرواری</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)', 
+                    borderColor: 'var(--theme-card-border)', 
+                    color: 'var(--theme-foreground)', 
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                />
+              </div>
+              <div className="flex-1 w-full md:w-auto">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>بۆ بەرواری</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  style={{ 
+                    backgroundColor: 'var(--theme-muted)', 
+                    borderColor: 'var(--theme-card-border)', 
+                    color: 'var(--theme-foreground)', 
+                    fontFamily: 'var(--font-uni-salar)'
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                <motion.button
+                  onClick={applyFilters}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  <FaFilter />
+                  <span>فلتەر بکە</span>
+                </motion.button>
+                <motion.button
+                  onClick={clearFilters}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  style={{ background: 'var(--theme-muted)', color: 'var(--theme-foreground)', borderColor: 'var(--theme-card-border)', border: '1px solid', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  <FaTimes />
+                  <span>پاککردنەوە</span>
+                </motion.button>
+              </div>
             </div>
           </div>
 
@@ -393,7 +597,6 @@ export default function InvoicesPage() {
 
           {activeTab === 'invoices' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <input type="text" placeholder="گەڕان..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full mb-6 px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)', color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }} />
               <InvoiceTable filteredInvoices={filteredInvoices} onView={handleViewInvoice} onRefund={handleRefundInvoice} />
             </motion.div>
           )}
@@ -574,7 +777,7 @@ export default function InvoicesPage() {
                           <td colSpan={10} className="px-6 py-12 text-center">
                             <div className="text-gray-500">
                               <p className="text-lg" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                                هیچ فرۆشتنێکی چاوەڕوانکراو نیە
+                                {hasActiveFilters ? 'هیچ ئەنجامێک نەدۆزرایەوە بۆ ئەم گەڕانە' : 'هیچ فرۆشتنێکی چاوەڕوانکراو نیە'}
                               </p>
                             </div>
                           </td>

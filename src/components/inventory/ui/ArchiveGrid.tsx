@@ -2,16 +2,15 @@
 
 import { Product } from '../types'
 import { motion } from 'framer-motion'
-import { FaPlus, FaTrash } from 'react-icons/fa'
+import { FaPlus } from 'react-icons/fa'
 
 interface ArchiveGridProps {
   archivedItems: Product[]
   searchTerm: string
   restoreItem: (item: Product) => void
-  confirmDelete: (item: Product) => void
 }
 
-export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem, confirmDelete }: ArchiveGridProps) {
+export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: ArchiveGridProps) {
   const filteredArchived = archivedItems.filter(item => {
     if (!searchTerm) return true
     return item.name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -46,13 +45,27 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem, co
         const totalPurchasePrice = (item.cost_per_unit || 0) * (totalSold + (item.total_amount_bought || 0))
         const realProfit = netRevenue - totalPurchasePrice
         const purchaseDate = item.added_date || item.created_at || '-'
+        // Use last_sale_date if available, otherwise fall back to updated_at or created_at
+        // This represents when the product's total_amount_bought reached 0 (sold out)
+        const soldOutDate = item.last_sale_date || item.updated_at || item.created_at || '-'
 
         return (
           <div 
             key={item.id} 
-            className="p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all"
+            className="p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
           >
-            <div className="h-32 bg-gray-200 rounded-lg mb-3 flex items-center justify-center text-4xl overflow-hidden">
+            {/* Red "تەواو بووە" Badge */}
+            <div 
+              className="absolute top-4 left-4 px-3 py-1 rounded-full text-white text-xs font-bold z-10"
+              style={{ 
+                backgroundColor: '#ef4444',
+                fontFamily: 'var(--font-uni-salar)'
+              }}
+            >
+              تەواو بووە
+            </div>
+            
+            <div className="h-32 bg-gray-200 rounded-lg mb-3 flex items-center justify-center text-4xl overflow-hidden grayscale">
               {item.image ? (
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
               ) : (
@@ -163,46 +176,57 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem, co
               </div>
             </div>
             
-            <div 
-              className="text-center py-2 mb-3 bg-gray-100/50 rounded-lg"
-            >
-              <span 
-                className="text-xs text-gray-500" 
-                style={{ fontFamily: 'var(--font-uni-salar)' }}
+            <div className="space-y-2">
+              <div 
+                className="text-center py-2 bg-gray-100/50 rounded-lg"
               >
-                بەرواری کڕین: 
-              </span>
-              <span 
-                className="text-sm font-bold text-gray-700" 
-                style={{ fontFamily: 'Inter, sans-serif' }}
+                <span 
+                  className="text-xs text-gray-500" 
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  بەرواری کڕین: 
+                </span>
+                <span 
+                  className="text-sm font-bold text-gray-700" 
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  {new Date(purchaseDate).toLocaleDateString('ku')}
+                </span>
+              </div>
+              
+              <div 
+                className="text-center py-2 bg-red-50/50 rounded-lg border border-red-100"
               >
-                {new Date(purchaseDate).toLocaleDateString('ku')}
-              </span>
+                <span 
+                  className="text-xs text-red-500" 
+                  style={{ fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  بەرواری تەواوبوون: 
+                </span>
+                <span 
+                  className="text-sm font-bold text-red-600" 
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  {new Date(soldOutDate).toLocaleDateString('ku')}
+                </span>
+              </div>
             </div>
             
-            <div className="flex justify-center space-x-2">
-              <button 
-                onClick={() => restoreItem(item)}
-                className="px-3 py-2 bg-green-100 text-green-600 rounded-lg flex items-center"
-              >
-                <FaPlus className="ml-1" />
-                <span 
-                  style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}
+            {/* Restock button - only show if total_amount_bought is 0 (can be restocked) */}
+            <div className="flex justify-center mt-4">
+              {item.total_amount_bought === 0 && (
+                <button 
+                  onClick={() => restoreItem(item)}
+                  className="px-4 py-2 bg-green-100 text-green-600 rounded-lg flex items-center"
                 >
-                  گەڕاندنەوە
-                </span>
-              </button>
-              <button 
-                onClick={() => confirmDelete(item)}
-                className="px-3 py-2 bg-red-100 text-red-600 rounded-lg flex items-center"
-              >
-                <FaTrash className="ml-1" />
-                <span 
-                  style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.8em' }}
-                >
-                  سڕینەوە
-                </span>
-              </button>
+                  <FaPlus className="ml-1" />
+                  <span 
+                    style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}
+                  >
+                    دووبارە کڕینەوە
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         )

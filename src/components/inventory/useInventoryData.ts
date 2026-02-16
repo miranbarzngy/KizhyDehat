@@ -31,6 +31,8 @@ interface UseInventoryDataReturn {
   archivedItems: Product[]
   searchTerm: string
   selectedCategory: string
+  archiveStartDate: string
+  archiveEndDate: string
   currentStep: number
   showStockEntry: boolean
   editingItem: Product | null
@@ -50,6 +52,8 @@ interface UseInventoryDataReturn {
   setActiveTab: (tab: 'inventory' | 'categories' | 'units' | 'archive') => void
   setSearchTerm: (term: string) => void
   setSelectedCategory: (category: string) => void
+  setArchiveStartDate: (date: string) => void
+  setArchiveEndDate: (date: string) => void
   setCurrentStep: (step: number) => void
   setShowStockEntry: (show: boolean) => void
   setFormData: (data: InventoryFormData) => void
@@ -114,6 +118,8 @@ export function useInventoryData(): UseInventoryDataReturn {
   const [archivedItems, setArchivedItems] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [archiveStartDate, setArchiveStartDate] = useState('')
+  const [archiveEndDate, setArchiveEndDate] = useState('')
   const [currentStep, setCurrentStep] = useState(1)
   const [showStockEntry, setShowStockEntry] = useState(false)
   const [editingItem, setEditingItem] = useState<Product | null>(null)
@@ -153,27 +159,77 @@ export function useInventoryData(): UseInventoryDataReturn {
     } catch (e) { console.error('Exception:', e) }
   }, [])
 
-  const fetchArchivedItems = useCallback(async () => {
+  const fetchArchivedItems = useCallback(async (startDate?: string, endDate?: string) => {
     if (!supabase) return
     try { 
       // Select all needed columns including sales statistics
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, total_sold, total_revenue, total_profit, total_discounts, created_at')
         .or('is_archived.eq.true,total_amount_bought.lte.0')
-        .limit(50); 
+        .limit(50)
+      
+      // Apply date filters if provided (filter by created_at which represents when the product was archived)
+      if (startDate) {
+        query = query.gte('created_at', startDate)
+      }
+      if (endDate) {
+        // Add one day to include the entire end date
+        const endDateObj = new Date(endDate)
+        endDateObj.setDate(endDateObj.getDate() + 1)
+        query = query.lt('created_at', endDateObj.toISOString())
+      }
+      
+      const { data: productsData, error } = await query
       
       if (error) {
         console.error('Error fetching archived items:', error)
-        // Fallback: try without the new columns if they don't exist yet
-        const { data: fallbackData } = await supabase
+        // Fallback: try with minimal columns
+        let fallbackQuery = supabase
           .from('products')
-          .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, created_at')
+          .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, added_date, supplier_id, is_archived')
           .or('is_archived.eq.true,total_amount_bought.lte.0')
           .limit(50)
+        
+        const { data: fallbackData } = await fallbackQuery
         setArchivedItems(fallbackData || [])
+      } else if (productsData && productsData.length > 0) {
+        // For each archived product, get the latest sale date from sale_items table
+        // by matching the product name
+        const productNames = productsData.map(p => p.name)
+        
+        // Get the latest sale item for each product name
+        const { data: saleItemsData, error: saleItemsError } = await supabase
+          .from('sale_items')
+          .select('item_name, sales(created_at)')
+          .in('item_name', productNames)
+          .order('created_at', { ascending: false })
+        
+        if (saleItemsError) {
+          console.error('Error fetching sale items dates:', saleItemsError)
+        }
+        
+        // Create a map of product name to latest sale date
+        const latestSaleDates: Record<string, string> = {}
+        if (saleItemsData) {
+          // Get the most recent sale date for each product name
+          for (const item of saleItemsData) {
+            const saleDate = item.sales?.created_at
+            if (saleDate && !latestSaleDates[item.item_name]) {
+              latestSaleDates[item.item_name] = saleDate
+            }
+          }
+        }
+        
+        // Map the products with their last sale date
+        const mappedData = (productsData || []).map((item: any) => ({
+          ...item,
+          // Use last sale date if available, otherwise fallback to created_at
+          last_sale_date: latestSaleDates[item.name] || item.created_at
+        }))
+        setArchivedItems(mappedData)
       } else {
-        setArchivedItems(data || [])
+        setArchivedItems([])
       }
     } catch (e) { 
       console.error('Exception fetching archived items:', e) 
@@ -388,8 +444,8 @@ export function useInventoryData(): UseInventoryDataReturn {
   })
 
   return {
-    activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory, currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete, deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal, newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,
-    setActiveTab, setSearchTerm, setSelectedCategory, setCurrentStep, setShowStockEntry, setFormData, setShowDeleteConfirm, setItemToDelete, setShowCategoryModal, setShowUnitModal, setNewCategoryName, setNewUnitName, setNewUnitSymbol, setEditingCategory, setEditingUnit,
+    activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory, archiveStartDate, archiveEndDate, currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete, deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal, newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,
+    setActiveTab, setSearchTerm, setSelectedCategory, setArchiveStartDate, setArchiveEndDate, setCurrentStep, setShowStockEntry, setFormData, setShowDeleteConfirm, setItemToDelete, setShowCategoryModal, setShowUnitModal, setNewCategoryName, setNewUnitName, setNewUnitSymbol, setEditingCategory, setEditingUnit,
     fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers, openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem, handleAddCategory, handleEditCategory, handleDeleteCategory, saveCategory, handleAddUnit, handleEditUnit, handleDeleteUnit, saveUnit, filteredProducts
   }
 }

@@ -15,17 +15,31 @@ export default function InventoryPage() {
   const { pauseSync } = useSyncPause()
   const {
     activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory,
+    archiveStartDate, archiveEndDate,
     currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete,
     deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal,
     newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,
-    setActiveTab, setSearchTerm, setSelectedCategory, setCurrentStep, setShowStockEntry,
-    setFormData, setShowDeleteConfirm, setItemToDelete, setShowCategoryModal, setShowUnitModal,
-    setNewCategoryName, setNewUnitName, setNewUnitSymbol, setEditingCategory, setEditingUnit,
+    setActiveTab, setSearchTerm, setSelectedCategory, setArchiveStartDate, setArchiveEndDate,
+    setCurrentStep, setShowStockEntry, setFormData, setShowDeleteConfirm, setItemToDelete, 
+    setShowCategoryModal, setShowUnitModal, setNewCategoryName, setNewUnitName, setNewUnitSymbol, 
+    setEditingCategory, setEditingUnit,
     fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers,
     openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem,
     handleAddCategory, handleEditCategory, handleDeleteCategory, saveCategory,
     handleAddUnit, handleEditUnit, handleDeleteUnit, saveUnit, filteredProducts
   } = useInventoryData()
+  
+  // Handle archive filter
+  const applyArchiveFilter = () => {
+    fetchArchivedItems(archiveStartDate || undefined, archiveEndDate || undefined)
+  }
+  
+  // Clear archive filters
+  const clearArchiveFilters = () => {
+    setArchiveStartDate('')
+    setArchiveEndDate('')
+    fetchArchivedItems()
+  }
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -146,12 +160,93 @@ export default function InventoryPage() {
         )}
 
         {activeTab === 'archive' && (
-          <ArchiveGrid 
-            archivedItems={archivedItems} 
-            searchTerm={searchTerm} 
-            restoreItem={restoreItem} 
-            confirmDelete={confirmDelete} 
-          />
+          <>
+            {/* Date Filter UI for Archive */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="mb-6 p-4 backdrop-blur-xl border shadow-sm rounded-2xl"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)', 
+                borderColor: 'var(--theme-card-border)' 
+              }}
+            >
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full md:w-auto">
+                  <label 
+                    className="block text-sm font-medium mb-2" 
+                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    لە بەرواری
+                  </label>
+                  <input
+                    type="date"
+                    value={archiveStartDate}
+                    onChange={(e) => setArchiveStartDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)', 
+                      borderColor: 'var(--theme-card-border)', 
+                      color: 'var(--theme-foreground)', 
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  />
+                </div>
+                <div className="flex-1 w-full md:w-auto">
+                  <label 
+                    className="block text-sm font-medium mb-2" 
+                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    بۆ بەرواری
+                  </label>
+                  <input
+                    type="date"
+                    value={archiveEndDate}
+                    onChange={(e) => setArchiveEndDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)', 
+                      borderColor: 'var(--theme-card-border)', 
+                      color: 'var(--theme-foreground)', 
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <motion.button
+                    onClick={applyArchiveFilter}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                    style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span>فلتەر بکە</span>
+                  </motion.button>
+                  <motion.button
+                    onClick={clearArchiveFilters}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                    style={{ background: 'var(--theme-muted)', color: 'var(--theme-foreground)', borderColor: 'var(--theme-card-border)', border: '1px solid', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>پاککردنەوە</span>
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+            
+            <ArchiveGrid 
+              archivedItems={archivedItems} 
+              searchTerm={searchTerm} 
+              restoreItem={restoreItem} 
+            />
+          </>
         )}
 
         <AddItemModal 

@@ -21,6 +21,8 @@ export interface Product {
   total_profit?: number
   total_discounts?: number
   created_at?: string
+  updated_at?: string
+  last_sale_date?: string
 }
 
 export interface Category {

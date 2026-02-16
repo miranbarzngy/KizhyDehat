@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
-import { FaPlus, FaPhone, FaEdit, FaTrash, FaMoneyBillWave, FaSearch, FaTimes, FaUserPlus, FaFileInvoice, FaPrint, FaEye } from 'react-icons/fa'
+import { FaPlus, FaPhone, FaEdit, FaTrash, FaMoneyBillWave, FaSearch, FaTimes, FaUserPlus, FaFileInvoice, FaPrint, FaEye, FaCamera } from 'react-icons/fa'
+import { uploadFile } from '@/lib/storage'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 
@@ -30,6 +31,8 @@ interface PaymentHistory {
   invoice_number?: number
   subtotal?: number
   discount_amount?: number
+  seller_name?: string
+  sold_by?: string
 }
 
 interface InvoiceSettings {
@@ -85,7 +88,122 @@ export default function CustomersPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const [newCustomer, setNewCustomer] = useState({ name: '', phone1: '', phone2: '', location: '', image: null as File | null })
   const [searchTerm, setSearchTerm] = useState('')
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
   
+  // Use callback ref to avoid the ref object error
+  let fileInputRef: HTMLInputElement | null = null
+  
+  // Handle add customer form submission
+  const handleAddCustomer = async () => {
+    if (!newCustomer.name.trim()) {
+      alert('ناو پێویستە')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      let imageUrl = ''
+      
+      // Upload image if selected
+      if (newCustomer.image) {
+        try {
+          const uploadedUrl = await uploadFile(newCustomer.image, 'customers')
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl
+          }
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError)
+        }
+      }
+
+      if (!supabase) {
+        // Mock for demo
+        const mockCustomer: Customer = {
+          id: Date.now().toString(),
+          name: newCustomer.name,
+          image: imageUrl,
+          phone1: newCustomer.phone1,
+          phone2: newCustomer.phone2,
+          location: newCustomer.location,
+          total_debt: 0
+        }
+        setCustomers(prev => [...prev, mockCustomer])
+        setShowAddCustomer(false)
+        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+        setImagePreview(null)
+        alert('کڕیارەکە زیادکرا')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('customers')
+        .insert({
+          name: newCustomer.name,
+          phone1: newCustomer.phone1,
+          phone2: newCustomer.phone2,
+          location: newCustomer.location,
+          image: imageUrl || null,
+          total_debt: 0
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error adding customer:', error)
+        alert('هەڵە لە زیادکردنی کڕیار')
+        return
+      }
+
+      if (data) {
+        setCustomers(prev => [...prev, data])
+        setShowAddCustomer(false)
+        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+        setImagePreview(null)
+        alert('کڕیارەکە زیادکرا')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('هەڵە لە زیادکردنی کڕیار')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Handle image file selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
+        alert('تکایە وێنەیەکی دروست هەڵبژێرە')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert('قەبارەی وێنەکە دەبێت کەمتر بێت لە 5 مێگابایت')
+        return
+      }
+      setNewCustomer(prev => ({ ...prev, image: file }))
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  // Clear image selection
+  const clearImage = () => {
+    setNewCustomer(prev => ({ ...prev, image: null }))
+    setImagePreview(null)
+    if (fileInputRef) {
+      fileInputRef.value = ''
+    }
+  }
+
+  // Reset form when modal closes
+  const resetForm = () => {
+    setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+    setImagePreview(null)
+    setShowAddCustomer(false)
+  }
+
   // Use global invoice modal context
   const { openModal } = useGlobalInvoiceModal()
   
@@ -107,7 +225,7 @@ export default function CustomersPage() {
         shop_address: 'هەولێر',
       }
       const invoiceData = buildInvoiceData(
-        { sale_items: mockItems, customers: selectedCustomer },
+        { sale_items: mockItems, customers: selectedCustomer, discount_amount: history.discount_amount, sold_by: history.sold_by },
         { id: history.id, invoice_number: 0, total: history.amount, date: history.date, payment_method: history.payment_method },
         mockSettings
       )
@@ -129,7 +247,12 @@ export default function CustomersPage() {
         .single()
 
       const invoiceData = buildInvoiceData(
-        { sale_items: itemsData || [], customers: selectedCustomer },
+        { 
+          sale_items: itemsData || [], 
+          customers: selectedCustomer,
+          discount_amount: history.discount_amount,
+          sold_by: history.sold_by
+        },
         { id: history.id, invoice_number: history.invoice_number, total: history.amount, date: history.date, payment_method: history.payment_method },
         settingsData || undefined
       )
@@ -173,21 +296,26 @@ export default function CustomersPage() {
   }
 
   const fetchPaymentHistory = async (customerId: string) => {
+    // Clear previous history and show loading
+    setPaymentHistory([])
+    setHistoryLoading(true)
+    
     if (!supabase) {
-      setPaymentHistory([])
+      setHistoryLoading(false)
       return
     }
     try {
-      // Fetch sales for this customer
+      // Fetch sales for this customer - include sold_by and user_id fields
       const { data: salesData, error: salesError } = await supabase
         .from('sales')
-        .select('id, date, total, payment_method, status, created_at, discount_amount, subtotal, invoice_number')
+        .select('id, date, total, payment_method, status, created_at, discount_amount, subtotal, invoice_number, sold_by, user_id')
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false })
 
       if (salesError) {
         console.error('Error fetching sales:', salesError)
         setPaymentHistory([])
+        setHistoryLoading(false)
         return
       }
 
@@ -203,6 +331,23 @@ export default function CustomersPage() {
           
           const items = itemsData?.map(item => `${item.quantity} ${item.unit} ${item.item_name}`).join('، ') || ''
           
+          // Try to get seller name from profiles table using user_id
+          let sellerName = sale.sold_by || ''
+          if (sale.user_id) {
+            try {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', sale.user_id)
+                .single()
+              if (profileData?.name) {
+                sellerName = profileData.name
+              }
+            } catch (e) {
+              console.log('Could not fetch profile:', e)
+            }
+          }
+          
           history.push({
             id: sale.id,
             date: sale.date || sale.created_at,
@@ -212,7 +357,9 @@ export default function CustomersPage() {
             type: sale.payment_method === 'debt' ? 'sale' : 'payment',
             payment_method: sale.payment_method,
             sale_id: sale.id,
-            invoice_number: sale.invoice_number
+            invoice_number: sale.invoice_number,
+            discount_amount: sale.discount_amount,
+            sold_by: sellerName
           })
         }
       }
@@ -221,6 +368,8 @@ export default function CustomersPage() {
     } catch (error) {
       console.error('Error fetching payment history:', error)
       setPaymentHistory([])
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -262,7 +411,10 @@ export default function CustomersPage() {
           >
             {/* New Customer Button - Touch Friendly */}
             <button
-              onClick={() => setShowAddCustomer(true)}
+              onClick={() => {
+                console.log('Add customer button clicked')
+                setShowAddCustomer(true)
+              }}
               className="w-full mb-6 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold text-lg transition-all hover:opacity-90 active:scale-[0.98] shadow-lg"
               style={{ 
                 backgroundColor: 'var(--theme-accent)',
@@ -486,9 +638,9 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Purchase History - Redesigned */}
+                {/* Purchase History - High-End Table Design */}
                 <div 
-                  className="rounded-3xl p-6 shadow-lg border"
+                  className="rounded-3xl p-6 shadow-lg border overflow-hidden"
                   style={{ 
                     backgroundColor: 'var(--theme-card-bg)',
                     borderColor: 'var(--theme-card-border)'
@@ -501,133 +653,146 @@ export default function CustomersPage() {
                     >
                       مێژووی کڕینەکان
                     </h3>
-                    <span style={{ color: 'var(--theme-secondary)' }}>{sortedPaymentHistory.length}</span>
+                    {historyLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+                    ) : (
+                      <span style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>{sortedPaymentHistory.length}</span>
+                    )}
                   </div>
 
-                  {sortedPaymentHistory.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-5xl mb-3">📋</div>
-                      <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
-                        هیچ مێژوویەک نیە
+                  {historyLoading ? (
+                    // Skeleton Loader
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div 
+                          key={i}
+                          className="h-16 rounded-xl animate-pulse"
+                          style={{ backgroundColor: 'var(--theme-muted)' }}
+                        />
+                      ))}
+                    </div>
+                  ) : sortedPaymentHistory.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div 
+                        className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                        style={{ backgroundColor: 'var(--theme-muted)' }}
+                      >
+                        <span className="text-4xl">📋</span>
+                      </div>
+                      <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)', fontSize: '1.1rem' }}>
+                        هیچ مێژوویەکی کڕین نییە
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-80 overflow-y-auto">
-                      {sortedPaymentHistory.map((history, index) => (
-                        <motion.div
-                          key={history.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="p-4 rounded-2xl border cursor-pointer transition-all active:scale-[0.99] group"
-                          style={{ 
-                            backgroundColor: 'var(--theme-muted)',
-                            borderColor: 'var(--theme-card-border)',
-                            minHeight: '80px'
-                          }}
-                        >
-                          {/* Responsive layout: column on mobile, row on desktop */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            
-                            {/* Left Side - Total Price - Bold & Large */}
-                            <div className="flex-shrink-0 order-2 sm:order-1">
-                              <p 
-                                className="text-xl sm:text-2xl font-bold"
-                                style={{ 
-                                  color: 'var(--theme-foreground)',
-                                  fontFamily: 'Inter'
-                                }}
-                              >
-                                {toKurdishDigits(formatCurrency(history.amount))} 
-                                <span className="text-sm mr-1" style={{ color: 'var(--theme-secondary)' }}>IQD</span>
-                              </p>
-                            </div>
-
-                            {/* Center - Date, Invoice ID & Items */}
-                            <div className="flex-1 min-w-0 order-1 sm:order-2">
-                              {/* Date Badge with Invoice ID */}
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <div className="overflow-x-auto">
+                      <table className="w-full" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                        <thead>
+                          <tr 
+                            className="text-sm"
+                            style={{ 
+                              color: 'var(--theme-secondary)',
+                              borderBottom: '2px solid var(--theme-card-border)'
+                            }}
+                          >
+                            <th className="text-right pb-3 pr-2 font-medium">#</th>
+                            <th className="text-right pb-3 pr-2 font-medium">بەروار</th>
+                            <th className="text-right pb-3 pr-2 font-medium">کۆی گشتی</th>
+                            <th className="text-right pb-3 pr-2 font-medium">داشکاندن</th>
+                            <th className="text-right pb-3 pr-2 font-medium">جۆری پارەدان</th>
+                            <th className="text-center pb-3 font-medium">کردار</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedPaymentHistory.map((history, index) => (
+                            <motion.tr
+                              key={history.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: index * 0.03 }}
+                              className="group cursor-pointer"
+                              style={{ 
+                                borderBottom: '1px solid var(--theme-card-border)',
+                                minHeight: '60px'
+                              }}
+                              onClick={() => handleViewInvoice(history)}
+                            >
+                              <td className="py-4 pr-2">
                                 <span 
-                                  className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium"
+                                  className="font-bold text-sm"
                                   style={{ 
-                                    backgroundColor: 'var(--theme-card-bg)',
-                                    color: 'var(--theme-secondary)',
-                                    border: '1px solid var(--theme-card-border)',
-                                    fontFamily: 'var(--font-uni-salar)'
+                                    color: 'var(--theme-accent)',
+                                    fontFamily: 'monospace'
                                   }}
+                                >
+                                  {history.invoice_number ? `#${history.invoice_number}` : '-'}
+                                </span>
+                              </td>
+                              <td className="py-4 pr-2">
+                                <span 
+                                  className="text-sm"
+                                  style={{ color: 'var(--theme-foreground)' }}
                                 >
                                   {history.date ? toKurdishDigits(new Date(history.date).toLocaleDateString('ku')) : '-'}
                                 </span>
-                                {history.invoice_number && (
-                                  <span 
-                                    className="inline-flex items-center px-2 py-1 rounded-lg text-xs"
-                                    style={{ 
-                                      backgroundColor: 'var(--theme-accent)',
-                                      color: '#ffffff',
-                                      fontFamily: 'var(--font-uni-salar)',
-                                      opacity: 0.9
-                                    }}
-                                  >
-                                    #{toKurdishDigits(history.invoice_number)}
-                                  </span>
-                                )}
-                              </div>
-                              {/* Items Summary */}
-                              <p 
-                                className="text-sm font-medium truncate"
-                                style={{ 
-                                  color: 'var(--theme-foreground)', 
-                                  fontFamily: 'var(--font-uni-salar)' 
-                                }}
-                              >
-                                {history.items || 'کاڵا'}
-                              </p>
-                              {/* Note */}
-                              {history.note && (
-                                <p 
-                                  className="text-xs mt-1"
-                                  style={{ color: '#ef4444', fontFamily: 'var(--font-uni-salar)' }}
+                              </td>
+                              <td className="py-4 pr-2">
+                                <span 
+                                  className="font-bold"
+                                  style={{ 
+                                    color: 'var(--theme-foreground)',
+                                    fontFamily: 'monospace'
+                                  }}
                                 >
-                                  {history.note}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Right Side - Status & View Button */}
-                            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 order-3 flex-shrink-0">
-                              {/* Status Badge - Soft Colors */}
-                              <span 
-                                className="text-xs px-3 py-1.5 rounded-full font-medium"
-                                style={{ 
-                                  backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
-                                  color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
-                                  fontFamily: 'var(--font-uni-salar)'
-                                }}
-                              >
-                                {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
-                              </span>
-                              {/* View Invoice Button - Circular 40x40px */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleViewInvoice(history)
-                                }}
-                                className="rounded-full transition-all hover:opacity-80 active:scale-90 flex items-center justify-center shadow-md group-hover:shadow-lg"
-                                style={{ 
-                                  backgroundColor: 'var(--theme-accent)',
-                                  color: '#ffffff',
-                                  width: '40px',
-                                  height: '40px',
-                                  minWidth: '40px'
-                                }}
-                                title="بینینی پسوڵە"
-                              >
-                                <FaEye className="text-lg" />
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
+                                  {toKurdishDigits(formatCurrency(history.amount))}
+                                  <span className="text-xs mr-1" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
+                                </span>
+                              </td>
+                              <td className="py-4 pr-2">
+                                {history.discount_amount && history.discount_amount > 0 ? (
+                                  <span 
+                                    className="font-medium text-sm"
+                                    style={{ color: '#ef4444' }}
+                                  >
+                                    -{toKurdishDigits(formatCurrency(history.discount_amount))}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm" style={{ color: 'var(--theme-secondary)' }}>-</span>
+                                )}
+                              </td>
+                              <td className="py-4 pr-2">
+                                <span 
+                                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium"
+                                  style={{ 
+                                    backgroundColor: history.payment_method === 'cash' ? '#dcfce7' : history.payment_method === 'debt' ? '#fef3c7' : '#dbeafe',
+                                    color: history.payment_method === 'cash' ? '#16a34a' : history.payment_method === 'debt' ? '#d97706' : '#2563eb',
+                                    fontFamily: 'var(--font-uni-salar)'
+                                  }}
+                                >
+                                  {history.payment_method === 'cash' ? 'کاش' : history.payment_method === 'debt' ? 'قەرز' : 'ئۆنلاین'}
+                                </span>
+                              </td>
+                              <td className="py-4 text-center">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleViewInvoice(history)
+                                  }}
+                                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:opacity-90 active:scale-95"
+                                  style={{ 
+                                    backgroundColor: 'var(--theme-accent)',
+                                    color: '#ffffff',
+                                    fontFamily: 'var(--font-uni-salar)',
+                                    fontSize: '0.875rem'
+                                  }}
+                                >
+                                  <FaEye className="text-sm" />
+                                  <span>بینینی وەسڵ</span>
+                                </button>
+                              </td>
+                            </motion.tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
@@ -651,6 +816,269 @@ export default function CustomersPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Add Customer Modal */}
+      <AnimatePresence>
+        {showAddCustomer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center p-4 z-50"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowAddCustomer(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)',
+                borderWidth: '1px'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 max-h-[90vh] overflow-y-auto">
+                <h3 
+                  className="text-2xl font-bold mb-6 text-center"
+                  style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                >
+                  زیادکردنی کڕیار
+                </h3>
+
+                {/* Circular Image Upload */}
+                <div className="mb-8">
+                  <label 
+                    className="block text-sm font-medium mb-3 text-center"
+                    style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                  >
+                    وێنەی کڕیار
+                  </label>
+                  <input 
+                    type="file" 
+                    ref={(el) => { fileInputRef = el }}
+                    accept="image/*" 
+                    onChange={handleImageSelect} 
+                    className="hidden" 
+                  />
+                  <div className="flex justify-center">
+                    {!imagePreview ? (
+                      <div
+                        onClick={() => fileInputRef?.click()}
+                        className="relative w-24 h-24 rounded-full flex items-center justify-center cursor-pointer transition-all hover:opacity-90"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          border: '2px dashed var(--theme-card-border)',
+                        }}
+                      >
+                        <div className="flex flex-col items-center">
+                          <FaCamera className="text-2xl" style={{ color: 'var(--theme-secondary)' }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div 
+                          className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden border-2"
+                          style={{
+                            backgroundColor: 'var(--theme-muted)',
+                            borderColor: 'var(--theme-card-border)'
+                          }}
+                        >
+                          <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <button
+                          onClick={clearImage}
+                          className="absolute -top-2 -right-2 flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                          style={{ 
+                            minWidth: '36px', 
+                            minHeight: '36px',
+                            backgroundColor: '#ef4444',
+                            color: '#ffffff',
+                            borderRadius: '50%'
+                          }}
+                        >
+                          <FaTimes size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Name Field */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      ناو *
+                    </label>
+                    <div className="relative">
+                      <div 
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
+                        style={{ color: 'var(--theme-secondary)' }}
+                      >
+                        <FaUserPlus />
+                      </div>
+                      <input
+                        type="text"
+                        value={newCustomer.name}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="ناوی کڕیار"
+                        className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone 1 Field */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      تەلەفۆن
+                    </label>
+                    <div className="relative">
+                      <div 
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
+                        style={{ color: 'var(--theme-secondary)' }}
+                      >
+                        <FaPhone />
+                      </div>
+                      <input
+                        type="text"
+                        value={newCustomer.phone1}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone1: e.target.value }))}
+                        placeholder="ژمارەی تەلەفۆن"
+                        className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone 2 Field */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      تەلەفۆن ٢
+                    </label>
+                    <div className="relative">
+                      <div 
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
+                        style={{ color: 'var(--theme-secondary)' }}
+                      >
+                        <FaPhone />
+                      </div>
+                      <input
+                        type="text"
+                        value={newCustomer.phone2}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone2: e.target.value }))}
+                        placeholder="ژمارەی تەلەفۆن ٢"
+                        className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location Field */}
+                  <div>
+                    <label 
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+                    >
+                      ناونیشان
+                    </label>
+                    <div className="relative">
+                      <div 
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
+                        style={{ color: 'var(--theme-secondary)' }}
+                      >
+                        <FaSearch />
+                      </div>
+                      <input
+                        type="text"
+                        value={newCustomer.location}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder="ناونیشان"
+                        className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
+                        style={{
+                          backgroundColor: 'var(--theme-muted)',
+                          borderColor: 'var(--theme-card-border)',
+                          color: 'var(--theme-foreground)',
+                          fontFamily: 'var(--font-uni-salar)',
+                          minHeight: '48px'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons - Larger and more prominent */}
+                <div className="flex justify-end space-x-4 mt-10">
+                  <button
+                    onClick={resetForm}
+                    className="px-8 py-4 rounded-xl transition-all hover:opacity-80 font-semibold text-lg"
+                    style={{ 
+                      backgroundColor: 'transparent', 
+                      color: 'var(--theme-secondary)',
+                      fontFamily: 'var(--font-uni-salar)',
+                      border: '2px solid var(--theme-card-border)',
+                      minHeight: '52px'
+                    }}
+                  >
+                    پاشگەزبوونەوە
+                  </button>
+                  <button
+                    onClick={handleAddCustomer}
+                    disabled={isUploading}
+                    className="px-10 py-4 rounded-xl font-bold flex items-center gap-3 transition-all hover:opacity-90 shadow-lg disabled:opacity-50"
+                    style={{ 
+                      background: 'var(--theme-accent)', 
+                      color: '#ffffff',
+                      fontFamily: 'var(--font-uni-salar)',
+                      minHeight: '52px',
+                      minWidth: '140px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span className="text-lg">تکایە...</span>
+                      </>
+                    ) : (
+                      <span className="text-lg">زیادکردن</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   )

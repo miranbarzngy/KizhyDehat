@@ -334,7 +334,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#030304', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.subtotal || 0)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#000000', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>-{formatPrice(data?.discount || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#000000', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>{formatPrice(data?.discount || 0)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}><span>کۆی گشتی:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.total || 0)}</span></div>
         </div>
         

@@ -2,9 +2,9 @@
 
 import { formatCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
-import { FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
 import { useEffect, useState } from 'react'
-import { Invoice, SaleData, InvoiceSettings } from './invoiceUtils'
+import { FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
+import { Invoice, InvoiceSettings, SaleData } from './invoiceUtils'
 
 interface InvoicePreviewProps {
   saleData: SaleData
@@ -157,7 +157,7 @@ function InvoiceTemplate({ data }: { data: any }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#374151', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={kurdishNumberStyle}>{formatPrice(data?.subtotal || 0)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#dc2626', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>-{formatPrice(data?.discount || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#dc2626', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>{formatPrice(data?.discount || 0)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}><span>کۆی گشتی:</span><span style={kurdishNumberStyle}>{formatPrice(data?.total || 0)}</span></div>
         </div>
         <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>

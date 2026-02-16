@@ -108,7 +108,7 @@ export async function generateInvoiceHTML(saleData: SaleData, invoice: Invoice, 
       <div style="text-align: center; margin: 16px 0; color: #d1d5db;">--------------------------</div>
       <div style="border-top: 2px solid #d1d5db; padding-top: 12px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>کۆی نرخ:</span><span style="font-family: 'Inter';">${formatCurrency(calculatedSubtotal)} IQD</span></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>داشکاندن:</span><span style="font-family: 'Inter'; color: #dc2626;">-${formatCurrency(discountAmount)}</span></div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>داشکاندن:</span><span style="font-family: 'Inter'; color: #dc2626;">${formatCurrency(discountAmount)}</span></div>
         <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;"><span>کۆی گشتی:</span><span style="font-family: 'Inter';">${formatCurrency(invoice.total)} IQD</span></div>
       </div>
       ${qrCodeUrl ? `<div style="text-align: center; margin: 16px 0;"><img src="${qrCodeUrl}" alt="QR" style="width: 64px; height: 64px;" /></div>` : ''}

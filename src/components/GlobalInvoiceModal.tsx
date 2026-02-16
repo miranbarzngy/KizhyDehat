@@ -79,8 +79,8 @@ export function InvoiceTemplate68mm({ data }: { data: any }) {
 
   const formatPrice = (value: number) => `${toKurdishDigits(formatCurrency(value || 0))}`
 
-  // Item field extractors
-  const getItemName = (item: any) => item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'دیارنییە'
+  // Item field extractors - Use item_name from sale_items directly, fallback to 'کاڵای بێ ناو'
+  const getItemName = (item: any) => item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو'
   const getItemQty = (item: any) => toKurdishDigits(item?.quantity || item?.qty || item?.amount || 0)
   const getItemPrice = (item: any) => formatPrice(item?.price || item?.unit_price || 0)
   const getItemTotal = (item: any) => formatPrice(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0))
@@ -210,8 +210,8 @@ export function InvoiceTemplate({ data }: { data: any }) {
 
   const formatPrice = (value: number) => `${toKurdishDigits(formatCurrency(value || 0))} د.ع`
 
-  // Item field extractors
-  const getItemName = (item: any) => item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'دیارنییە'
+  // Item field extractors - Use item_name from sale_items directly, fallback to 'کاڵای بێ ناو'
+  const getItemName = (item: any) => item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو'
   const getItemQty = (item: any) => toKurdishDigits(item?.quantity || item?.qty || item?.amount || 0)
   const getItemPrice = (item: any) => formatPrice(item?.price || item?.unit_price || 0)
   const getItemTotal = (item: any) => formatPrice(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0))
@@ -779,7 +779,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }
   }
 
-  // Helper function to generate items HTML
+  // Helper function to generate items HTML - Use item_name from sale_items directly, fallback to 'کاڵای بێ ناو'
   const getItemsHtml = (data: any) => {
     const items = data?.sale_items || data?.invoice_items || data?.items || []
     if (!items || items.length === 0) {
@@ -787,7 +787,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }
     
     return items.map((item: any) => {
-      const name = item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'دیارنییە'
+      const name = item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو'
       const qty = toKurdishDigits(item?.quantity || item?.qty || item?.amount || 0)
       const unit = item?.unit || item?.product_unit || 'دانە'
       const total = toKurdishDigits(formatCurrency(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0)))
@@ -802,7 +802,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }).join('')
   }
 
-  // Helper function to generate items HTML with 4 columns (name, unit, qty, price)
+  // Helper function to generate items HTML with 4 columns (name, unit, qty, price) - Use item_name from sale_items directly
   const getItemsHtmlNew = (data: any) => {
     const items = data?.sale_items || data?.invoice_items || data?.items || []
     if (!items || items.length === 0) {
@@ -810,7 +810,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     }
     
     return items.map((item: any) => {
-      const name = item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'دیارنییە'
+      const name = item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو'
       const qty = toKurdishDigits(item?.quantity || item?.qty || item?.amount || 0)
       const unit = item?.unit || item?.product_unit || 'دانە'
       const total = toKurdishDigits(formatCurrency(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0)))
@@ -945,7 +945,9 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
 
 export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_number?: number; total: number; date: string; payment_method?: string }, settings?: any): any {
   const items = (saleData?.sale_items || []).map((item: any) => ({
-    name: item?.products?.name || item?.product_name || item?.name || 'کاڵای سڕاوە',
+    // Use item_name directly from sale_items table - no join with products needed
+    // Fallback to 'کاڵای بێ ناو' (Unnamed Item) if item_name is missing
+    name: item?.item_name || item?.product_name || item?.products?.name || item?.product?.name || item?.name || 'کاڵای بێ ناو',
     unit: item?.products?.unit || item?.product_unit || item?.unit || 'دانە',
     quantity: item?.quantity || item?.qty || 0,
     price: item?.price || item?.product_price || 0,

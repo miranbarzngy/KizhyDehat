@@ -102,6 +102,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('pos-theme') as Theme
+      // Apply theme class to body immediately
+      if (savedTheme && themes[savedTheme]) {
+        document.body.classList.add(`theme-${savedTheme}`)
+      } else {
+        document.body.classList.add('theme-white')
+      }
       return (savedTheme && themes[savedTheme]) ? savedTheme : 'white'
     }
     return 'white'
@@ -111,7 +117,37 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const config = themes[theme]
 
-    // Set CSS custom properties
+    // Set data-theme attribute on documentElement for CSS selectors
+    document.documentElement.setAttribute('data-theme', theme)
+
+    // Direct DOM injection - creates/updates a style tag with !important rules
+    const styleId = 'dynamic-theme-vars'
+    let styleTag = document.getElementById(styleId)
+    if (!styleTag) {
+      styleTag = document.createElement('style')
+      styleTag.id = styleId
+      document.head.appendChild(styleTag)
+    }
+    // Inject CSS with !important to override Tailwind
+    styleTag.innerHTML = `
+      :root {
+        --theme-background: ${config.background} !important;
+        --theme-card-bg: ${config.cardBg} !important;
+        --theme-foreground: ${config.foreground} !important;
+        --theme-card-border: ${config.cardBorder} !important;
+        --theme-primary: ${config.primary} !important;
+        --theme-secondary: ${config.secondary} !important;
+        --theme-accent: ${config.accent} !important;
+        --theme-muted: ${config.muted} !important;
+        --theme-border: ${config.border} !important;
+        --theme-sidebar-bg: ${config.sidebarBg} !important;
+        --theme-sidebar-text: ${config.sidebarText} !important;
+        --theme-sidebar-hover: ${config.sidebarHover} !important;
+        --theme-chart-color: ${config.chartColor} !important;
+      }
+    `
+
+    // Set CSS custom properties as fallback
     const root = document.documentElement
     root.style.setProperty('--theme-background', config.background)
     root.style.setProperty('--theme-foreground', config.foreground)
@@ -140,7 +176,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme])
 
   const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme)
+    try {
+      console.log('Theme changing to:', newTheme)
+      
+      // Save to localStorage
+      localStorage.setItem('pos-theme', newTheme)
+      
+      // Update React state
+      setThemeState(newTheme)
+      
+      // Hard refresh - this is the only reliable way to sync SSR with client
+      setTimeout(() => {
+        console.log('Reloading page...')
+        window.location.reload()
+      }, 100)
+    } catch (error) {
+      console.error('Error changing theme:', error)
+    }
   }
 
   const value = {

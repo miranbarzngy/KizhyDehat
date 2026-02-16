@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
 import { Store, LogOut, X, Sun, Moon, Palette, Crown } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useTheme, Theme } from '@/contexts/ThemeContext'
 
 interface SidebarProps {
   shopSettings: {
@@ -22,7 +23,7 @@ interface SidebarProps {
 const themeOptions = [
   { key: 'white', name: 'سپی', color: '#ffffff', textColor: '#000000', icon: Sun },
   { key: 'colorful', name: 'ڕەنگاوڕەنگ', color: '#ff6b6b', textColor: '#ffffff', icon: Palette },
-  { key: 'purple', name: 'پەڕە سوورەکان', color: '#6b21a8', textColor: '#ffffff', icon: Crown },
+  { key: 'purple', name: 'مۆر', color: '#6b21a8', textColor: '#ffffff', icon: Crown },
   { key: 'dark', name: 'تاریک', color: '#374151', textColor: '#ffffff', icon: Moon }
 ]
 
@@ -30,6 +31,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
   const { user, profile, signOut } = useAuth()
   const router = useRouter()
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const { theme, setTheme } = useTheme()
 
   const handleSignOut = async () => {
     await signOut()
@@ -56,7 +58,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed top-4 right-4 w-72 max-h-[50vh] z-50 shadow-2xl overflow-hidden rounded-3xl"
+        className="fixed top-4 right-4 w-80 max-h-[50vh] z-50 shadow-2xl overflow-hidden rounded-3xl"
         style={{ 
           background: 'rgba(255, 255, 255, 0.5)',
           backdropFilter: 'blur(40px)',
@@ -86,59 +88,44 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             </button>
           </div>
 
-          {/* Theme Toggle Section */}
-          <div className="flex flex-wrap justify-center gap-3">
+          {/* Theme Toggle Section - All in one row */}
+          <div className="flex justify-between items-start gap-2">
             {themeOptions.map((themeOption) => {
               const Icon = themeOption.icon
+              const isSelected = theme === themeOption.key
               return (
                 <motion.button
                   key={themeOption.key}
                   onClick={() => {
-                    const root = document.documentElement
-                    switch (themeOption.key) {
-                      case 'white':
-                        root.style.setProperty('--theme-background', '#f8fafc')
-                        root.style.setProperty('--theme-foreground', '#000000')
-                        root.style.setProperty('--theme-sidebar-bg', '#ffffff')
-                        root.style.setProperty('--theme-sidebar-text', '#1e293b')
-                        root.style.setProperty('--theme-sidebar-hover', '#f1f5f9')
-                        root.style.setProperty('--theme-primary', '#6366f1')
-                        break
-                      case 'colorful':
-                        root.style.setProperty('--theme-background', 'linear-gradient(to right, #ffecd2, #fcb69f)')
-                        root.style.setProperty('--theme-foreground', '#000000')
-                        root.style.setProperty('--theme-sidebar-bg', 'rgba(255, 255, 255, 0.9)')
-                        root.style.setProperty('--theme-sidebar-text', '#2d3748')
-                        root.style.setProperty('--theme-primary', '#ff6b6b')
-                        break
-                      case 'purple':
-                        root.style.setProperty('--theme-background', 'linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%)')
-                        root.style.setProperty('--theme-foreground', '#ffffff')
-                        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.2)')
-                        root.style.setProperty('--theme-sidebar-text', '#ffffff')
-                        root.style.setProperty('--theme-primary', '#c084fc')
-                        break
-                      case 'dark':
-                        root.style.setProperty('--theme-background', '#0a192f')
-                        root.style.setProperty('--theme-foreground', '#ffffff')
-                        root.style.setProperty('--theme-sidebar-bg', 'rgba(0, 0, 0, 0.3)')
-                        root.style.setProperty('--theme-sidebar-text', '#d1d5db')
-                        root.style.setProperty('--theme-primary', '#60a5fa')
-                        break
-                    }
-                    localStorage.setItem('pos-theme', themeOption.key)
+                    setTheme(themeOption.key as Theme)
+                    onClose()
                   }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md border border-white/30"
-                  style={{
-                    backgroundColor: themeOption.color,
-                    color: themeOption.textColor,
-                    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.1)'
-                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex flex-col items-center gap-1 p-1 rounded-xl transition-all flex-1"
                   title={themeOption.name}
                 >
-                  <Icon className="w-5 h-5" />
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all"
+                    style={{
+                      backgroundColor: themeOption.color,
+                      color: themeOption.textColor,
+                      boxShadow: isSelected 
+                        ? `0 0 0 3px var(--theme-accent), 0 0 15px ${themeOption.color}` 
+                        : 'inset 0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span 
+                    className="text-xs font-medium"
+                    style={{ 
+                      color: isSelected ? 'var(--theme-accent)' : 'var(--theme-sidebar-text)',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    {themeOption.name}
+                  </span>
                 </motion.button>
               )
             })}

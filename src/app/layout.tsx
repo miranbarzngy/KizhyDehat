@@ -4,7 +4,6 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SyncPauseProvider } from "@/contexts/SyncPauseContext";
 import { ShopSettingsProvider } from "@/contexts/ShopSettingsContext";
 import { ToastProvider } from "@/components/Toast";
-import ThemeToggle from "@/components/ThemeToggle";
 import AuthLoadingWrapper from "@/components/providers/AuthLoadingWrapper";
 import localFont from 'next/font/local'
 import "./globals.css";
@@ -151,7 +150,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ku" dir="rtl" translate="no">
+    <html lang="ku" dir="rtl" translate="no" suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
         <meta name="format-detection" content="telephone=no" />
@@ -162,6 +161,16 @@ export default function RootLayout({
         <meta name="theme-color" content="#1e40af" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
+        {/* Blocking script to apply theme BEFORE body renders */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              const theme = localStorage.getItem('pos-theme') || 'white';
+              document.documentElement.classList.add('theme-' + theme);
+              document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+          })();
+        ` }} />
       </head>
       <body className={`${uniSalar.variable} antialiased font-medium font-uni-salar`} suppressHydrationWarning>
         <ThemeProvider>
@@ -171,7 +180,6 @@ export default function RootLayout({
                 <ToastProvider>
                   <AuthLoadingWrapper>
                     {children}
-                    <ThemeToggle />
                   </AuthLoadingWrapper>
                 </ToastProvider>
               </ShopSettingsProvider>

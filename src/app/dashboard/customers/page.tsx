@@ -69,6 +69,14 @@ const CustomerImage = ({ customer, className = "" }: { customer: Customer, class
   </div>
 )
 
+// Kurdish numeral formatter
+const toKurdishDigits = (value: any): string => {
+  if (value === null || value === undefined) return '٠'
+  const str = String(value)
+  const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
+  return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -84,14 +92,6 @@ export default function CustomersPage() {
   // Invoice data state for building invoice
   const [invoiceItems, setInvoiceItems] = useState<SaleItem[]>([])
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings | null>(null)
-
-  // Kurdish numeral formatter
-  const toKurdishDigits = (value: any): string => {
-    if (value === null || value === undefined) return '٠'
-    const str = String(value)
-    const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
-    return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
-  }
 
   // Handle clicking on a history item to view invoice
   const handleViewInvoice = async (history: PaymentHistory) => {
@@ -211,7 +211,8 @@ export default function CustomersPage() {
             note: sale.discount_amount ? `داشکاندن: ${sale.discount_amount}` : '',
             type: sale.payment_method === 'debt' ? 'sale' : 'payment',
             payment_method: sale.payment_method,
-            sale_id: sale.id
+            sale_id: sale.id,
+            invoice_number: sale.invoice_number
           })
         }
       }
@@ -225,6 +226,11 @@ export default function CustomersPage() {
 
   const filteredCustomers = customers.filter(c => 
     !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone1.includes(searchTerm)
+  )
+
+  // Sort payment history by date descending (newest first)
+  const sortedPaymentHistory = [...paymentHistory].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
   )
 
   if (loading) {
@@ -290,13 +296,17 @@ export default function CustomersPage() {
                   {searchTerm ? (
                     <button
                       onClick={() => setSearchTerm('')}
-                      className="p-2 rounded-full hover:bg-red-100 active:bg-red-200 transition-colors"
-                      style={{ minWidth: '44px', minHeight: '44px' }}
+                      className="p-2 rounded-full transition-colors"
+                      style={{ 
+                        minWidth: '44px', 
+                        minHeight: '44px',
+                        backgroundColor: 'var(--theme-card-bg)'
+                      }}
                     >
-                      <FaTimes className="text-red-500 text-lg" />
+                      <FaTimes className="text-lg" style={{ color: 'var(--theme-secondary)' }} />
                     </button>
                   ) : (
-                    <FaSearch className="text-gray-400 text-lg" />
+                    <FaSearch className="text-lg" style={{ color: 'var(--theme-secondary)' }} />
                   )}
                 </div>
               </div>
@@ -319,11 +329,9 @@ export default function CustomersPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`rounded-xl cursor-pointer transition-all active:scale-[0.98] ${
-                    selectedCustomer?.id === customer.id ? '' : ''
-                  }`}
+                  className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
                   style={{ 
-                    backgroundColor: selectedCustomer?.id === customer.id ? 'var(--theme-accent)' : 'var(--theme-muted)',
+                    backgroundColor: selectedCustomer?.id === customer.id ? 'var(--theme-accent)' : 'var(--theme-card-bg)',
                     borderColor: 'var(--theme-card-border)',
                     minHeight: '72px'
                   }}
@@ -478,7 +486,7 @@ export default function CustomersPage() {
                   </div>
                 </div>
 
-                {/* Purchase History */}
+                {/* Purchase History - Redesigned */}
                 <div 
                   className="rounded-3xl p-6 shadow-lg border"
                   style={{ 
@@ -493,10 +501,10 @@ export default function CustomersPage() {
                     >
                       مێژووی کڕینەکان
                     </h3>
-                    <span style={{ color: 'var(--theme-secondary)' }}>{paymentHistory.length}</span>
+                    <span style={{ color: 'var(--theme-secondary)' }}>{sortedPaymentHistory.length}</span>
                   </div>
 
-                  {paymentHistory.length === 0 ? (
+                  {sortedPaymentHistory.length === 0 ? (
                     <div className="text-center py-8">
                       <div className="text-5xl mb-3">📋</div>
                       <p style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
@@ -505,81 +513,119 @@ export default function CustomersPage() {
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-80 overflow-y-auto">
-                      {paymentHistory.map((history, index) => (
+                      {sortedPaymentHistory.map((history, index) => (
                         <motion.div
                           key={history.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="p-4 rounded-xl border cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
+                          className="p-4 rounded-2xl border cursor-pointer transition-all active:scale-[0.99] group"
                           style={{ 
                             backgroundColor: 'var(--theme-muted)',
-                            borderColor: 'var(--theme-card-border)'
+                            borderColor: 'var(--theme-card-border)',
+                            minHeight: '80px'
                           }}
                         >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
+                          {/* Responsive layout: column on mobile, row on desktop */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            
+                            {/* Left Side - Total Price - Bold & Large */}
+                            <div className="flex-shrink-0 order-2 sm:order-1">
                               <p 
-                                className="font-semibold"
-                                style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
-                              >
-                                {history.items || 'کاڵا'}
-                              </p>
-                              <p 
-                                className="text-sm"
-                                style={{ color: 'var(--theme-secondary)', fontFamily: 'Inter' }}
-                              >
-                                {history.date ? new Date(history.date).toLocaleDateString('ku') : '-'}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <p 
-                                className="font-bold"
+                                className="text-xl sm:text-2xl font-bold"
                                 style={{ 
-                                  color: history.type === 'sale' ? '#ef4444' : '#22c55e',
+                                  color: 'var(--theme-foreground)',
                                   fontFamily: 'Inter'
                                 }}
                               >
-                                {formatCurrency(history.amount)}
+                                {toKurdishDigits(formatCurrency(history.amount))} 
+                                <span className="text-sm mr-1" style={{ color: 'var(--theme-secondary)' }}>IQD</span>
                               </p>
-                              <div className="flex items-center gap-2">
+                            </div>
+
+                            {/* Center - Date, Invoice ID & Items */}
+                            <div className="flex-1 min-w-0 order-1 sm:order-2">
+                              {/* Date Badge with Invoice ID */}
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <span 
-                                  className="text-xs px-2 py-1 rounded-full"
+                                  className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium"
                                   style={{ 
-                                    backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
-                                    color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
+                                    backgroundColor: 'var(--theme-card-bg)',
+                                    color: 'var(--theme-secondary)',
+                                    border: '1px solid var(--theme-card-border)',
                                     fontFamily: 'var(--font-uni-salar)'
                                   }}
                                 >
-                                  {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
+                                  {history.date ? toKurdishDigits(new Date(history.date).toLocaleDateString('ku')) : '-'}
                                 </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleViewInvoice(history)
-                                  }}
-                                  className="rounded-full transition-all hover:opacity-80 active:scale-90 flex items-center justify-center"
-                                  style={{ 
-                                    backgroundColor: 'var(--theme-accent)',
-                                    color: '#ffffff',
-                                    width: '40px',
-                                    height: '40px'
-                                  }}
-                                  title="بینینی پسوڵە"
-                                >
-                                  <FaEye className="text-lg" />
-                                </button>
+                                {history.invoice_number && (
+                                  <span 
+                                    className="inline-flex items-center px-2 py-1 rounded-lg text-xs"
+                                    style={{ 
+                                      backgroundColor: 'var(--theme-accent)',
+                                      color: '#ffffff',
+                                      fontFamily: 'var(--font-uni-salar)',
+                                      opacity: 0.9
+                                    }}
+                                  >
+                                    #{toKurdishDigits(history.invoice_number)}
+                                  </span>
+                                )}
                               </div>
+                              {/* Items Summary */}
+                              <p 
+                                className="text-sm font-medium truncate"
+                                style={{ 
+                                  color: 'var(--theme-foreground)', 
+                                  fontFamily: 'var(--font-uni-salar)' 
+                                }}
+                              >
+                                {history.items || 'کاڵا'}
+                              </p>
+                              {/* Note */}
+                              {history.note && (
+                                <p 
+                                  className="text-xs mt-1"
+                                  style={{ color: '#ef4444', fontFamily: 'var(--font-uni-salar)' }}
+                                >
+                                  {history.note}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Right Side - Status & View Button */}
+                            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 order-3 flex-shrink-0">
+                              {/* Status Badge - Soft Colors */}
+                              <span 
+                                className="text-xs px-3 py-1.5 rounded-full font-medium"
+                                style={{ 
+                                  backgroundColor: history.payment_method === 'debt' ? '#fef3c7' : '#dcfce7',
+                                  color: history.payment_method === 'debt' ? '#d97706' : '#16a34a',
+                                  fontFamily: 'var(--font-uni-salar)'
+                                }}
+                              >
+                                {history.payment_method === 'debt' ? 'قەرز' : history.payment_method === 'cash' ? 'کاش' : 'ئۆنلاین'}
+                              </span>
+                              {/* View Invoice Button - Circular 40x40px */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleViewInvoice(history)
+                                }}
+                                className="rounded-full transition-all hover:opacity-80 active:scale-90 flex items-center justify-center shadow-md group-hover:shadow-lg"
+                                style={{ 
+                                  backgroundColor: 'var(--theme-accent)',
+                                  color: '#ffffff',
+                                  width: '40px',
+                                  height: '40px',
+                                  minWidth: '40px'
+                                }}
+                                title="بینینی پسوڵە"
+                              >
+                                <FaEye className="text-lg" />
+                              </button>
                             </div>
                           </div>
-                          {history.note && (
-                            <p 
-                              className="text-xs"
-                              style={{ color: '#ef4444', fontFamily: 'var(--font-uni-salar)' }}
-                            >
-                              {history.note}
-                            </p>
-                          )}
                         </motion.div>
                       ))}
                     </div>

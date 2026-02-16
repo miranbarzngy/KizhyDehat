@@ -13,7 +13,7 @@ const themeIcons = {
 const themeNames = {
   white: 'سپی',
   colorful: 'ڕەنگاوڕەنگ',
-  purple: 'پەڕە سوورەکان',
+  purple: 'مۆر',
   dark: 'تاریک'
 }
 
@@ -30,6 +30,8 @@ export default function ThemeToggle() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const handleThemeChange = (newTheme: Theme) => {
+    console.log('🎨 ThemeToggle clicked:', newTheme)
+    // Direct theme change - instant update via DOM manipulation
     setTheme(newTheme)
     setIsOpen(false)
   }
@@ -53,47 +55,49 @@ export default function ThemeToggle() {
 
   return (
     <div className="fixed top-4 left-4 z-50" ref={menuRef}>
-      {/* Main Toggle Button */}
-  
-
-      {/* Slide-out Menu */}
-      <div
-        className={`absolute top-0 left-16 transition-all duration-500 ease-out ${
-          isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'
-        }`}
+      {/* Theme Toggle Button - Opens menu */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-lg border border-white/30 shadow-lg flex items-center justify-center text-lg"
+        title="دیاریکردنی ڕەنگ - Theme Settings"
       >
-        <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-3 border border-white/30 shadow-2xl min-w-[180px]">
-          <h3 className="text-xs font-bold text-center mb-2" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+        🎨
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute top-12 left-0 bg-white/20 backdrop-blur-lg rounded-2xl p-4 border border-white/30 shadow-2xl min-w-[200px]">
+          <h3 className="text-sm font-bold text-center mb-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
             دیاریکردنی ڕەنگ
           </h3>
 
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-3 mb-3">
             {(Object.keys(themeColors) as Theme[]).map((themeKey) => (
               <button
                 key={themeKey}
                 onClick={() => handleThemeChange(themeKey)}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-200 hover:scale-110 shadow-sm ${
-                  theme === themeKey ? 'ring-1 ring-white ring-offset-1 ring-offset-transparent' : ''
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-200 hover:scale-110 shadow-sm ${
+                  theme === themeKey ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent' : ''
                 }`}
                 style={{
                   backgroundColor: themeColors[themeKey],
                   color: themeKey === 'white' ? '#000000' : '#ffffff',
-                  boxShadow: theme === themeKey ? `0 0 8px ${themeColors[themeKey]}40` : 'none'
+                  boxShadow: theme === themeKey ? `0 0 12px ${themeColors[themeKey]}60` : 'none'
                 }}
-                title={themeNames[themeKey]}
+                title={`${themeNames[themeKey]} (${themeKey})`}
               >
                 {themeIcons[themeKey]}
               </button>
             ))}
           </div>
 
-          <div className="mt-3 text-center">
+          <div className="text-center border-t border-white/20 pt-2">
             <span className="text-xs font-medium" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
               {themeNames[theme]}
             </span>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

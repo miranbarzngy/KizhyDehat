@@ -1,7 +1,7 @@
 'use client'
 
+import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { FaEdit, FaMapMarkerAlt, FaPhone, FaPlus, FaSearch, FaTrash, FaUser } from 'react-icons/fa'
 
 interface User {
@@ -123,7 +123,7 @@ export default function UserTab({ users, onCreateUser, onEditUser, onDeleteUser 
                       className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white shadow-lg ${
                         user.is_active !== false ? 'bg-green-500' : 'bg-gray-400'
                       }`} 
-                      title={user.is_active !== false ? 'چالاک' : 'کۆتایی هاتووە'}
+                      title={user.is_active !== false ? 'چالاک' : ' ناچالاک'}
                     />
                   </div>
                   

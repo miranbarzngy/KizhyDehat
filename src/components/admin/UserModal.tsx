@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaLock, FaCamera, FaTimes } from 'react-icons/fa'
 import { sanitizePhoneNumber } from '@/lib/numberUtils'
+import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { FaCamera, FaEnvelope, FaLock, FaMapMarkerAlt, FaPhone, FaTimes, FaUser } from 'react-icons/fa'
 
 interface User {
   id: string
@@ -167,22 +167,22 @@ export default function UserModal({
           </div>
 
           {/* Active Status Switch */}
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100">
+          <div className="flex items-center justify-between p-4  from-green-50 to-emerald-50 rounded-2xl border border-green-100">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-7 rounded-full transition-colors duration-300 ${newUserIsActive ? 'bg-green-500' : 'bg-gray-300'} relative cursor-pointer`} onClick={() => onSetIsActive(!newUserIsActive)}>
                 <motion.div
-                  className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md"
+                  className="absolute top-1 w-5 h-5 bg-black rounded-full shadow-md"
                   animate={{ right: newUserIsActive ? '22px' : '4px' }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               </div>
               <div>
                 <span className="font-bold text-gray-800 block">هەژمارەکە چالاکە</span>
-                <span className="text-xs text-gray-500">{newUserIsActive ? 'دەتوانێت بچێتە ناو سیستمەوە' : 'نەتوانێت بچێتە ناو سیستمەوە'}</span>
+                <span className="text-xs text-gray-500">{newUserIsActive ? 'دەتوانێت بچێتە ناو سیستمەوە' : 'ناتوانێت بچێتە ناو سیستمەوە'}</span>
               </div>
             </div>
             <div className={`px-3 py-1 rounded-full text-xs font-bold ${newUserIsActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-              {newUserIsActive ? 'چالاک' : 'کۆتایی هاتووە'}
+              {newUserIsActive ? 'چالاک' : ' نا چالاک'}
             </div>
           </div>
 

@@ -7,13 +7,15 @@ import StatCards from "@/components/admin/StatCards";
 import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
 import SettingsTab from "@/components/admin/SettingsTab";
+import UserModal from "@/components/admin/UserModal";
 import { useAdminData } from "@/components/admin/useAdminData";
 
 export default function AdminPage() {
   const {
     users, roles, shopSettings, shopSettingsForm, loading, activeTab, showCreateUser, showCreateRole, editingUser,
-    newUserName, newUserEmail, selectedRoleId,
-    setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserEmail, setSelectedRoleId,
+    newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive,
+    setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserImage, setNewUserPhone, setNewUserLocation, 
+    setNewUserEmail, setNewUserPassword, setSelectedRoleId, setNewUserIsActive,
     fetchUsers, fetchRoles, fetchShopSettings, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
     handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm, updateShopSettingsField,
     handleImageUpload, handleQRCodeUpload, updateAllShopSettings
@@ -131,6 +133,32 @@ export default function AdminPage() {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* User Modal */}
+      <UserModal
+        showCreateUser={showCreateUser}
+        editingUser={editingUser}
+        newUserName={newUserName}
+        newUserImage={newUserImage}
+        newUserPhone={newUserPhone}
+        newUserLocation={newUserLocation}
+        newUserEmail={newUserEmail}
+        newUserPassword={newUserPassword}
+        selectedRoleId={selectedRoleId}
+        newUserIsActive={newUserIsActive}
+        roles={roles}
+        onClose={() => { setShowCreateUser(false); resetUserForm(); }}
+        onSetName={setNewUserName}
+        onSetImage={setNewUserImage}
+        onSetPhone={setNewUserPhone}
+        onSetLocation={setNewUserLocation}
+        onSetEmail={setNewUserEmail}
+        onSetPassword={setNewUserPassword}
+        onSetRoleId={setSelectedRoleId}
+        onSetIsActive={setNewUserIsActive}
+        onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
+        onImageUpload={handleImageUpload}
+      />
     </div>
   );
 }

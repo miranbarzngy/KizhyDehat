@@ -99,14 +99,6 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
           >
             {shopSettings?.shopname || 'فرۆشگای کوردستان'}
           </h2>
-          <p 
-            className="text-xs opacity-70 leading-tight text-[var(--theme-foreground)]"
-            style={{ 
-              fontFamily: 'var(--font-uni-salar)'
-            }}
-          >
-            {profile?.name || user?.email?.split('@')[0] || 'بەڕێوەبەر'}
-          </p>
         </div>
 
         {/* Mobile/Tablet View */}

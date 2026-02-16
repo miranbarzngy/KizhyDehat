@@ -2,10 +2,12 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useRef } from 'react'
-import { Store, LogOut, X, Sun, Moon, Palette, Crown } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
+import { Store, LogOut, X, Sun, Moon, Palette, Crown, User, PlusCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useTheme, Theme } from '@/contexts/ThemeContext'
+import { getSupabase } from '@/lib/supabase'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface SidebarProps {
   shopSettings: {
@@ -27,11 +29,123 @@ const themeOptions = [
   { key: 'dark', name: 'تاریک', color: '#374151', textColor: '#ffffff', icon: Moon }
 ]
 
+interface ProfileData {
+  id: string
+  name: string | null
+  image: string | null
+  role_id: string | null
+  role?: {
+    name: string
+    permissions: Record<string, boolean>
+  }
+}
+
 export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps) {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile: authProfile, signOut } = useAuth()
   const router = useRouter()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
+  const [profileData, setProfileData] = useState<ProfileData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch profile data from Supabase - simplified approach
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      
+      const supabase = getSupabase()
+      if (!supabase) {
+        console.log('No supabase client')
+        setLoading(false)
+        return
+      }
+
+      console.log('Sidebar: Fetching profile for user:', user.id)
+
+      try {
+        // First try to get profile from auth context
+        if (authProfile && authProfile.name) {
+          console.log('Using authProfile:', authProfile)
+          setProfileData(authProfile as ProfileData)
+          setLoading(false)
+          return
+        }
+
+        // If not available, fetch from database
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        
+        console.log('Sidebar: Profile query result:', profile, error)
+        
+        if (profile && !error) {
+          // Get role name if role_id exists
+          let roleName = 'ڕۆڵی نەناسراو'
+          if (profile.role_id) {
+            try {
+              const { data: roleData } = await supabase
+                .from('roles')
+                .select('name')
+                .eq('id', profile.role_id)
+                .single()
+              if (roleData?.name) {
+                roleName = roleData.name
+              }
+            } catch (roleError) {
+              console.log('Role fetch error:', roleError)
+            }
+          }
+
+          const transformedProfile: ProfileData = {
+            id: profile.id,
+            name: profile.name || null,
+            image: profile.image || null,
+            role_id: profile.role_id || null,
+            role: { name: roleName, permissions: {} }
+          }
+          
+          console.log('Sidebar: Transformed profile:', transformedProfile)
+          setProfileData(transformedProfile)
+        } else {
+          console.log('Sidebar: No profile found, using user email')
+          // No profile exists yet - use user email as fallback
+          setProfileData({
+            id: user.id,
+            name: user.email?.split('@')[0] || null,
+            image: null,
+            role_id: null,
+            role: { name: 'ڕۆڵی نەناسراو', permissions: {} }
+          })
+        }
+      } catch (err) {
+        console.error('Sidebar: Profile fetch error:', err)
+        // Fallback to email
+        setProfileData({
+          id: user.id,
+          name: user.email?.split('@')[0] || null,
+          image: null,
+          role_id: null,
+          role: { name: 'ڕۆڵی نەناسراو', permissions: {} }
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (isOpen) {
+      fetchProfile()
+    }
+  }, [user, isOpen, authProfile])
+
+  // Use profileData as primary source (loaded from DB)
+  const displayName = profileData?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'
+  const displayImage = profileData?.image || null
+  const displayRole = profileData?.role?.name || 'ڕۆڵی نەناسراو'
 
   const handleSignOut = async () => {
     await signOut()
@@ -68,8 +182,81 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
         }}
       >
         <div className="p-4 flex flex-col gap-4">
+          {/* User Profile Section */}
+          <div className="flex flex-col items-center py-3">
+            {/* Avatar with add-circle style border */}
+            <div className="relative">
+              <div 
+                className="w-20 h-20 rounded-full p-1 shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, var(--theme-primary), var(--theme-secondary))',
+                }}
+              >
+                <div 
+                  className="w-full h-full rounded-full bg-white/90 flex items-center justify-center overflow-hidden"
+                >
+                  {loading ? (
+                    <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                  ) : displayImage && displayImage.trim() !== '' ? (
+                    <img
+                      src={displayImage}
+                      alt="User"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span 
+                      className="text-2xl font-bold"
+                      style={{ 
+                        color: 'var(--theme-primary)',
+                        fontFamily: 'var(--font-uni-salar)'
+                      }}
+                    >
+                      {displayName?.charAt(0)?.toUpperCase() || 'ب'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Add circle indicator */}
+              <div 
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md"
+                style={{
+                  background: 'var(--theme-primary)',
+                  color: 'white'
+                }}
+              >
+                <PlusCircle className="w-4 h-4" />
+              </div>
+            </div>
+            
+            {/* User Name */}
+            <h3 
+              className="text-base font-bold mt-3 text-center"
+              style={{
+                color: 'var(--theme-sidebar-text)',
+                fontFamily: 'var(--font-uni-salar)'
+              }}
+            >
+              {loading ? '...' : displayName}
+            </h3>
+            
+            {/* User Role */}
+            <div 
+              className="mt-1 px-3 py-1 rounded-full text-xs font-medium"
+              style={{
+                background: 'var(--theme-primary)',
+                color: 'white',
+                fontFamily: 'var(--font-uni-salar)'
+              }}
+            >
+              {loading ? '...' : displayRole}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-black/10" />
+
           {/* Header with Close button */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-2">
             <h4
               className="text-sm font-semibold"
               style={{
@@ -88,7 +275,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             </button>
           </div>
 
-          {/* Theme Toggle Section - All in one row */}
+          {/* Theme Toggle Section */}
           <div className="flex justify-between items-start gap-2">
             {themeOptions.map((themeOption) => {
               const Icon = themeOption.icon

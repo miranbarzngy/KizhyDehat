@@ -7,6 +7,8 @@ import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
+import { useToast } from '@/components/Toast'
+import ConfirmModal from '@/components/ConfirmModal'
 
 interface InvoiceSettings {
   id?: number
@@ -27,6 +29,7 @@ const formatCurrencyKurdish = (value: any): string => {
 
 export default function InvoicesPage() {
   const { openModal } = useGlobalInvoiceModal()
+  const { showSuccess, showError } = useToast()
   const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('pending')
   const [formData, setFormData] = useState<InvoiceSettings>({
     shop_name: 'فرۆشگای کوردستان',
@@ -51,6 +54,15 @@ export default function InvoicesPage() {
   
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
+  
+  // Confirm modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
+  const [pendingSaleAction, setPendingSaleAction] = useState<{sale: any, action: string} | null>(null)
 
   // Fetch seller name from profile using user_id
   const fetchSellerName = async (userId: string | null, soldBy: string | null): Promise<string> => {
@@ -164,13 +176,13 @@ export default function InvoicesPage() {
       
       if (error) throw error
       
-      alert('پسوڵەکە بە سەرکەوتوویی گەڕێندرایەوە')
+      showSuccess('پسوڵەکە بە سەرکەوتوویی گەڕێندرایەوە')
       // Refresh data
       await fetchInvoices()
       await fetchPendingSales()
     } catch (error) {
       console.error('Error refunding invoice:', error)
-      alert('هەڵە لە گەڕاندنەوەی پسوڵەکە')
+      showError('هەڵە لە گەڕاندنەوەی پسوڵەکە')
     }
   }
 
@@ -359,10 +371,10 @@ export default function InvoicesPage() {
       } else {
         await supabase.from('invoice_settings').insert(settingsData)
       }
-      alert('✅ ڕێکخستنەکان بە سەرکەوتوویی پاشەکەوتکران!')
+      showSuccess('ڕێکخستنەکان بە سەرکەوتوویی پاشەکەوتکران!')
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('❌ هەڵە لە پاشەکەوتکردن')
+      showError('هەڵە لە پاشەکەوتکردن')
     } finally { setIsSaving(false) }
   }
 
@@ -687,19 +699,25 @@ export default function InvoicesPage() {
                               {/* تەواوکردن (Complete) - Green */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={async () => { 
-                                    if (confirm('دڵنیایت لە تەواوکردنی ئەم فرۆشتنە؟')) { 
-                                      try {
-                                        // Use RPC call to atomically approve sale and decrement quantities
-                                        const { error } = await supabase?.rpc('approve_sale', { p_sale_id: sale.id });
-                                        if (error) throw error;
-                                        await fetchPendingSales();
-                                        alert('فرۆشتنەکە بە سەرکەوتوویی تەواوکرا!');
-                                      } catch (err: any) {
-                                        console.error('Error approving sale:', err);
-                                        alert('هەڵە لە تەواوکردنی فرۆشتنەکە: ' + (err.message || 'هەڵەی نەناسراو'));
+                                  onClick={() => {
+                                    setConfirmModalConfig({
+                                      title: 'دڵنیایی لە پەسەندکردن',
+                                      message: 'ئایا دڵنیایت لە پەسەندکردنی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
+                                      onConfirm: async () => {
+                                        try {
+                                          const { error } = await supabase?.rpc('approve_sale', { p_sale_id: sale.id });
+                                          if (error) throw error;
+                                          await fetchPendingSales();
+                                          showSuccess('وەسڵەکە بە سەرکەوتوویی پەسەند کرا')
+                                        } catch (err: any) {
+                                          console.error('Error approving sale:', err);
+                                          showError('هەڵە لە پەسەندکردن: ' + (err.message || 'هەڵەی نەناسراو'))
+                                        }
+                                        setShowConfirmModal(false)
                                       }
-                                    } 
+                                    })
+                                    setPendingSaleAction({ sale, action: 'approve' })
+                                    setShowConfirmModal(true)
                                   }}
                                   className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
@@ -716,18 +734,25 @@ export default function InvoicesPage() {
                               {/* گەڕاندنەوە (Refund) - Orange */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={async () => { 
-                                    if (confirm('دڵنیایت لە گەڕاندنەوەی ئەم فرۆشتنە؟')) { 
-                                      try {
-                                        // Revert stock first, then update status
-                                        await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
-                                        await supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id)
-                                        await fetchPendingSales()
-                                      } catch (err) {
-                                        console.error('Error refunding sale:', err)
-                                        alert('هەڵە لە گەڕاندنەوە')
+                                  onClick={() => {
+                                    setConfirmModalConfig({
+                                      title: 'دڵنیایی لە گەڕاندنەوە',
+                                      message: 'ئایا دڵنیایت لە گەڕاندنەوەی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
+                                      onConfirm: async () => {
+                                        try {
+                                          await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
+                                          await supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id)
+                                          await fetchPendingSales()
+                                          showSuccess('فرۆشتنەکە بە سەرکەوتوویی گەڕێندرایەوە')
+                                        } catch (err) {
+                                          console.error('Error refunding sale:', err)
+                                          showError('هەڵە لە گەڕاندنەوە')
+                                        }
+                                        setShowConfirmModal(false)
                                       }
-                                    } 
+                                    })
+                                    setPendingSaleAction({ sale, action: 'refund' })
+                                    setShowConfirmModal(true)
                                   }}
                                   className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
@@ -744,18 +769,25 @@ export default function InvoicesPage() {
                               {/* هەڵوەشاندنەوە (Cancel) - Red */}
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
-                                  onClick={async () => { 
-                                    if (confirm('دڵنیایت لە هەڵوەشاندنەوەی ئەم فرۆشتنە؟')) { 
-                                      try {
-                                        // Revert stock first, then update status
-                                        await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
-                                        await supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id)
-                                        await fetchPendingSales()
-                                      } catch (err) {
-                                        console.error('Error cancelling sale:', err)
-                                        alert('هەڵە لە هەڵوەشاندنەوە')
+                                  onClick={() => {
+                                    setConfirmModalConfig({
+                                      title: 'دڵنیایی لە هەڵوەشاندنەوە',
+                                      message: 'ئایا دڵنیایت لە هەڵوەشاندنەوەی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
+                                      onConfirm: async () => {
+                                        try {
+                                          await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
+                                          await supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id)
+                                          await fetchPendingSales()
+                                          showSuccess('فرۆشتنەکە هەڵوەشێنرایەوە')
+                                        } catch (err) {
+                                          console.error('Error cancelling sale:', err)
+                                          showError('هەڵە لە هەڵوەشاندنەوە')
+                                        }
+                                        setShowConfirmModal(false)
                                       }
-                                    } 
+                                    })
+                                    setPendingSaleAction({ sale, action: 'cancel' })
+                                    setShowConfirmModal(true)
                                   }}
                                   className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
                                   whileHover={{ scale: 1.05 }}
@@ -791,6 +823,16 @@ export default function InvoicesPage() {
           {/* No local modal needed - GlobalInvoiceModal is now handled by context */}
         </motion.div>
       </div>
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={() => setShowConfirmModal(false)}
+        type="success"
+      />
     </div>
   )
 }

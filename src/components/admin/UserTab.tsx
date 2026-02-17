@@ -202,24 +202,8 @@ export default function UserTab({ users, onCreateUser, onEditUser, onDeleteUser 
         </AnimatePresence>
       </div>
 
-      {/* Empty State */}
-      {filteredUsers.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-16 bg-white/40 backdrop-blur-xl border border-white/20 rounded-3xl"
-        >
-          <div className="bg-gray-100/50 p-6 rounded-full mb-4">
-            <FaUser className="w-16 h-16 text-gray-300" />
-          </div>
-          <p 
-            className="text-gray-400 text-lg"
-            style={{ fontFamily: 'var(--font-uni-salar)' }}
-          >
-            هیچ بەکارهێنەرێک نەدۆزرایەوە
-          </p>
-        </motion.div>
-      )}
+    
+      
     </>
   )
 }

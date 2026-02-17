@@ -1,8 +1,8 @@
 'use client'
 
-import { Product } from '../types'
 import { motion } from 'framer-motion'
 import { FaArchive, FaEdit, FaPlus, FaTrash } from 'react-icons/fa'
+import { Product } from '../types'
 
 interface ProductGridProps {
   products: Product[]
@@ -38,73 +38,64 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
         </button>
       )}
       
-      {/* Show products or empty message */}
-      {products.length > 0 ? (
-        products.map(item => (
-          <div 
-            key={item.id} 
-            className="p-6 rounded-2xl bg-white border border-gray-200 shadow-lg hover:shadow-xl transition-all"
-          >
-            <div className="h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center text-4xl overflow-hidden">
-              {item.image ? (
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
-              ) : (
-                '📦'
-              )}
-            </div>
-            <h3 
-              className="text-lg font-bold text-center text-slate-950 mb-2" 
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              {item.name}
-            </h3>
-            <div className="text-center mb-4">
-              <span 
-                className="text-2xl font-bold" 
-                style={{ color: item.total_amount_bought <= 5 ? '#dc2626' : '#059669' }}
-              >
-                {item.total_amount_bought} {item.unit}
-              </span>
-              {item.category && (
-                <div className="text-sm text-gray-600">{item.category}</div>
-              )}
-            </div>
-            {/* Action Buttons - Always Visible & Touch Friendly */}
-            <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200">
-              <button 
-                onClick={() => openEditItem(item)}
-                className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                title="دەستکاری"
-              >
-                <FaEdit />
-              </button>
-              <button 
-                onClick={() => archiveItem(item)}
-                className="w-10 h-10 flex items-center justify-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-md"
-                title="ئەرشیڤ"
-              >
-                <FaArchive />
-              </button>
-              {!soldProductIds.has(item.id) && (
-                <button 
-                  onClick={() => confirmDelete(item)}
-                  className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
-                  title="سڕینەوە"
-                >
-                  <FaTrash />
-                </button>
-              )}
-            </div>
+      {/* Show products */}
+      {products.map(item => (
+        <div 
+          key={item.id} 
+          className="p-6 rounded-2xl bg-white border border-gray-200 shadow-lg hover:shadow-xl transition-all"
+        >
+          <div className="h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center text-4xl overflow-hidden">
+            {item.image ? (
+              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+            ) : (
+              '📦'
+            )}
           </div>
-        ))
-      ) : (
-        <div className="col-span-full p-12 rounded-2xl bg-white border border-gray-200 shadow-lg text-center">
-          <div className="text-6xl mb-4">📦</div>
-          <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.2rem', color: '#6b7280' }}>
-            هیچ کاڵایەک نەدۆزرایەوە
-          </p>
+          <h3 
+            className="text-lg font-bold text-center text-slate-950 mb-2" 
+            style={{ fontFamily: 'var(--font-uni-salar)' }}
+          >
+            {item.name}
+          </h3>
+          <div className="text-center mb-4">
+            <span 
+              className="text-2xl font-bold" 
+              style={{ color: item.total_amount_bought <= 5 ? '#dc2626' : '#059669' }}
+            >
+              {item.total_amount_bought} {item.unit}
+            </span>
+            {item.category && (
+              <div className="text-sm text-gray-600">{item.category}</div>
+            )}
+          </div>
+          {/* Action Buttons - Always Visible & Touch Friendly */}
+          <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200">
+            <button 
+              onClick={() => openEditItem(item)}
+              className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+              title="دەستکاری"
+            >
+              <FaEdit />
+            </button>
+            <button 
+              onClick={() => archiveItem(item)}
+              className="w-10 h-10 flex items-center justify-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-md"
+              title="ئەرشیڤ"
+            >
+              <FaArchive />
+            </button>
+            {!soldProductIds.has(item.id) && (
+              <button 
+                onClick={() => confirmDelete(item)}
+                className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
+                title="سڕینەوە"
+              >
+                <FaTrash />
+              </button>
+            )}
+          </div>
         </div>
-      )}
+      ))}
     </motion.div>
   )
 }

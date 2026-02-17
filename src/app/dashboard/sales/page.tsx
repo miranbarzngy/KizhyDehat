@@ -10,6 +10,7 @@ import CartSidebar from './_components/CartSidebar'
 import CustomerSelector from './_components/CustomerSelector'
 import UnitModal from './_components/UnitModal'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import { useToast } from '@/components/Toast'
 
 interface InventoryItem {
   id: string
@@ -44,6 +45,7 @@ interface CartItem {
 export default function SalesPage() {
   const { user, profile } = useAuth()
   const { openModal } = useGlobalInvoiceModal()
+  const { showSuccess, showError } = useToast()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -139,7 +141,7 @@ export default function SalesPage() {
   const addToCart = (item: InventoryItem) => { 
     // Safety check: prevent adding if not enough stock
     if (item.total_amount_bought <= 0) {
-      alert('بڕی پێویست لە کۆگا نەماوە!')
+      showError('بڕی پێویست لە کۆگا نەماوە!')
       return
     }
     setSelectedItem(item); setQuantityInput(''); setShowUnitModal(true) 
@@ -152,7 +154,7 @@ export default function SalesPage() {
     
     // Safety check: prevent adding more than available stock
     if (quantity > selectedItem.total_amount_bought) {
-      alert('بڕی پێویست لە کۆگا نەماوە!')
+      showError('بڕی پێویست لە کۆگا نەماوە!')
       return
     }
     

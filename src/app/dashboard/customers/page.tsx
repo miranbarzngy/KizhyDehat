@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
 import { FaDollarSign } from 'react-icons/fa'
+import { useToast } from '@/components/Toast'
 
 interface Customer {
   id: string
@@ -89,6 +90,9 @@ const convertKurdishToEnglish = (input: string): string => {
 }
 
 export default function CustomersPage() {
+  // Toast notifications
+  const { showSuccess, showError } = useToast()
+  
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
@@ -155,7 +159,7 @@ export default function CustomersPage() {
         setShowAddCustomer(false)
         setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
         setImagePreview(null)
-        alert('کڕیارەکە زیادکرا')
+        showSuccess('کڕیارەکە زیادکرا')
         return
       }
 
@@ -174,7 +178,7 @@ export default function CustomersPage() {
 
       if (error) {
         console.error('Error adding customer:', error)
-        alert('هەڵە لە زیادکردنی کڕیار')
+        showError('هەڵە لە زیادکردنی کڕیار')
         return
       }
 
@@ -183,11 +187,11 @@ export default function CustomersPage() {
         setShowAddCustomer(false)
         setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
         setImagePreview(null)
-        alert('کڕیارەکە زیادکرا')
+        showSuccess('کڕیارەکە زیادکرا')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('هەڵە لە زیادکردنی کڕیار')
+      showError('هەڵە لە زیادکردنی کڕیار')
     } finally {
       setIsUploading(false)
     }
@@ -276,7 +280,7 @@ export default function CustomersPage() {
         setIsEditing(false)
         setEditingCustomer(null)
         resetForm()
-        alert('کڕیارەکە نوێکرایەوە')
+        showSuccess('کڕیارەکە نوێکرایەوە')
         return
       }
 
@@ -295,7 +299,7 @@ export default function CustomersPage() {
 
       if (error) {
         console.error('Error updating customer:', error)
-        alert('هەڵە لە نوێکردنەوەی کڕیار')
+        showError('هەڵە لە نوێکردنەوەی کڕیار')
         return
       }
 
@@ -306,11 +310,11 @@ export default function CustomersPage() {
         setIsEditing(false)
         setEditingCustomer(null)
         resetForm()
-        alert('کڕیارەکە نوێکرایەوە')
+        showSuccess('کڕیارەکە نوێکرایەوە')
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('هەڵە لە نوێکردنەوەی کڕیار')
+      showError('هەڵە لە نوێکردنەوەی کڕیار')
     } finally {
       setIsUploading(false)
     }
@@ -574,10 +578,10 @@ export default function CustomersPage() {
       
       // Reset form
       setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
-      alert('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
+      showSuccess('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
     } catch (error) {
       console.error('Error adding payment:', error)
-      alert('هەڵە لە تۆمارکردن')
+      showError('هەڵە لە تۆمارکردن')
     } finally {
       setSubmittingPayment(false)
     }

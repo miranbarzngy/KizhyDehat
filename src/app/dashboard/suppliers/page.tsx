@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { FaList, FaSearch, FaTh, FaPlus, FaTimes, FaEdit, FaTrash, FaMoneyBillWave } from 'react-icons/fa'
+import { useToast } from '@/components/Toast'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -42,6 +43,9 @@ interface SupplierTransaction {
 }
 
 export default function SuppliersPage() {
+  // Toast notifications
+  const { showSuccess, showError } = useToast()
+  
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
@@ -136,7 +140,7 @@ export default function SuppliersPage() {
     supplier_image?: string
   }, selectedFile?: File | null) => {
     if (!supabase) {
-      alert('هەڵە لە پەیوەستبوون بە داتابەیس')
+      showError('هەڵە لە پەیوەستبوون بە داتابەیس')
       return
     }
 
@@ -153,37 +157,38 @@ export default function SuppliersPage() {
 
         if (error) {
           console.error('Error updating supplier:', error)
-          alert('هەڵە لە نوێکردنەوە: ' + error.message)
+          showError('هەڵە لە نوێکردنەوە: ' + error.message)
           return
         }
 
         await fetchSuppliers()
         setEditingSupplier(null)
         setShowAddModal(false)
-        return
+        showSuccess('دابینکەرەکە نوێکرایەوە')
+      } else {
+        const { error } = await supabase.from('suppliers').insert({
+          name: data.name,
+          company: data.company || null,
+          phone: data.phone || null,
+          address: data.address || null,
+          supplier_image: data.supplier_image || null,
+          balance: 0,
+          total_debt: 0
+        })
+
+        if (error) {
+          console.error('Error inserting supplier:', error)
+          showError('هەڵە لە تۆمارکردن: ' + error.message)
+          return
+        }
+
+        await fetchSuppliers()
+        setShowAddModal(false)
+        showSuccess('دابینکەرەکە زیادکرا')
       }
-
-      const { error } = await supabase.from('suppliers').insert({
-        name: data.name,
-        company: data.company || null,
-        phone: data.phone || null,
-        address: data.address || null,
-        supplier_image: data.supplier_image || null,
-        balance: 0,
-        total_debt: 0
-      })
-
-      if (error) {
-        console.error('Error inserting supplier:', error)
-        alert('هەڵە لە تۆمارکردن: ' + error.message)
-        return
-      }
-
-      await fetchSuppliers()
-      setShowAddModal(false)
     } catch (error) {
       console.error('Error saving supplier:', error)
-      alert('هەڵە لە تۆمارکردن')
+      showError('هەڵە لە تۆمارکردن')
     } finally {
       setFormLoading(false)
     }

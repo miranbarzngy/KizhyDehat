@@ -109,26 +109,6 @@ export default function InvoiceTable({
                       </motion.button>
                       <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</span>
                     </div>
-
-                    {/* Print button removed per user request */}
-
-                    {/* گەڕاندنەوە - Orange (only if not refunded/cancelled) */}
-                    {invoice.status !== 'refunded' && invoice.status !== 'cancelled' && (
-                      <div className="flex flex-col items-center gap-1">
-                        <motion.button
-                          onClick={() => onRefund(invoice)}
-                          className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          title="گەڕاندنەوە"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                          </svg>
-                        </motion.button>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندنەوە</span>
-                      </div>
-                    )}
                   </div>
                 </td>
               </motion.tr>

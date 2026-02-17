@@ -145,8 +145,8 @@ body {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Theme classes on html - THE SOURCE OF TRUTH */
@@ -246,4 +246,59 @@ html[data-theme] [class*="bg-slate-"] {
 
 .theme-dark {
   --theme-foreground: #ffffff;
+}
+
+/* Global Input Theme Override - Forces all inputs to use theme colors */
+html[data-theme] input,
+html[data-theme] textarea,
+html[data-theme] select {
+  background-color: var(--theme-muted) !important;
+  color: var(--theme-foreground) !important;
+  border-color: var(--theme-card-border) !important;
+}
+
+html[data-theme] input::placeholder,
+html[data-theme] textarea::placeholder {
+  color: var(--theme-secondary) !important;
+  opacity: 0.7;
+}
+
+/* Force phone inputs and number inputs to use Inter font - overrides any inline styles */
+html[data-theme] input[type="tel"],
+html[data-theme] input[type="text"],
+html[data-theme] input[type="number"],
+html[data-theme] input[inputmode="tel"],
+html[data-theme] input[inputmode="numeric"],
+html[data-theme] input[inputmode="decimal"] {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  direction: ltr !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Dropdown options - use solid colors for better visibility */
+html[data-theme='white'] option {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html[data-theme='colorful'] option {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  color: #000000 !important;
+}
+
+html[data-theme='purple'] option {
+  background-color: #4c1d95 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme='dark'] option {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+/* Ensure select elements have proper height and styling */
+html[data-theme] select {
+  height: 48px !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem 2.5rem 0.75rem 1rem !important;
 }

@@ -4,6 +4,13 @@ import { useState, useRef, ChangeEvent, useEffect } from 'react'
 import { uploadFile } from '@/lib/storage'
 import { FaImage, FaTimes, FaSpinner, FaUser, FaBuilding, FaPhone, FaMapMarkerAlt, FaCloudUploadAlt } from 'react-icons/fa'
 
+// Kurdish to English number converter
+const convertKurdishToEnglish = (input: string): string => {
+  if (!input || typeof input !== 'string') return ''
+  const map: Record<string, string> = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'}
+  return input.replace(/[٠-٩]/g, m => map[m])
+}
+
 interface SupplierFormProps {
   isOpen: boolean
   onClose: () => void
@@ -229,7 +236,7 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
               </div>
             </div>
 
-            {/* Phone Field */}
+            {/* Phone Field - WITH KURDISH CONVERSION */}
             <div>
               <label 
                 className="block text-sm font-medium mb-2"
@@ -247,14 +254,14 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
                 <input
                   type="text"
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: convertKurdishToEnglish(e.target.value) }))}
                   placeholder="ژمارەی مۆبایل"
                   className="w-full px-4 py-3 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
                   style={{
                     backgroundColor: 'var(--theme-muted)',
                     borderColor: 'var(--theme-card-border)',
                     color: 'var(--theme-foreground)',
-                    fontFamily: 'var(--font-uni-salar)',
+                    fontFamily: 'Inter, system-ui, sans-serif',
                     '--tw-ring-color': 'var(--theme-accent)' as any
                   }}
                 />

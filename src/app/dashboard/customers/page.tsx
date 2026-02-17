@@ -81,6 +81,13 @@ const toKurdishDigits = (value: any): string => {
   return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
 }
 
+// Kurdish to English number converter
+const convertKurdishToEnglish = (input: string): string => {
+  if (!input || typeof input !== 'string') return ''
+  const map: Record<string, string> = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'}
+  return input.replace(/[٠-٩]/g, m => map[m])
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -436,7 +443,7 @@ export default function CustomersPage() {
         .from('sales')
         .select('id, date, total, payment_method, status, created_at, discount_amount, subtotal, invoice_number, sold_by, user_id')
         .eq('customer_id', customerId)
-        .in('status', ['completed', 'approved'])  // Only approved/completed sales appear in history
+        .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false })
 
       if (salesError) {
@@ -1271,7 +1278,7 @@ export default function CustomersPage() {
                     </div>
                   </div>
 
-                  {/* Phone 1 Field */}
+                  {/* Phone 1 Field - WITH KURDISH CONVERSION */}
                   <div>
                     <label 
                       className="block text-sm font-medium mb-2"
@@ -1289,21 +1296,21 @@ export default function CustomersPage() {
                       <input
                         type="text"
                         value={newCustomer.phone1}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone1: e.target.value }))}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone1: convertKurdishToEnglish(e.target.value) }))}
                         placeholder="ژمارەی تەلەفۆن"
                         className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
                         style={{
                           backgroundColor: 'var(--theme-muted)',
                           borderColor: 'var(--theme-card-border)',
                           color: 'var(--theme-foreground)',
-                          fontFamily: 'var(--font-uni-salar)',
+                          fontFamily: 'Inter, system-ui, sans-serif',
                           minHeight: '48px'
                         }}
                       />
                     </div>
                   </div>
 
-                  {/* Phone 2 Field */}
+                  {/* Phone 2 Field - WITH KURDISH CONVERSION */}
                   <div>
                     <label 
                       className="block text-sm font-medium mb-2"
@@ -1321,14 +1328,14 @@ export default function CustomersPage() {
                       <input
                         type="text"
                         value={newCustomer.phone2}
-                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone2: e.target.value }))}
+                        onChange={(e) => setNewCustomer(prev => ({ ...prev, phone2: convertKurdishToEnglish(e.target.value) }))}
                         placeholder="ژمارەی تەلەفۆن ٢"
                         className="w-full px-4 py-4 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
                         style={{
                           backgroundColor: 'var(--theme-muted)',
                           borderColor: 'var(--theme-card-border)',
                           color: 'var(--theme-foreground)',
-                          fontFamily: 'var(--font-uni-salar)',
+                          fontFamily: 'Inter, system-ui, sans-serif',
                           minHeight: '48px'
                         }}
                       />

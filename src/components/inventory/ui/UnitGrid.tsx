@@ -73,22 +73,24 @@ export default function UnitGrid({ units, onAddUnit, onEditUnit, onDeleteUnit }:
             
             {/* Action Buttons - Always Visible & Touch Friendly */}
             <div className="flex justify-center gap-3 mt-4 pt-3" style={{ borderColor: 'var(--theme-card-border)', borderTopWidth: '1px' }}>
-              <button
+              <motion.button
                 onClick={() => onEditUnit(unit)}
-                className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors shadow-md"
+                className="w-10 h-10 flex items-center justify-center rounded-xl shadow-lg transition-colors"
                 style={{ backgroundColor: 'var(--theme-accent)', color: 'white' }}
-                title="دەستکاری"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <FaEdit />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => onDeleteUnit(unit)}
-                className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors shadow-md"
+                className="w-10 h-10 flex items-center justify-center rounded-xl shadow-lg transition-colors"
                 style={{ backgroundColor: '#ef4444', color: 'white' }}
-                title="سڕینەوە"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <FaTrash />
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         ))

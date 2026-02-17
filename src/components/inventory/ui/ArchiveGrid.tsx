@@ -1,8 +1,8 @@
 'use client'
 
-import { Product } from '../types'
 import { motion } from 'framer-motion'
 import { FaPlus } from 'react-icons/fa'
+import { Product } from '../types'
 
 interface ArchiveGridProps {
   archivedItems: Product[]
@@ -16,20 +16,7 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
     return item.name?.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  if (filteredArchived.length === 0) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        className="col-span-full text-center py-12 text-gray-500"
-      >
-        <div className="text-6xl mb-4">📦</div>
-        <p style={{ fontFamily: 'var(--font-uni-salar)' }}>
-          هیچ کاڵایەک لە ئەرشیڤدا نییە
-        </p>
-      </motion.div>
-    )
-  }
+ 
 
   return (
     <motion.div 

@@ -70,28 +70,34 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
           </div>
           {/* Action Buttons - Always Visible & Touch Friendly */}
           <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-gray-200">
-            <button 
-              onClick={() => openEditItem(item)}
-              className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-              title="دەستکاری"
-            >
-              <FaEdit />
-            </button>
-            <button 
-              onClick={() => archiveItem(item)}
-              className="w-10 h-10 flex items-center justify-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-md"
-              title="ئەرشیڤ"
-            >
-              <FaArchive />
-            </button>
-            {!soldProductIds.has(item.id) && (
+            <div className="flex flex-col items-center gap-1">
               <button 
-                onClick={() => confirmDelete(item)}
-                className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
-                title="سڕینەوە"
+                onClick={() => openEditItem(item)}
+                className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl shadow-lg transition-colors"
+                style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
               >
-                <FaTrash />
+                <FaEdit />
               </button>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <button 
+                onClick={() => archiveItem(item)}
+                className="w-10 h-10 flex items-center justify-center bg-orange-500 text-white rounded-xl shadow-lg transition-colors"
+                style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              >
+                <FaArchive />
+              </button>
+            </div>
+            {!soldProductIds.has(item.id) && (
+              <div className="flex flex-col items-center gap-1">
+                <button 
+                  onClick={() => confirmDelete(item)}
+                  className="w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-xl shadow-lg transition-colors"
+                  style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                >
+                  <FaTrash />
+                </button>
+              </div>
             )}
           </div>
           {/* Price Info Below Buttons */}

@@ -122,10 +122,18 @@ export function useAdminData(): UseAdminDataReturn {
   const fetchShopSettings = useCallback(async () => {
     if (!supabase) { setShopSettings(DEMO_SETTINGS); setShopSettingsForm(DEMO_SETTINGS); return; }
     try {
-      const { data, error } = await supabase.from("invoice_settings").select("*").single();
+      // Fetch from shop_settings table
+      const { data, error } = await supabase.from("shop_settings").select("*").single();
       if (error && error.code !== "PGRST116") throw error;
       setShopSettings(data || null);
-      if (data) setShopSettingsForm({ ...data, auto_logout_minutes: data.auto_logout_minutes ?? 15 });
+      if (data) setShopSettingsForm({ 
+        shop_name: data.shopname || '', 
+        shop_logo: data.icon || '', 
+        shop_phone: data.phone || '', 
+        shop_address: data.location || '', 
+        qr_code_url: data.qrcodeimage || '',
+        auto_logout_minutes: data.auto_logout_minutes || 15
+      });
     } catch { }
   }, []);
 
@@ -207,10 +215,18 @@ export function useAdminData(): UseAdminDataReturn {
   const updateShopSettingsField = useCallback(async (field: string, value: string | number) => {
     if (!supabase) return;
     try {
-      const fieldMapping: Record<string, string> = { shop_name: 'shop_name', shop_phone: 'shop_phone', shop_address: 'shop_address', shop_logo: 'shop_logo', qr_code_url: 'qr_code_url', auto_logout_minutes: 'auto_logout_minutes' };
+      // Map form field names to shop_settings table column names
+      const fieldMapping: Record<string, string> = { 
+        shop_name: 'shopname', 
+        shop_phone: 'phone', 
+        shop_address: 'location', 
+        shop_logo: 'icon', 
+        qr_code_url: 'qrcodeimage', 
+        auto_logout_minutes: 'auto_logout_minutes' 
+      };
       const dbField = fieldMapping[field] || field;
-      if (shopSettings) await supabase.from("invoice_settings").update({ [dbField]: value }).eq("id", shopSettings.id);
-      else await supabase.from("invoice_settings").insert({ [dbField]: value });
+      if (shopSettings) await supabase.from("shop_settings").update({ [dbField]: value }).eq("id", shopSettings.id);
+      else await supabase.from("shop_settings").insert({ [dbField]: value });
       fetchShopSettings();
     } catch { }
   }, [shopSettings, fetchShopSettings]);
@@ -281,9 +297,17 @@ export function useAdminData(): UseAdminDataReturn {
   const updateAllShopSettings = useCallback(async () => {
     if (!supabase) { alert("دۆخی دیمۆ"); return; }
     try {
-      const updateData = { shop_name: shopSettingsForm.shop_name || '', shop_phone: shopSettingsForm.shop_phone || '', shop_address: shopSettingsForm.shop_address || '', shop_logo: shopSettingsForm.shop_logo || '', qr_code_url: shopSettingsForm.qr_code_url || '', auto_logout_minutes: shopSettingsForm.auto_logout_minutes || 15 };
-      if (shopSettings) await supabase.from("invoice_settings").update(updateData).eq("id", shopSettings.id);
-      else await supabase.from("invoice_settings").insert(updateData);
+      // Map to shop_settings table column names
+      const updateData = { 
+        shopname: shopSettingsForm.shop_name || '', 
+        phone: shopSettingsForm.shop_phone || '', 
+        location: shopSettingsForm.shop_address || '', 
+        icon: shopSettingsForm.shop_logo || '', 
+        qrcodeimage: shopSettingsForm.qr_code_url || '', 
+        auto_logout_minutes: shopSettingsForm.auto_logout_minutes || 15 
+      };
+      if (shopSettings) await supabase.from("shop_settings").update(updateData).eq("id", shopSettings.id);
+      else await supabase.from("shop_settings").insert(updateData);
       alert("نوێکرایەوە"); fetchShopSettings(); if (typeof window !== "undefined") window.location.reload();
     } catch { alert("هەڵە"); }
   }, [shopSettingsForm, shopSettings, fetchShopSettings]);

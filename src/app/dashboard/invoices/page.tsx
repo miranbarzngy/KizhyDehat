@@ -1,13 +1,12 @@
 'use client'
 
-import { InvoiceTemplate } from '@/components/GlobalInvoiceModal'
+import { buildInvoiceData, InvoiceTemplate } from '@/components/GlobalInvoiceModal'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
-import { FaCog, FaEye, FaFileInvoice, FaQrcode, FaSave, FaUpload, FaFilter, FaTimes, FaSearch } from 'react-icons/fa'
+import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
-import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
-import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 
 interface InvoiceSettings {
   id?: number
@@ -585,7 +584,7 @@ export default function InvoicesPage() {
                 <div className="xl:sticky xl:top-6 xl:self-start">
                   <div className="flex items-center mb-4">
                     <FaEye className="ml-2" style={{ color: 'var(--theme-accent)' }} />
-                    <h3 className="text-xl font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>پیشاندانی ڕاستەقینەی پسوڵە</h3>
+                    <h3 className="text-xl font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>پیشاندانی  پسوڵە</h3>
                   </div>
                   <div className="bg-white rounded-3xl shadow-2xl overflow-hidden" style={{ maxWidth: '400px', margin: '0 auto' }}>
                     <InvoiceTemplate data={previewInvoiceData} />

@@ -1,13 +1,12 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { useRef, useState, useEffect } from 'react'
-import { Store, LogOut, X, Sun, Moon, Palette, Crown, User, PlusCircle } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { useTheme, Theme } from '@/contexts/ThemeContext'
+import { Theme, useTheme } from '@/contexts/ThemeContext'
 import { getSupabase } from '@/lib/supabase'
-import { User as SupabaseUser } from '@supabase/supabase-js'
+import { motion } from 'framer-motion'
+import { Crown, LogOut, Moon, Palette, PlusCircle, Sun, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 
 interface SidebarProps {
   shopSettings: {
@@ -161,7 +160,8 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/10 z-40"
+        className="fixed inset-0 z-40"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
         onClick={onClose}
       />
 
@@ -174,10 +174,10 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className="fixed top-4 right-4 w-80 max-h-[50vh] z-50 shadow-2xl overflow-hidden rounded-3xl"
         style={{ 
-          background: 'rgba(255, 255, 255, 0.5)',
+          background: 'var(--theme-sidebar-bg)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(255, 255, 255, 0.4)',
+          border: '1px solid var(--theme-border)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
         }}
       >
@@ -192,11 +192,18 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                   background: 'linear-gradient(135deg, var(--theme-primary), var(--theme-secondary))',
                 }}
               >
-                <div 
-                  className="w-full h-full rounded-full bg-white/90 flex items-center justify-center overflow-hidden"
-                >
-                  {loading ? (
-                    <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+              <div 
+                className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
+                style={{ backgroundColor: 'var(--theme-card-bg)' }}
+              >
+                {loading ? (
+                  <div 
+                    className="w-8 h-8 border-2 rounded-full animate-spin"
+                    style={{ 
+                      borderColor: 'var(--theme-border)',
+                      borderTopColor: 'var(--theme-primary)'
+                    }}
+                  />
                   ) : displayImage && displayImage.trim() !== '' ? (
                     <img
                       src={displayImage}
@@ -220,8 +227,8 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
               <div 
                 className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md"
                 style={{
-                  background: 'var(--theme-primary)',
-                  color: 'white'
+                  background: 'black',
+                  color: 'white',
                 }}
               >
                 <PlusCircle className="w-4 h-4" />
@@ -243,8 +250,8 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             <div 
               className="mt-1 px-3 py-1 rounded-full text-xs font-medium"
               style={{
-                background: 'var(--theme-primary)',
-                color: 'white',
+                
+                color: 'var(--theme-sidebar-text)',
                 fontFamily: 'var(--font-uni-salar)'
               }}
             >
@@ -253,7 +260,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-black/10" />
+          <div className="h-px" style={{ backgroundColor: 'var(--theme-border)' }} />
 
           {/* Header with Close button */}
           <div className="flex items-center justify-between pt-2">
@@ -268,8 +275,11 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             </h4>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-black/10 transition-colors"
-              style={{ color: 'var(--theme-sidebar-text)' }}
+              className="p-1.5 rounded-full transition-colors"
+              style={{ 
+                color: 'var(--theme-sidebar-text)',
+                backgroundColor: 'var(--theme-sidebar-hover)'
+              }}
             >
               <X className="w-5 h-5" />
             </button>
@@ -319,7 +329,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-black/10" />
+          <div className="h-px" style={{ backgroundColor: 'var(--theme-border)' }} />
 
           {/* Logout Button */}
           <motion.button
@@ -331,10 +341,10 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
             whileTap={{ scale: 0.98 }}
             className="w-full py-2.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
             style={{
-              background: 'rgba(239, 68, 68, 0.15)',
+              background: 'var(--theme-muted)',
               color: '#dc2626',
               fontFamily: 'var(--font-uni-salar)',
-              border: '1px solid rgba(239, 68, 68, 0.2)'
+              border: '1px solid var(--theme-border)'
             }}
           >
             <LogOut className="w-4 h-4" />

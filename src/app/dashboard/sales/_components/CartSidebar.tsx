@@ -49,9 +49,21 @@ export default function CartSidebar({
   const total = cart.reduce((sum, item) => sum + item.total, 0) - discount
 
   return (
-    <div className="h-[30vh] lg:h-full lg:w-96 bg-white dark:bg-transparent backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-white/20 shadow-2xl flex flex-col">
+    <div 
+      className="h-[30vh] lg:h-full lg:w-96 backdrop-blur-xl border-t lg:border-t-0 lg:border-l shadow-2xl flex flex-col"
+      style={{ 
+        backgroundColor: 'var(--theme-card-bg)',
+        borderColor: 'var(--theme-border)'
+      }}
+    >
       {/* Cart Header */}
-      <div className="p-3 border-b border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-white/10">
+      <div 
+        className="p-3 border-b"
+        style={{ 
+          borderColor: 'var(--theme-border)',
+          backgroundColor: 'var(--theme-muted)'
+        }}
+      >
         <motion.h2
           className="text-lg font-bold text-[var(--theme-foreground)]"
           style={{ fontFamily: 'var(--font-uni-salar)' }}
@@ -61,7 +73,7 @@ export default function CartSidebar({
           سەبەتە
         </motion.h2>
         <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <span className="text-xs" style={{ color: 'var(--theme-secondary)', fontFamily: 'Inter, sans-serif' }}>
             {cart.length} کاڵا
           </span>
           <motion.div
@@ -95,7 +107,7 @@ export default function CartSidebar({
             transition={{ delay: 0.3 }}
           >
             <div className="text-3xl mb-2">🛒</div>
-            <p className="text-gray-500 text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <p className="text-sm" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
               سەبەتەکە بەتاڵە
             </p>
           </motion.div>
@@ -103,7 +115,13 @@ export default function CartSidebar({
       </div>
 
       {/* Checkout Section */}
-      <div className="bg-gray-50 dark:bg-white/10 backdrop-blur-xl border-t border-gray-200 dark:border-white/20 p-3 space-y-2">
+      <div 
+        className="backdrop-blur-xl border-t p-3 space-y-2"
+        style={{ 
+          backgroundColor: 'var(--theme-muted)',
+          borderColor: 'var(--theme-border)'
+        }}
+      >
         {/* Customer Selection */}
         <motion.div
           className={`space-y-1 ${customerRequired ? 'animate-pulse' : ''}`}
@@ -115,12 +133,13 @@ export default function CartSidebar({
           <select
             value={selectedCustomer}
             onChange={(e) => onCustomerChange(e.target.value)}
-            className={`w-full px-2 py-1 rounded border bg-white dark:bg-white/5 shadow-sm focus:ring-1 focus:outline-none transition-all duration-300 text-xs ${
-              customerRequired
-                ? 'ring-1 ring-red-500 border-red-300 bg-red-50 text-[var(--theme-foreground)]'
-                : 'focus:ring-blue-500 border-gray-300 text-[var(--theme-foreground)] dark:text-gray-200'
-            }`}
-            style={{ fontFamily: 'var(--font-uni-salar)' }}
+            className="w-full px-2 py-1 rounded border shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-300 text-xs"
+            style={{ 
+              backgroundColor: 'var(--theme-card-bg)',
+              borderColor: 'var(--theme-border)',
+              color: 'var(--theme-foreground)',
+              fontFamily: 'var(--font-uni-salar)'
+            }}
           >
             <option value="">کڕیار</option>
             {customers.map((customer) => (
@@ -164,15 +183,20 @@ export default function CartSidebar({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <label className="block text-xs font-medium" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
             داشکاندن (IQD)
           </label>
           <motion.input
             type="text"
             value={discount}
             onChange={(e) => onDiscountChange(Number(e.target.value) || 0)}
-            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-xs text-center text-[var(--theme-foreground)] dark:text-gray-200"
-            style={{ fontFamily: 'Inter, sans-serif' }}
+            className="w-full px-2 py-1 rounded border shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-xs text-center"
+            style={{ 
+              borderColor: 'var(--theme-border)', 
+              backgroundColor: 'var(--theme-card-bg)',
+              color: 'var(--theme-foreground)',
+              fontFamily: 'Inter, sans-serif'
+            }}
             placeholder="0"
             whileFocus={{ scale: 1.02 }}
           />
@@ -180,12 +204,16 @@ export default function CartSidebar({
 
         {/* Total */}
         <motion.div
-          className="text-center p-2 bg-blue-50 dark:bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-lg"
+          className="text-center p-2 backdrop-blur-md rounded-lg border shadow-lg"
           whileHover={{ scale: 1.01 }}
           animate={{ scale: cart.length > 0 ? [1, 1.01, 1] : 1 }}
           transition={{ duration: 0.5 }}
+          style={{ 
+            backgroundColor: 'var(--theme-muted)',
+            borderColor: 'var(--theme-border)'
+          }}
         >
-          <p className="text-gray-700 dark:text-gray-300/80 text-xs font-bold mb-0.5" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+          <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
             کۆی گشتی
           </p>
           <p className="text-[var(--theme-foreground)] text-lg font-bold" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -197,7 +225,7 @@ export default function CartSidebar({
         <motion.button
           onClick={onCompleteSale}
           disabled={cart.length === 0 || !selectedCustomer}
-          className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 dark:bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+          className="w-full py-5 px-3 bg-blue-600 hover:bg-blue-700 dark:bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           style={{ fontFamily: 'var(--font-uni-salar)' }}
           whileHover={{ scale: cart.length > 0 && selectedCustomer ? 1.01 : 1, y: cart.length > 0 && selectedCustomer ? -0.5 : 0 }}
           whileTap={{ scale: cart.length > 0 && selectedCustomer ? 0.99 : 1 }}

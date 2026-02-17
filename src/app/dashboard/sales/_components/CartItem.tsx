@@ -22,7 +22,11 @@ interface CartItemProps {
 export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
   return (
     <motion.div
-      className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-lg p-2 shadow-sm border border-gray-200 dark:border-white/10 hover:shadow-md transition-all duration-300"
+      className="backdrop-blur-sm rounded-lg p-2 shadow-sm border hover:shadow-md transition-all duration-300"
+      style={{ 
+        backgroundColor: 'var(--theme-muted)',
+        borderColor: 'var(--theme-border)'
+      }}
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50, scale: 0.8 }}
@@ -33,7 +37,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }: CartItemP
           <h4 className="font-bold text-[var(--theme-foreground)] text-xs truncate" style={{ fontFamily: 'var(--font-uni-salar)' }}>
             {item.item.name}
           </h4>
-          <p className="text-xs text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <p className="text-xs" style={{ color: 'var(--theme-secondary)', fontFamily: 'Inter, sans-serif' }}>
             {toEnglishDigits(item.quantity.toString())} {item.unit} × {formatCurrency(item.price)}
           </p>
         </div>

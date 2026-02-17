@@ -28,6 +28,7 @@ interface Customer {
   phone1: string
   phone2?: string
   total_debt: number
+  image?: string
 }
 
 interface CartItem {
@@ -94,7 +95,7 @@ export default function SalesPage() {
     }
 
     const custResult = await fetchWithRetry(async () => {
-      const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt')
+      const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt, image')
       if (error) throw error
       return data
     }, 3, 1000)

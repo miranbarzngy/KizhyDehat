@@ -5,11 +5,11 @@ import ArchiveGrid from '@/components/inventory/ui/ArchiveGrid'
 import CategoryGrid from '@/components/inventory/ui/CategoryGrid'
 import ProductGrid from '@/components/inventory/ui/ProductGrid'
 import UnitGrid from '@/components/inventory/ui/UnitGrid'
+import { useInventoryData } from '@/components/inventory/useInventoryData'
 import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 import { FaArchive, FaBox, FaCalculator, FaSearch, FaTags, FaTrash } from 'react-icons/fa'
-import { useInventoryData } from '@/components/inventory/useInventoryData'
 
 export default function InventoryPage() {
   const { pauseSync } = useSyncPause()
@@ -462,19 +462,7 @@ export default function InventoryPage() {
                   fontFamily: 'var(--font-uni-salar)'
                 }}
               />
-              <input 
-                type="text" 
-                value={newUnitSymbol} 
-                onChange={e => setNewUnitSymbol(e.target.value)} 
-                placeholder="هێڵکاری"
-                className="w-full px-4 py-3 rounded-xl border mb-4 focus:ring-2 outline-none transition-all"
-                style={{ 
-                  backgroundColor: 'var(--theme-muted)',
-                  borderColor: 'var(--theme-card-border)',
-                  color: 'var(--theme-foreground)',
-                  fontFamily: 'var(--font-uni-salar)'
-                }}
-              />
+            
               <div className="flex gap-4 justify-center">
                 <button 
                   onClick={() => setShowUnitModal(false)} 

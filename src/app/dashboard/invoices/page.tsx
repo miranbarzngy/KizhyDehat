@@ -32,7 +32,7 @@ export default function InvoicesPage() {
   const { showSuccess, showError } = useToast()
   const [activeTab, setActiveTab] = useState<'settings' | 'invoices' | 'pending'>('pending')
   const [formData, setFormData] = useState<InvoiceSettings>({
-    shop_name: 'فرۆشگای کوردستان',
+    shop_name: 'کلیک گروپ',
     shop_phone: '',
     shop_address: '',
     thank_you_note: 'سوپاس بۆ کڕینەکەتان!',
@@ -248,7 +248,7 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     if (!supabase) return
     try {
-      // Build query with optional date filters and search
+      // Build query - show ALL sales regardless of status (completed, pending, refunded, cancelled)
       let query = supabase.from('sales').select('*, customers(name, phone1)').order('created_at', { ascending: false })
       
       // Apply date filters if provided

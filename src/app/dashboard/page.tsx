@@ -192,10 +192,15 @@ export default function DashboardPage() {
     }
 
     try {
-      const { data: salesData } = await supabase.from('sales').select('total, subtotal, discount_amount')
+      // Only fetch completed sales for main stats (approved sales)
+      const { data: salesData } = await supabase.from('sales').select('total, subtotal, discount_amount').eq('status', 'completed')
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
-      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price')
+      // Count pending orders waiting for approval
+      const { count: pendingOrders } = await supabase.from('sales').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+
+      // Calculate inventory expenses from completed sales only
+      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').eq('sales.status', 'completed')
       const inventoryExpenses = inventoryData?.reduce((sum, item) => 
         sum + (item.cost_price || 0) * (item.quantity || 0), 0) || 0
 
@@ -204,9 +209,31 @@ export default function DashboardPage() {
       const totalExpenses = inventoryExpenses + generalExpenses
       const netProfit = totalSales - totalExpenses
 
-      const today = new Date().toISOString().split('T')[0]
-      const { data: todaySalesData } = await supabase.from('sales').select('total, date').eq('date', today)
-      const todaySales = todaySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+      // Get today's date in local timezone (matching what's stored in the database)
+      const today = new Date()
+      const todayYear = today.getFullYear()
+      const todayMonth = String(today.getMonth() + 1).padStart(2, '0')
+      const todayDay = String(today.getDate()).padStart(2, '0')
+      const todayStr = `${todayYear}-${todayMonth}-${todayDay}`
+      
+      // Debug: log the date we're searching for
+      console.log('Looking for today sales with date:', todayStr)
+      
+      // Fetch all completed sales and filter client-side for today (most reliable method)
+      const { data: allCompletedSales } = await supabase.from('sales')
+        .select('total, date')
+        .eq('status', 'completed')
+      
+      // Filter client-side for today's date
+      let todaySales = 0
+      if (allCompletedSales && allCompletedSales.length > 0) {
+        const todaySalesList = allCompletedSales.filter((sale: any) => {
+          const saleDate = sale.date ? sale.date.split('T')[0] : null
+          return saleDate === todayStr
+        })
+        todaySales = todaySalesList.reduce((sum, sale) => sum + (sale.total || 0), 0)
+        console.log('Today sales found:', todaySalesList.length, 'Total:', todaySales)
+      }
 
       const { count: totalCustomers } = await supabase.from('customers').select('*', { count: 'exact', head: true })
 
@@ -215,7 +242,7 @@ export default function DashboardPage() {
 
       setStats({
         totalSales: Math.round(totalSales),
-        pendingOrders: 0,
+        pendingOrders: pendingOrders || 0,
         totalExpenses: Math.round(totalExpenses),
         netProfit: Math.round(netProfit),
         todaySales: Math.round(todaySales),
@@ -223,17 +250,45 @@ export default function DashboardPage() {
         lowStockCount
       })
 
+      // Get all completed sales for chart data (filter client-side for reliability)
+      const { data: allChartSales } = await supabase.from('sales')
+        .select('total, date')
+        .eq('status', 'completed')
+      
+      const { data: allExpenses } = await supabase.from('expenses')
+        .select('amount, date')
+      
       const chartDataPoints: ChartData[] = []
       for (let i = 6; i >= 0; i--) {
         const date = new Date()
         date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-
-        const { data: daySales } = await supabase.from('sales').select('total').eq('date', dateStr)
-        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
-
-        const { data: dayExpenses } = await supabase.from('expenses').select('amount').eq('date', dateStr)
-        const dayExpensesTotal = dayExpenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0
+        
+        // Build date string in YYYY-MM-DD format
+        const dateYear = date.getFullYear()
+        const dateMonth = String(date.getMonth() + 1).padStart(2, '0')
+        const dateDay = String(date.getDate()).padStart(2, '0')
+        const dateStr = `${dateYear}-${dateMonth}-${dateDay}`
+        
+        // Filter sales client-side for this date
+        let daySalesTotal = 0
+        if (allChartSales && allChartSales.length > 0) {
+          const daySalesList = allChartSales.filter((sale: any) => {
+            const saleDate = sale.date ? sale.date.split('T')[0] : null
+            return saleDate === dateStr
+          })
+          daySalesTotal = daySalesList.reduce((sum, sale) => sum + (sale.total || 0), 0)
+        }
+        
+        // Filter expenses client-side for this date
+        let dayExpensesTotal = 0
+        if (allExpenses && allExpenses.length > 0) {
+          const dayExpensesList = allExpenses.filter((expense: any) => {
+            const expenseDate = expense.date ? expense.date.split('T')[0] : null
+            return expenseDate === dateStr
+          })
+          dayExpensesTotal = dayExpensesList.reduce((sum, expense) => sum + (expense.amount || 0), 0)
+        }
+        
         const dayProfit = daySalesTotal - dayExpensesTotal
 
         chartDataPoints.push({
@@ -246,7 +301,8 @@ export default function DashboardPage() {
 
       const { data: recentSalesData } = await supabase
         .from('sales')
-        .select('id, total, payment_method, date, customers(name)')
+        .select('id, total, payment_method, date, status, customers(name)')
+        .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(5)
 
@@ -254,7 +310,7 @@ export default function DashboardPage() {
         id: sale.id,
         customer_name: sale.customers?.[0]?.name || 'نەناسراو',
         total_price: sale.total,
-        status: sale.payment_method === 'cash' ? 'paid' : sale.payment_method === 'fib' ? 'paid' : 'debt'
+        status: sale.status === 'pending' ? 'pending' : sale.status === 'completed' ? (sale.payment_method === 'cash' ? 'paid' : sale.payment_method === 'fib' ? 'paid' : 'debt') : 'refunded'
       })) || []
 
       setRecentOrders(transformedRecentSales)
@@ -277,7 +333,7 @@ export default function DashboardPage() {
     if (!supabase) {
       setShopSettings({
         id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
+        shopname: 'کلیک گروپ',
         icon: '',
         phone: '+964 750 123 4567',
         location: 'هەولێر، کوردستان',

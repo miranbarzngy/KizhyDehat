@@ -44,7 +44,7 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
       // Demo mode fallback
       const demoSettings: ShopSettings = {
         id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
+        shopname: 'کلیک گروپ',
         icon: '',
         phone: '+964 750 123 4567',
         location: 'هەولێر، کوردستان',
@@ -70,7 +70,7 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
       if (data) {
         const settings: ShopSettings = {
           id: data.id,
-          shopname: data.shopname || 'فرۆشگای کوردستان',
+          shopname: data.shopname || 'کلیک گروپ',
           icon: data.icon || '',
           phone: data.phone || '',
           location: data.location || '',
@@ -88,7 +88,7 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
       } else {
         const demoSettings: ShopSettings = {
           id: 'demo-shop',
-          shopname: 'فرۆشگای کوردستان',
+          shopname: 'کلیک گروپ',
           icon: '',
           phone: '+964 750 123 4567',
           location: 'هەولێر، کوردستان',
@@ -123,7 +123,7 @@ export function useShopSettings() {
     return {
       shopSettings: {
         id: 'demo-shop',
-        shopname: 'فرۆشگای کوردستان',
+        shopname: 'کلیک گروپ',
         icon: '',
         phone: '+964 750 123 4567',
         location: 'هەولێر، کوردستان',

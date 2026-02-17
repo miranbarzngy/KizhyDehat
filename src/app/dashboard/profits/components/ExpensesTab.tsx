@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { formatCurrency } from '@/lib/numberUtils'
 import { motion } from 'framer-motion'
 import { Box, FileText, Receipt } from 'lucide-react'
-import { PurchaseExpense, ExpenseItem, ExpensesTab as ExpensesTabType } from './types'
-import { formatCurrency } from '@/lib/numberUtils'
+import { useState } from 'react'
+import { ExpenseItem, ExpensesTab as ExpensesTabType, PurchaseExpense } from './types'
 
 interface ExpensesTabProps {
   purchaseExpenses: PurchaseExpense[]
@@ -110,11 +110,11 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
           <GlassTable>
             <thead className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-rose-500/10">
               <tr>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کۆی</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>یەکە</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی نرخ </th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
               </tr>
             </thead>
             <tbody>
@@ -123,26 +123,26 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
                   key={expense.id} 
                   className="border-t border-gray-100/50 hover:bg-white/60 transition-all duration-200"
                 >
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    <span className="flex items-center gap-2">
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    <span className="flex items-center justify-center gap-2">
                       <Box className="w-4 h-4 text-orange-500" />
                       {expense.item_name}
                     </span>
                   </td>
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
-                    <span className="inline-flex items-center px-2 py-1 bg-gray-100/50 rounded-lg text-gray-700 text-xs">
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <span className="inline-flex items-center px-2 py-1 bg-gray-100/50 rounded-lg text-gray-700 text-sm">
                       {expense.total_amount_bought.toLocaleString()}
                     </span>
                   </td>
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
-                    <span className="inline-flex items-center px-2 py-1 bg-gray-100/50 rounded-lg text-gray-600 text-xs">
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    <span className="inline-flex items-center px-2 py-1 bg-gray-100/50 rounded-lg text-gray-600 text-sm">
                       {expense.unit}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-bold text-red-600" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
+                  <td className="px-4 py-4 font-bold text-red-600 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {formatCurrency(expense.total_purchase_price)}
                   </td>
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.purchase_date}</td>
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{expense.purchase_date ? expense.purchase_date.split('T')[0] : expense.purchase_date}</td>
                 </tr>
               ))}
             </tbody>
@@ -196,9 +196,9 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
           <GlassTable>
             <thead className="bg-gradient-to-r from-orange-500/10 via-red-500/10 to-rose-500/10">
               <tr>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوضێحات</th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
-                <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەوضێحات</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بڕ</th>
+                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
               </tr>
             </thead>
             <tbody>
@@ -207,18 +207,18 @@ export default function ExpensesTab({ purchaseExpenses, generalExpenses, onViewP
                   key={expense.id} 
                   className="border-t border-gray-100/50 hover:bg-white/60 transition-all duration-200"
                 >
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    <span className="flex items-center gap-2">
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    <span className="flex items-center justify-center gap-2">
                       <FileText className="w-4 h-4 text-red-400" />
                       {expense.description}
                     </span>
                   </td>
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                     <span className="inline-flex items-center px-3 py-1 bg-red-50/50 rounded-lg text-red-600 font-bold">
                       {formatCurrency(expense.amount)}
                     </span>
                   </td>
-                  <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{expense.date}</td>
+                  <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{expense.date ? expense.date.split('T')[0] : expense.date}</td>
                 </tr>
               ))}
             </tbody>

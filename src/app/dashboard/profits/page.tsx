@@ -133,13 +133,47 @@ export default function ProfitsPage() {
   const fetchSalesData = async () => {
     if (!supabase) { setCashSales([]); setOnlineSales([]); setPayLaterSales([]); return }
     try {
-      let salesQuery = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
+      let salesQuery = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, total, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
       if (dateFrom) salesQuery = salesQuery.gte('date', dateFrom)
       if (dateTo) salesQuery = salesQuery.lte('date', dateTo)
       const { data: salesData, error } = await salesQuery
       if (error) throw error
       if (salesData) {
-        const processedSales: SaleItem[] = salesData.map((sale: any) => ({ id: sale.id, customer_name: sale.customers?.name || 'نەناسراو', total: sale.total, payment_method: sale.payment_method, date: sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0], time: '--:--', items: (sale.sale_items || []).map((item: any) => ({ item_name: item.products?.name || 'ناوی کاڵا نەناسراو', price: item.price, quantity: item.quantity })) }))
+        const processedSales: SaleItem[] = salesData.map((sale: any) => {
+          // Format date properly - extract only YYYY-MM-DD
+          const saleDate = sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0]
+          
+          // Format time from created_at (12-hour format - ENGLISH numbers)
+          let saleTime = '--:--'
+          if (sale.created_at) {
+            try {
+              const createdDate = new Date(sale.created_at)
+              let hours = createdDate.getHours()
+              const minutes = createdDate.getMinutes()
+              const ampm = hours >= 12 ? 'PM' : 'AM'
+              hours = hours % 12
+              hours = hours ? hours : 12
+              const minutesStr = minutes < 10 ? '0' + minutes : minutes
+              saleTime = `${hours}:${minutesStr} ${ampm}`
+            } catch (e) {
+              saleTime = '--:--'
+            }
+          }
+          
+          return { 
+            id: sale.id, 
+            customer_name: sale.customers?.name || 'نەناسراو', 
+            total: sale.total, 
+            payment_method: sale.payment_method, 
+            date: saleDate, 
+            time: saleTime, 
+            items: (sale.sale_items || []).map((item: any) => ({ 
+              item_name: item.products?.name || 'ناوی کاڵا نەناسراو', 
+              price: item.total || (item.price * item.quantity),
+              quantity: item.quantity 
+            }))
+          }
+        })
         setCashSales(processedSales.filter(sale => sale.payment_method === 'cash'))
         setOnlineSales(processedSales.filter(sale => sale.payment_method === 'fib'))
         setPayLaterSales(processedSales.filter(sale => sale.payment_method === 'debt'))
@@ -150,7 +184,7 @@ export default function ProfitsPage() {
   const fetchProfitsData = async () => {
     if (!supabase) { setProfits([]); setTotalProfit(0); return }
     try {
-      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
+      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, created_at, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
       if (dateFrom) query = query.gte('sales.date', dateFrom)
       if (dateTo) query = query.lte('sales.date', dateTo)
       const { data, error } = await query
@@ -161,14 +195,43 @@ export default function ProfitsPage() {
           if (item.products?.name) { item_name = Array.isArray(item.products) ? item.products[0]?.name : item.products?.name }
           else if (item.item_name) { item_name = item.item_name }
           const effectiveCostPrice = item.cost_price || (item.products?.cost_per_unit || 0)
-          let sale_id = '', date = new Date().toISOString().split('T')[0], discount_amount = 0, subtotal = 0
-          if (item.sales) { const s = Array.isArray(item.sales) ? item.sales[0] : item.sales; date = s.date || date; sale_id = s.id || ''; discount_amount = s.discount_amount || 0; subtotal = s.subtotal || 0 }
+          let sale_id = '', date = new Date().toISOString().split('T')[0], time = '--:--', discount_amount = 0, subtotal = 0
+          if (item.sales) { 
+            const s = Array.isArray(item.sales) ? item.sales[0] : item.sales; 
+            // Fix date - handle both string and full ISO timestamp
+            let fullDate = s.date || new Date().toISOString().split('T')[0]
+            // If it's already just YYYY-MM-DD, use it; otherwise extract
+            if (fullDate && fullDate.includes('T')) {
+              date = fullDate.split('T')[0]
+            } else {
+              date = fullDate
+            }
+            sale_id = s.id || ''; 
+            discount_amount = s.discount_amount || 0; 
+            subtotal = s.subtotal || 0
+            
+            // Format time from created_at (12-hour format - ENGLISH numbers)
+            if (s.created_at) {
+              try {
+                const createdDate = new Date(s.created_at)
+                let hours = createdDate.getHours()
+                const minutes = createdDate.getMinutes()
+                const ampm = hours >= 12 ? 'PM' : 'AM'
+                hours = hours % 12
+                hours = hours ? hours : 12
+                const minutesStr = minutes < 10 ? '0' + minutes : minutes
+                time = `${hours}:${minutesStr} ${ampm}`
+              } catch (e) {
+                time = '--:--'
+              }
+            }
+          }
           const itemTotal = (item.price || 0) * (item.quantity || 0)
           const discountRatio = subtotal > 0 ? itemTotal / subtotal : 0
           const itemDiscount = discount_amount * discountRatio
           const net_price = itemTotal - itemDiscount
           const profit = net_price - (effectiveCostPrice * (item.quantity || 0))
-          return { id: item.id, invoice_number: (Array.isArray(item.sales) ? item.sales[0]?.invoice_number : item.sales?.invoice_number) || sale_id?.slice(0, 8).toUpperCase() || '', sale_id, item_name, quantity: item.quantity || 0, price: item.price || 0, cost_price: effectiveCostPrice, discount_amount, item_discount: itemDiscount, net_price, profit, date }
+          return { id: item.id, invoice_number: (Array.isArray(item.sales) ? item.sales[0]?.invoice_number : item.sales?.invoice_number) || sale_id?.slice(0, 8).toUpperCase() || '', sale_id, item_name, quantity: item.quantity || 0, price: item.price || 0, cost_price: effectiveCostPrice, discount_amount, item_discount: itemDiscount, net_price, profit, date, time }
         })
         const sortedProfitData = profitData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setProfits(sortedProfitData)
@@ -191,7 +254,8 @@ export default function ProfitsPage() {
           total_purchase_price: item.total_purchase_price || 0,
           total_amount_bought: item.total_amount_bought || 0,
           unit: item.unit || '',
-          purchase_date: item.purchase_date || new Date().toISOString().split('T')[0],
+          // Extract just YYYY-MM-DD from the date
+          purchase_date: item.purchase_date ? item.purchase_date.split('T')[0] : new Date().toISOString().split('T')[0],
           created_at: item.created_at
         })))
       }
@@ -199,7 +263,11 @@ export default function ProfitsPage() {
       if (dateFrom) expensesQuery = expensesQuery.gte('date', dateFrom)
       if (dateTo) expensesQuery = expensesQuery.lte('date', dateTo)
       const { data: generalExpensesData } = await expensesQuery
-      setGeneralExpenses(generalExpensesData || [])
+      // Extract just YYYY-MM-DD from dates
+      setGeneralExpenses((generalExpensesData || []).map((item: any) => ({
+        ...item,
+        date: item.date ? item.date.split('T')[0] : item.date
+      })))
     } catch (error) { console.error('Error fetching expenses:', error) }
   }
 

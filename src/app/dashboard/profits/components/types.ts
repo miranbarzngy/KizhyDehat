@@ -13,6 +13,7 @@ export interface ProfitItem {
   net_price: number
   profit: number
   date: string
+  time?: string
 }
 
 export interface SaleItem {

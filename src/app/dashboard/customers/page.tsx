@@ -1,6 +1,7 @@
 'use client'
 
 import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
+import { useToast } from '@/components/Toast'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { formatCurrency } from '@/lib/numberUtils'
 import { uploadFile } from '@/lib/storage'
@@ -8,8 +9,6 @@ import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
-import { FaDollarSign } from 'react-icons/fa'
-import { useToast } from '@/components/Toast'
 
 interface Customer {
   id: string
@@ -1496,7 +1495,7 @@ export default function CustomersPage() {
                     >
                       {selectedCustomer.total_debt && selectedCustomer.total_debt > 0 
                         ? `${(selectedCustomer.total_debt || 0).toLocaleString()} د.ع`
-                        : 'بێ قەرز ✓'}
+                        : ' قەرز ✓'}
                     </span>
                   </div>
                   <button

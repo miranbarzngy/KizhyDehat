@@ -1,11 +1,11 @@
 'use client'
 
+import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { FaList, FaSearch, FaTh, FaPlus, FaTimes, FaEdit, FaTrash, FaMoneyBillWave } from 'react-icons/fa'
-import { useToast } from '@/components/Toast'
+import { FaEdit, FaList, FaPlus, FaSearch, FaTh, FaTimes, FaTrash } from 'react-icons/fa'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -704,7 +704,7 @@ export default function SuppliersPage() {
                   >
                     {selectedSupplier.total_debt && selectedSupplier.total_debt > 0 
                       ? `${(selectedSupplier.total_debt || 0).toLocaleString()} د.ع`
-                      : 'بێ قەرز ✓'}
+                      : ' قەرز ✓'}
                   </span>
                 </div>
                 <button

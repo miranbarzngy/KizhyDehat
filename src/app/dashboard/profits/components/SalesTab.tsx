@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { formatCurrency } from '@/lib/numberUtils'
 import { motion } from 'framer-motion'
 import { Eye, ShoppingBag } from 'lucide-react'
+import { useState } from 'react'
 import { SaleItem, SalesTab as SalesTabType } from './types'
-import { formatCurrency } from '@/lib/numberUtils'
 
 interface SalesTabProps {
   cashSales: SaleItem[]
@@ -117,12 +117,12 @@ export default function SalesTab({ cashSales, onlineSales, payLaterSales, onView
       <GlassTable>
         <thead className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10">
           <tr>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
-            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخ</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کات</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
-            <th className="px-4 py-4 text-center text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆ</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کات</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کڕیار</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</th>
           </tr>
         </thead>
         <tbody>
@@ -132,12 +132,12 @@ export default function SalesTab({ cashSales, onlineSales, payLaterSales, onView
                 key={`${sale.id}-${itemIndex}`} 
                 className="border-t border-gray-100/50 hover:bg-white/60 transition-all duration-200"
               >
-                <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.item_name}</td>
-                <td className="px-4 py-3 font-semibold" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>{formatCurrency(item.price)}</td>
-                <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.date}</td>
-                <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.time || '--:--'}</td>
-                <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.customer_name || 'نەناسراو'}</td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>{item.item_name}</td>
+                <td className="px-4 py-4 font-semibold text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(item.price || 0)} د.ع</td>
+                <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{sale.date}</td>
+                <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{sale.time || '--:--'}</td>
+                <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>{sale.customer_name || 'نەناسراو'}</td>
+                <td className="px-4 py-4 text-center">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

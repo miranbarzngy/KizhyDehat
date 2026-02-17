@@ -1,9 +1,9 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { Eye, ArrowDownRight, ArrowUpRight, TrendingUp, BarChart2 } from 'lucide-react'
-import { ProfitItem } from './types'
 import { formatCurrency } from '@/lib/numberUtils'
+import { motion } from 'framer-motion'
+import { ArrowDownRight, ArrowUpRight, BarChart2, Eye, TrendingUp } from 'lucide-react'
+import { ProfitItem } from './types'
 
 interface ProfitsTabProps {
   profits: ProfitItem[]
@@ -58,14 +58,14 @@ export default function ProfitsTab({ profits, totalProfit, onViewInvoice }: Prof
       <GlassTable>
         <thead className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10">
           <tr>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ژمارەی پسوڵە</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
-            <th className="px-4 py-4 text-right text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
-            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین</th>
-            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن</th>
-            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>داشکاندن</th>
-            <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج</th>
-            <th className="px-4 py-4 text-center text-xs font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردارەکان</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>ناوی کاڵا</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>کات</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی کڕین</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>نرخی فرۆشتن</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>داشکاندن</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>قازانج</th>
+            <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 whitespace-nowrap" style={{ fontFamily: 'var(--font-uni-salar)' }}>بینین</th>
           </tr>
         </thead>
         <tbody>
@@ -74,40 +74,40 @@ export default function ProfitsTab({ profits, totalProfit, onViewInvoice }: Prof
               key={profit.id} 
               className="border-t border-gray-100/50 hover:bg-white/60 transition-all duration-200"
             >
-              <td className="px-4 py-3 font-mono text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>{profit.invoice_number || '--'}</td>
-              <td className="px-4 py-3 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>{profit.item_name}</td>
-              <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)' }}>{profit.date}</td>
+              <td className="px-4 py-4 font-medium text-lg text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>{profit.item_name}</td>
+              <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{profit.date}</td>
+              <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>{profit.time || '--:--'}</td>
               
               {/* Cost Price - Red with ArrowDownRight */}
-              <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
-                <span className="text-red-500 flex items-center gap-1">
+              <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <span className="text-red-500 inline-flex items-center gap-1 text-base font-semibold">
                   <ArrowDownRight className="w-4 h-4" />
                   {formatCurrency(profit.cost_price * profit.quantity)}
                 </span>
               </td>
               
               {/* Sale Price - Blue with ArrowUpRight */}
-              <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
-                <span className="text-blue-500 flex items-center gap-1">
+              <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <span className="text-blue-500 inline-flex items-center gap-1 text-base font-semibold">
                   <ArrowUpRight className="w-4 h-4" />
                   {formatCurrency(profit.price * profit.quantity)}
                 </span>
               </td>
               
               {/* Discount - Orange */}
-              <td className="px-4 py-3 text-orange-500" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
+              <td className="px-4 py-4 text-orange-500 text-lg font-semibold text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                 {formatCurrency(profit.item_discount)}
               </td>
               
               {/* Profit - Emerald with TrendingUp */}
-              <td className="px-4 py-3" style={{ fontFamily: 'var(--font-uni-salar)', textAlign: 'left' }}>
+              <td className="px-4 py-4 text-lg text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
                 {profit.profit >= 0 ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50/50 rounded-lg text-emerald-600 font-bold">
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50/50 rounded-lg text-emerald-600 font-bold text-base">
                     <TrendingUp className="w-4 h-4" />
                     {formatCurrency(profit.profit)}
                   </span>
                 ) : (
-                  <span className="text-red-500 font-bold">
+                  <span className="text-red-500 font-bold text-base">
                     {formatCurrency(profit.profit)}
                   </span>
                 )}

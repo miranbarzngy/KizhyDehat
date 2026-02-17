@@ -1,7 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/numberUtils'
+import { motion } from 'framer-motion'
 
 interface SupplierCardProps {
   supplier: {
@@ -70,7 +70,7 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
         ) : (
           <>
             <div className="text-2xl font-bold" style={{ color: '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
-              بێ قەرز ✓
+               قەرز ✓
             </div>
             <div className="text-sm opacity-75" style={{ fontFamily: 'var(--font-uni-salar)' }}>هیچ قەرزێک نییە</div>
           </>

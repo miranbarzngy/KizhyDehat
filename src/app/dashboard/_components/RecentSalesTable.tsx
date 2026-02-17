@@ -14,6 +14,7 @@ interface PendingSale {
   total: number
   payment_method: string
   date: string
+  status: string
   invoice_number?: number
   customers?: { name: string } | null
   display_customer_name?: string
@@ -85,7 +86,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         return
       }
 
-      // Query with left join using customer_id foreign key
+      // Query with left join using customer_id foreign key - show completed and recent
       let data: any[] | null = null
       let joinFailed = false
 
@@ -97,12 +98,12 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
             name
           )
         `)
-        .eq('status', 'pending')
+        .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(10)
 
       if (joinError) {
-        console.error('Error fetching pending sales with join:', joinError.message, joinError.code, joinError.hint)
+        console.error('Error fetching recent sales with join:', joinError.message, joinError.code, joinError.hint)
         joinFailed = true
       } else {
         data = joinData
@@ -113,12 +114,12 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('sales')
           .select('*')
-          .eq('status', 'pending')
+          .eq('status', 'completed')
           .order('created_at', { ascending: false })
           .limit(10)
 
         if (fallbackError) {
-          console.error('Error fetching pending sales (fallback):', fallbackError.message, fallbackError.code, fallbackError.hint)
+          console.error('Error fetching recent sales (fallback):', fallbackError.message, fallbackError.code, fallbackError.hint)
           setRecentOrders([])
           setLoading(false)
           return
@@ -138,6 +139,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
           total: sale.total,
           payment_method: sale.payment_method || 'cash',
           date: sale.date,
+          status: sale.status || 'completed',
           invoice_number: sale.invoice_number,
           customers: customer,
           display_customer_name: customer?.name || 'کڕیاری گشتی',
@@ -250,12 +252,12 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
     if (!supabase) return
 
     const subscription = supabase
-      .channel('pending_sales_changes')
+      .channel('recent_sales_changes')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'sales',
-        filter: 'status=eq.pending'
+        filter: 'status=eq.completed'
       }, () => {
         fetchPendingSales()
       })
@@ -312,7 +314,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                 fontFamily: 'var(--font-uni-salar)' 
               }}
             >
-              فرۆشتنە چاوەڕوانکراوەکان
+              فرۆشتنەکانی ئەمڕۆ
             </h3>
           </div>
         </div>
@@ -353,7 +355,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                 fontFamily: 'var(--font-uni-salar)' 
               }}
             >
-              فرۆشتنە چاوەڕوانکراوەکان
+              فرۆشتنەکانی ئەمڕۆ
             </h3>
           </div>
           <motion.button
@@ -460,13 +462,19 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                     </td>
                     <td className="px-6 py-4">
                       <span 
-                        className="px-3 py-1 rounded-full text-xs font-medium"
-                        style={{ 
-                          backgroundColor: 'var(--theme-muted)',
-                          color: 'var(--theme-foreground)'
-                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                          order.status === 'refunded' ? 'bg-red-100 text-red-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}
                       >
-                        {getStatusText(order.payment_method)}
+                        {order.status === 'completed' ? '✓ تەواو' : 
+                         order.status === 'pending' ? '⏳ چاوەڕوان' : 
+                         order.status === 'refunded' ? '↩️ گەڕایەوە' : 
+                         order.payment_method === 'cash' ? '💵 نەخت' : 
+                         order.payment_method === 'fib' ? '💳 ئۆنلاین' : 
+                         '📝 قەرز'}
                       </span>
                     </td>
                     <td 
@@ -510,7 +518,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                         className="text-lg"
                         style={{ fontFamily: 'var(--font-uni-salar)' }}
                       >
-                        هیچ فرۆشتنێکی چاوەڕوانکراو نیە
+                        هیچ فرۆشتنێک تۆمارنەکراوە
                       </p>
                     </div>
                   </td>

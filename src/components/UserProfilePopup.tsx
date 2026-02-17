@@ -137,7 +137,7 @@ export default function UserProfilePopup({ isOpen, onClose, shopSettings }: User
                     fontFamily: 'var(--font-uni-salar)'
                   }}
                 >
-                  {shopSettings?.shopname || 'فرۆشگای کوردستان'}
+                  {shopSettings?.shopname || 'کلیک گروپ'}
                 </h2>
               </div>
 

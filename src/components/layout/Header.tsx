@@ -97,7 +97,7 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
               fontFamily: 'var(--font-uni-salar)'
             }}
           >
-            {shopSettings?.shopname || 'فرۆشگای کوردستان'}
+            {shopSettings?.shopname || 'کلیک گروپ'}
           </h2>
         </div>
 
@@ -130,7 +130,7 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
               fontFamily: 'var(--font-uni-salar)'
             }}
           >
-            {shopSettings?.shopname || 'فرۆشگای کوردستان'}
+            {shopSettings?.shopname || 'کلیک گروپ'}
           </h2>
         </div>
 

@@ -478,7 +478,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     </div>
     <div class="header-col center">
       ${captureData.shopLogo ? `<div class="shop-logo"><img src="${captureData.shopLogo}" alt="${captureData.shopName || 'فرۆشگا'}" /></div>` : ''}
-      <div class="shop-name">${captureData.shopName || 'فرۆشگای کوردستان'}</div>
+      <div class="shop-name">${captureData.shopName || 'کلیک گروپ'}</div>
       ${captureData.shopAddress ? `<div class="shop-info">${captureData.shopAddress}</div>` : ''}
       ${captureData.shopPhone ? `<div class="shop-info">${toKurdishDigits(captureData.shopPhone)}</div>` : ''}
     </div>
@@ -688,7 +688,7 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     subtotal,
     discount: discountAmount,
     total,
-    shopName: settings?.shop_name || 'فرۆشگای کوردستان',
+    shopName: settings?.shop_name || 'کلیک گروپ',
     shopPhone: settings?.shop_phone || '',
     shopAddress: settings?.shop_address || '',
     shopLogo: settings?.shop_logo || '',

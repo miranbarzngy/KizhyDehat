@@ -94,6 +94,22 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
               </button>
             )}
           </div>
+          {/* Price Info Below Buttons */}
+          <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+            <div className="flex justify-center gap-2 text-sm font-bold">
+              <span style={{ color: '#dc2626', fontFamily: 'var(--font-uni-salar)' }}>
+                کڕین: {item.cost_per_unit?.toLocaleString() || 0}
+              </span>
+              <span style={{ color: '#059669', fontFamily: 'var(--font-uni-salar)' }}>
+                فرۆش: {item.selling_price_per_unit?.toLocaleString() || 0}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              {item.barcode1 && <span>بارکۆد: {item.barcode1}</span>}
+              {item.barcode1 && item.barcode4 && <span> | </span>}
+              {item.barcode4 && <span>{item.barcode4}</span>}
+            </div>
+          </div>
         </div>
       ))}
     </motion.div>

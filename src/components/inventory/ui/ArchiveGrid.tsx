@@ -212,6 +212,18 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
               </div>
             </div>
             
+            {/* Barcode Display */}
+            {(item.barcode1 || item.barcode4) && (
+              <div 
+                className="text-center py-2 mt-2 text-xs text-gray-500"
+                style={{ fontFamily: 'var(--font-uni-salar)' }}
+              >
+                {item.barcode1 && <span>بارکۆد: {item.barcode1}</span>}
+                {item.barcode1 && item.barcode4 && <span> | </span>}
+                {item.barcode4 && <span>{item.barcode4}</span>}
+              </div>
+            )}
+            
             {/* Restock button - only show if total_amount_bought is 0 (can be restocked) */}
             <div className="flex justify-center mt-4">
               {item.total_amount_bought === 0 && (

@@ -32,13 +32,12 @@ function GradientClockWidget() {
   const displayMinutes = minutes.toString().padStart(2, '0')
   const displaySeconds = seconds.toString().padStart(2, '0')
 
-  // Format date in Kurdish - week day and date on separate lines
+  // Format date in Kurdish - week day and date on same line
   const kurdishDays = ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'هەینی', 'شەممە']
   const dayName = kurdishDays[currentTime.getDay()]
   const dayNumber = currentTime.getDate()
   const monthNumber = currentTime.getMonth() + 1
-  const formattedDate = `${dayName}`
-  const formattedMonthDay = `${monthNumber} , ${dayNumber}`
+  const formattedDate = `${dayNumber}-${monthNumber} ~~ ${dayName}`
 
   return (
     <div 
@@ -67,8 +66,14 @@ function GradientClockWidget() {
 
         {/* Colon */}
         <span 
-          className="text-4xl md:text-5xl font-bold text-gray-500 mt-1"
-          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+          className="text-4xl md:text-5xl font-bold mt-1"
+          style={{
+            background: 'linear-gradient(90deg, #67e8f9, #a855f7, #f472b6, #fb923c)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}
         >
           :
         </span>
@@ -89,8 +94,14 @@ function GradientClockWidget() {
 
         {/* Comma and Seconds */}
         <span 
-          className="text-2xl md:text-3xl font-bold text-gray-500 mt-2"
-          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+          className="text-2xl md:text-3xl font-bold mt-2"
+          style={{
+            background: 'linear-gradient(90deg, #67e8f9, #a855f7, #f472b6, #fb923c)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontFamily: 'Inter, system-ui, sans-serif'
+          }}
         >
            :{displaySeconds}
         </span>
@@ -108,7 +119,7 @@ function GradientClockWidget() {
       </div>
 
       {/* Date Display */}
-      <div className="mt-2 text-center flex flex-col items-center">
+      <div className="mt-2 text-center">
         <span 
           className="text-sm md:text-base"
           style={{
@@ -120,18 +131,6 @@ function GradientClockWidget() {
           }}
         >
           {formattedDate}
-        </span>
-        <span 
-          className="text-sm md:text-base"
-          style={{
-            background: 'linear-gradient(90deg, #c084fc, #f472b6)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            fontFamily: 'var(--font-uni-salar)'
-          }}
-        >
-          {formattedMonthDay}
         </span>
       </div>
     </div>

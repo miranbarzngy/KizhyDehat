@@ -73,7 +73,7 @@ const DEMO_ROLES: Role[] = [
 ];
 
 const DEMO_SETTINGS: ShopSettings = {
-  id: "demo-shop", shop_name: "فرۆشگای کوردستان", shop_logo: "", shop_phone: "+964 750 123 4567", shop_address: "هەولێر، کوردستان", qr_code_url: "", auto_logout_minutes: 15,
+  id: "demo-shop", shop_name: "فرۆشگای کوردستان", shop_logo: "", shop_phone: "+964 750 123 4567", shop_address: "هەولێر، کوردستان", qr_code_url: "",
 };
 
 export function useAdminData(): UseAdminDataReturn {
@@ -131,8 +131,7 @@ export function useAdminData(): UseAdminDataReturn {
         shop_logo: data.icon || '', 
         shop_phone: data.phone || '', 
         shop_address: data.location || '', 
-        qr_code_url: data.qrcodeimage || '',
-        auto_logout_minutes: data.auto_logout_minutes || 15
+        qr_code_url: data.qrcodeimage || ''
       });
     } catch { }
   }, []);
@@ -221,8 +220,7 @@ export function useAdminData(): UseAdminDataReturn {
         shop_phone: 'phone', 
         shop_address: 'location', 
         shop_logo: 'icon', 
-        qr_code_url: 'qrcodeimage', 
-        auto_logout_minutes: 'auto_logout_minutes' 
+        qr_code_url: 'qrcodeimage' 
       };
       const dbField = fieldMapping[field] || field;
       if (shopSettings) await supabase.from("shop_settings").update({ [dbField]: value }).eq("id", shopSettings.id);
@@ -303,8 +301,7 @@ export function useAdminData(): UseAdminDataReturn {
         phone: shopSettingsForm.shop_phone || '', 
         location: shopSettingsForm.shop_address || '', 
         icon: shopSettingsForm.shop_logo || '', 
-        qrcodeimage: shopSettingsForm.qr_code_url || '', 
-        auto_logout_minutes: shopSettingsForm.auto_logout_minutes || 15 
+        qrcodeimage: shopSettingsForm.qr_code_url || '' 
       };
       if (shopSettings) await supabase.from("shop_settings").update(updateData).eq("id", shopSettings.id);
       else await supabase.from("shop_settings").insert(updateData);

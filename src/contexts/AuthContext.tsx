@@ -11,7 +11,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
-  resetInactivityTimer: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -20,100 +19,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const autoLogoutMinutesRef = useRef<number>(15)
-
-  // Fetch auto logout settings
-  const fetchAutoLogoutSettings = useCallback(async () => {
-    const supabase = getSupabase()
-    if (!supabase) return 15
-    
-    try {
-      const { data } = await supabase
-        .from('invoice_settings')
-        .select('auto_logout_minutes')
-        .single()
-      
-      const minutes = data?.auto_logout_minutes || 15
-      autoLogoutMinutesRef.current = minutes
-      return minutes
-    } catch (error) {
-      console.warn('Could not fetch auto logout settings:', error)
-      return 15
-    }
-  }, [])
-
-  // Clear inactivity timer
-  const clearInactivityTimer = useCallback(() => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current)
-      inactivityTimerRef.current = null
-    }
-  }, [])
-
-  // Reset inactivity timer
-  const resetInactivityTimer = useCallback(async () => {
-    if (!user) return
-    
-    clearInactivityTimer()
-    
-    // Fetch current timeout setting
-    const minutes = await fetchAutoLogoutSettings()
-    
-    inactivityTimerRef.current = setTimeout(async () => {
-      console.log('🔒 Inactivity timeout reached, logging out...')
-      
-      // Sign out from Supabase
-      const supabase = getSupabase()
-      if (supabase) {
-        await supabase.auth.signOut()
-      }
-      
-      // Redirect to login with security message
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('autoLogoutMessage', 'بەهۆی بێچالاكی، سیستەمەکە بە شێوەیەکی پارێزراو چووە دەرەوە.')
-        window.location.href = '/login'
-      }
-    }, minutes * 60 * 1000) // Convert minutes to milliseconds
-  }, [user, clearInactivityTimer, fetchAutoLogoutSettings])
-
-  // Set up activity listeners
-  useEffect(() => {
-    if (!user) return
-
-    // Reset timer on these events
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click']
-
-    const handleActivity = () => {
-      resetInactivityTimer()
-    }
-
-    events.forEach(event => {
-      document.addEventListener(event, handleActivity)
-    })
-
-    // Initial timer setup
-    resetInactivityTimer()
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleActivity)
-      })
-      clearInactivityTimer()
-    }
-  }, [user, resetInactivityTimer, clearInactivityTimer])
-
-  // Check for auto logout message on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const message = sessionStorage.getItem('autoLogoutMessage')
-      if (message) {
-        // Store in localStorage for the login page to display
-        localStorage.setItem('authError', message)
-        sessionStorage.removeItem('autoLogoutMessage')
-      }
-    }
-  }, [])
 
   // Single source of truth: onAuthStateChange
   useEffect(() => {
@@ -128,11 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
-      
-      // Fetch and set auto logout settings when session exists
-      if (session?.user) {
-        fetchAutoLogoutSettings()
-      }
     })
 
     // Listen for auth state changes - this is our single source of truth
@@ -147,13 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           case 'INITIAL_SESSION':
             setSession(session)
             setUser(session?.user ?? null)
-            
-            // Fetch and set auto logout settings when user signs in
-            if (session?.user) {
-              fetchAutoLogoutSettings()
-            } else {
-              clearInactivityTimer()
-            }
             break
         }
         setLoading(false)
@@ -188,9 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe()
       document.removeEventListener('visibilitychange', handleFocus)
       window.removeEventListener('focus', handleFocus)
-      clearInactivityTimer()
     }
-  }, [fetchAutoLogoutSettings, clearInactivityTimer])
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabase()
@@ -219,9 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('Could not fetch profile for is_active check:', profileError)
       }
     }
-    
-    // Fetch auto logout settings after successful login
-    await fetchAutoLogoutSettings()
   }
 
   const signUp = async (email: string, password: string) => {
@@ -232,8 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    clearInactivityTimer()
-    
     const supabase = getSupabase()
     if (!supabase) {
       // Still redirect even without client
@@ -246,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, resetInactivityTimer }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )

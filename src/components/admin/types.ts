@@ -26,7 +26,6 @@ export interface ShopSettings {
   shop_phone: string;
   shop_address: string;
   qr_code_url: string;
-  auto_logout_minutes?: number;
 }
 
 export interface UserFormData {

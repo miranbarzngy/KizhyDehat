@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaClock, FaCog, FaImage, FaMapMarkerAlt, FaPhone, FaQrcode, FaStore } from 'react-icons/fa'
+import { FaCog, FaImage, FaMapMarkerAlt, FaPhone, FaQrcode, FaStore } from 'react-icons/fa'
 
 interface ShopSettings {
   id: string
@@ -10,7 +10,6 @@ interface ShopSettings {
   shop_phone: string
   shop_address: string
   qr_code_url: string
-  auto_logout_minutes?: number
 }
 
 interface SettingsTabProps {
@@ -21,14 +20,6 @@ interface SettingsTabProps {
   onQRCodeUpload: (file: File) => Promise<void>
   onSaveAll: () => Promise<void>
 }
-
-const timeoutOptions = [
-  { value: 1, label: '1 خولەک' },
-  { value: 5, label: '5 خولەک' },
-  { value: 15, label: '15 خولەک' },
-  { value: 30, label: '30 خولەک' },
-  { value: 60, label: '1 کاتژمێر' },
-]
 
 export default function SettingsTab({ 
   shopSettings, 
@@ -94,39 +85,6 @@ export default function SettingsTab({
                 placeholder="+964 XXX XXX XXXX"
               />
             </div>
-          </div>
-
-          {/* Auto Logout Timeout */}
-          <div>
-            <label 
-              className="block text-sm font-semibold mb-3 text-gray-700"
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              <FaClock className="inline ml-2 text-blue-500" />
-              چوونە دەرەوەی خۆکارانە
-            </label>
-            <div className="relative">
-              <FaClock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <select
-                value={shopSettingsForm.auto_logout_minutes || 15}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value)
-                  console.log("Dropdown changed to:", value)
-                  onUpdateForm('auto_logout_minutes', value)
-                }}
-                className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer"
-                style={{ fontFamily: 'var(--font-uni-salar)' }}
-              >
-                {timeoutOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p className="text-xs text-gray-500 mt-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-              دوای ئەوەی بەکارهێنەر بۆ ماوەی ئەوەی لێی دەرنەچێت، سیستەمەکە بە شێوەیەکی خۆکار دەچێتە دەرەوە
-            </p>
           </div>
 
           {/* Location */}

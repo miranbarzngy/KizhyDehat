@@ -72,22 +72,24 @@ export async function generateMetadata(): Promise<Metadata> {
     // Fetch shop settings
     const { data: shopSettings } = await supabase
       .from('shop_settings')
-      .select('shopname, icon')
+      .select('shopname, shop_logo')
       .single()
 
     const shopName = shopSettings?.shopname || 'سیستمی فرۆشتن'
-    const shopIcon = shopSettings?.icon
+    const shopLogo = shopSettings?.shop_logo
 
     return {
       title: shopName,
       description: `Professional Point of Sale system - ${shopName}`,
       manifest: "/api/manifest",
-      icons: shopIcon ? {
-        icon: shopIcon,
-        apple: shopIcon,
+      icons: shopLogo ? {
+        icon: shopLogo,
+        shortcut: shopLogo,
+        apple: shopLogo,
       } : {
         icon: "/icon-192x192.png",
-        apple: "/icon-512x512.png",
+        shortcut: "/default-favicon.ico",
+        apple: "/apple-touch-icon.png",
       },
       appleWebApp: {
         capable: true,

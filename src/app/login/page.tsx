@@ -110,13 +110,6 @@ export default function LoginPage() {
       }
     }
 
-    // Check for auto logout message
-    const autoLogoutMessage = localStorage.getItem('authError')
-    if (autoLogoutMessage) {
-      setError(autoLogoutMessage)
-      localStorage.removeItem('authError')
-    }
-
     fetchShopLogo()
   }, [])
 

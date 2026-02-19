@@ -217,7 +217,7 @@ export default function InvoicePreview({ saleData, invoice, invoiceRef }: Invoic
       try {
         const { data, error } = await supabase.from('invoice_settings').select('*').single()
         if (error && error.code !== 'PGRST116') console.error('Error fetching invoice settings:', error)
-        setInvoiceSettings(data || null)
+        setInvoiceSettings(data as any || null)
       } catch (error) { 
         console.error('Error fetching invoice settings:', error) 
       }

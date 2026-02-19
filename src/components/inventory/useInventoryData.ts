@@ -27,7 +27,7 @@ interface UseInventoryDataReturn {
   products: Product[]
   categories: Category[]
   units: Unit[]
-  suppliers: { id: string; name: string; balance: number }[]
+  suppliers: { id: string; name: string; balance: number; phone?: string; supplier_image?: string }[]
   archivedItems: Product[]
   searchTerm: string
   selectedCategory: string
@@ -114,7 +114,7 @@ export function useInventoryData(): UseInventoryDataReturn {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [units, setUnits] = useState<Unit[]>([])
-  const [suppliers, setSuppliers] = useState<{ id: string; name: string; balance: number }[]>([])
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string; balance: number; phone?: string; supplier_image?: string }[]>([])
   const [archivedItems, setArchivedItems] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')

@@ -3,7 +3,7 @@
 import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   FaArrowLeft,
   FaArrowRight,
@@ -12,6 +12,7 @@ import {
   FaCalculator,
   FaCheck,
   FaExclamationTriangle,
+  FaSearch,
   FaSpinner,
   FaTag,
   FaTrash,
@@ -101,6 +102,35 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
   const [unitsLoading, setUnitsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [supplierSearch, setSupplierSearch] = useState('')
+  const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false)
+  const supplierDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Filter suppliers based on search
+  const filteredSuppliers = suppliers.filter(s => 
+    s.name?.toLowerCase().includes(supplierSearch.toLowerCase())
+  )
+
+  // Initialize supplier search when editing
+  useEffect(() => {
+    if (formData.supplier_id && suppliers.length > 0) {
+      const selectedSupplier = suppliers.find(s => s.id === formData.supplier_id)
+      if (selectedSupplier) {
+        setSupplierSearch(selectedSupplier.name)
+      }
+    }
+  }, [formData.supplier_id, suppliers])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
+        setSupplierDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     if (!showStockEntry) return
@@ -298,17 +328,108 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
                   <FaBalanceScale className="text-sm" style={{ color: 'var(--theme-accent)' }} />
                   دابینکەر *
                 </label>
-                <div className="relative">
-                  <select 
-                    value={formData.supplier_id || ''} 
-                    onChange={e => setFormData((prev: FormData) => ({...prev, supplier_id: e.target.value}))} 
-                    className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none"
-                    style={{ fontFamily: 'var(--font-uni-salar)', borderColor: formData.supplier_id ? 'var(--theme-accent)' : 'var(--theme-card-border)', color: 'var(--theme-foreground)' }}
-                  >
-                    <option value="">هەڵبژێرە</option>
-                    {suppliers.map((s: Supplier) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <FaBalanceScale className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--theme-secondary)' }} />
+                <div className="relative" ref={supplierDropdownRef}>
+                  {/* Search Input */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={supplierSearch}
+                      onChange={e => {
+                        setSupplierSearch(e.target.value)
+                        setSupplierDropdownOpen(true)
+                      }}
+                      onFocus={() => setSupplierDropdownOpen(true)}
+                      placeholder="گەڕان..."
+                      className="w-full px-4 py-3 pr-10 rounded-xl border appearance-none"
+                      style={{ fontFamily: 'var(--font-uni-salar)', borderColor: formData.supplier_id ? 'var(--theme-accent)' : 'var(--theme-card-border)', color: 'var(--theme-foreground)', backgroundColor: 'var(--theme-muted)' }}
+                    />
+                    <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--theme-secondary)' }} />
+                  </div>
+                  
+                  {/* Dropdown Options */}
+                  {supplierDropdownOpen && filteredSuppliers.length > 0 && (
+                    <div 
+                      className="absolute z-10 w-full mt-1 rounded-xl border max-h-48 overflow-y-auto"
+                      style={{ backgroundColor: '#2563eb', borderColor: '#1d4ed8' }}
+                    >
+                      {filteredSuppliers.map((s: any) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev: FormData) => ({...prev, supplier_id: s.id}))
+                            setSupplierSearch(s.name)
+                            setSupplierDropdownOpen(false)
+                          }}
+                          className="w-full px-4 py-2 text-right hover:bg-opacity-20 hover:bg-white flex items-center gap-3"
+                          style={{ fontFamily: 'var(--font-uni-salar)', color: '#ffffff' }}
+                        >
+                          {s.supplier_image ? (
+                            <img 
+                              src={s.supplier_image} 
+                              alt={s.name} 
+                              className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-sm font-bold">
+                              {s.name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="font-bold">{s.name}</div>
+                            {s.phone && <div className="text-xs opacity-75">{s.phone}</div>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Show selected value when not searching */}
+                  {supplierDropdownOpen && supplierSearch === '' && formData.supplier_id && (
+                    <div 
+                      className="absolute z-10 w-full mt-1 rounded-xl border max-h-48 overflow-y-auto"
+                      style={{ backgroundColor: '#2563eb', borderColor: '#1d4ed8' }}
+                    >
+                      {suppliers.map((s: any) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev: FormData) => ({...prev, supplier_id: s.id}))
+                            setSupplierSearch(s.name)
+                            setSupplierDropdownOpen(false)
+                          }}
+                          className="w-full px-4 py-2 text-right hover:bg-opacity-20 hover:bg-white flex items-center gap-3"
+                          style={{ fontFamily: 'var(--font-uni-salar)', color: '#ffffff' }}
+                        >
+                          {s.supplier_image ? (
+                            <img 
+                              src={s.supplier_image} 
+                              alt={s.name} 
+                              className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-sm font-bold">
+                              {s.name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="font-bold">{s.name}</div>
+                            {s.phone && <div className="text-xs opacity-75">{s.phone}</div>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {supplierDropdownOpen && filteredSuppliers.length === 0 && supplierSearch !== '' && (
+                    <div 
+                      className="absolute z-10 w-full mt-1 rounded-xl border p-3 text-center"
+                      style={{ backgroundColor: '#2563eb', borderColor: '#1d4ed8' }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-uni-salar)', color: '#ffffff' }}>داتا نەدۆزرایەوە</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -604,7 +725,7 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
         <div className="flex gap-4 mt-8 justify-between">
           <button 
             onClick={() => setShowStockEntry(false)} 
-            className="px-6 py-3 rounded-xl font-bold"
+            className="px-6 py-3 rounded-xl font-bold md:px-6 md:py-3 md:text-base px-1 py-0.5 text-[10px]"
             style={{ fontFamily: 'var(--font-uni-salar)', backgroundColor: 'var(--theme-muted)', color: 'var(--theme-secondary)' }}
           >
             پاشگەزبوونەوە
@@ -613,10 +734,10 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
           {currentStep > 1 && (
             <button 
               onClick={prevStep} 
-              className="px-6 py-3 rounded-xl font-bold flex items-center"
+              className="px-6 py-3 rounded-xl font-bold flex items-center md:px-6 md:py-3 md:text-base px-1 py-0.5 text-[10px]"
               style={{ fontFamily: 'var(--font-uni-salar)', backgroundColor: 'transparent', color: 'var(--theme-secondary)', border: '1px solid var(--theme-card-border)' }}
             >
-              <FaArrowRight className="ml-2" />
+              <FaArrowRight className="md:ml-2 ml-0.5 rtl:mr-0.5 rtl:ml-0 text-[8px] md:text-base" />
               قۆناغی پێشوو
             </button>
           )}
@@ -625,23 +746,23 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
             <button 
               onClick={nextStep} 
               disabled={!canProceed()} 
-              className={`px-6 py-3 rounded-xl font-bold flex items-center ${canProceed() ? '' : 'opacity-50'}`}
+              className={`px-6 py-3 rounded-xl font-bold flex items-center md:px-6 md:py-3 md:text-base px-1 py-0.5 text-[10px] ${canProceed() ? '' : 'opacity-50'}`}
               style={{ fontFamily: 'var(--font-uni-salar)', backgroundColor: canProceed() ? '#2563eb' : 'var(--theme-muted)', color: '#ffffff' }}
             >
               قۆناغی داهاتوو
-              <FaArrowLeft className="mr-2" />
+              <FaArrowLeft className="md:mr-2 mr-0.5 rtl:ml-0.5 rtl:mr-0 text-[8px] md:text-base" />
             </button>
           ) : (
             <button 
               onClick={submitItem} 
               disabled={!formData.name?.trim() || !formData.quantity || !formData.selling_price || !formData.unit || isSubmitting} 
-              className="px-8 py-3 rounded-xl font-bold flex items-center"
+              className="px-8 py-3 rounded-xl font-bold flex items-center md:px-8 md:py-3 md:text-base px-1 py-0.5 text-[10px]"
               style={{ fontFamily: 'var(--font-uni-salar)', backgroundColor: formData.name?.trim() && formData.quantity && formData.selling_price && formData.unit ? '#22c55e' : 'var(--theme-muted)', color: '#ffffff' }}
             >
               {isSubmitting ? (
-                <><FaSpinner className="animate-spin ml-2" />تۆمارکردن...</>
+                <><FaSpinner className="animate-spin md:ml-2 ml-0.5 text-[8px] md:text-base" />تۆمارکردن...</>
               ) : (
-                <><FaCheck className="ml-2" />تۆمارکردن</>
+                <><FaCheck className="md:ml-2 ml-0.5 text-[8px] md:text-base" />تۆمارکردن</>
               )}
             </button>
           )}

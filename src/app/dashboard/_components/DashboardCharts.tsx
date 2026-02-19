@@ -1,9 +1,9 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { FaChartLine, FaExclamationTriangle, FaMoneyBillWave, FaUsers } from 'react-icons/fa'
 import { formatCurrency } from '@/lib/numberUtils'
+import { motion } from 'framer-motion'
+import { FaChartLine, FaClock, FaExclamationTriangle, FaMoneyBillWave, FaUsers } from 'react-icons/fa'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface ChartData {
   date: string
@@ -18,6 +18,7 @@ interface DashboardChartsProps {
     todaySales: number
     totalCustomers: number
     lowStockCount: number
+    pendingSales: number
   }
 }
 
@@ -257,6 +258,61 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
                 }}
               >
                 {stats.lowStockCount}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pending Sales */}
+        <div 
+          className="rounded-3xl p-6 shadow-lg border backdrop-blur-md"
+          style={{ 
+            background: 'var(--theme-card-bg)',
+            borderColor: 'var(--theme-card-border)'
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div 
+                className="w-10 h-10 backdrop-blur-md rounded-2xl flex items-center justify-center border"
+                style={{ 
+                  background: '#eab308',
+                  borderColor: 'var(--theme-card-border)',
+                  color: '#ffffff'
+                }}
+              >
+                <FaClock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 
+                  className="font-semibold"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  فرۆشتنی نوێ
+                </h4>
+                <p 
+                  className="text-sm"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  چاوەڕوانی پەسەندکردن
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p 
+                className="text-2xl font-bold"
+                style={{ 
+                  color: '#eab308',
+                  fontFamily: 'Inter, sans-serif' 
+                }}
+              >
+                {stats.pendingSales}
               </p>
             </div>
           </div>

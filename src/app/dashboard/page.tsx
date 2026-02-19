@@ -215,13 +215,13 @@ export default function DashboardPage() {
       const { count: pendingOrders } = await supabase.from('sales').select('*', { count: 'exact', head: true }).eq('status', 'pending')
 
       // Calculate inventory expenses from completed sales only for this month
-      const { data: inventoryData } = await supabase.from('sale_items')
+      const { data: saleItemsData } = await supabase.from('sale_items')
         .select('quantity, cost_price, sales!inner(status, date)')
         .eq('sales.status', 'completed')
         .gte('sales.date', startDate)
         .lte('sales.date', endDate)
       
-      const inventoryExpenses = inventoryData?.reduce((sum, item) => 
+      const inventoryExpenses = saleItemsData?.reduce((sum, item) => 
         sum + (item.cost_price || 0) * (item.quantity || 0), 0) || 0
 
       // Get expenses for this month only
@@ -262,8 +262,37 @@ export default function DashboardPage() {
 
       const { count: totalCustomers } = await supabase.from('customers').select('*', { count: 'exact', head: true })
 
-      const { data: inventoryThresholdData } = await supabase.from('inventory').select('quantity, low_stock_threshold')
-      const lowStockCount = inventoryThresholdData?.filter(item => item.quantity <= item.low_stock_threshold).length || 0
+      // Query products table for low stock items (count items with total_amount_bought <= 10)
+      let lowStockCount = 0
+      try {
+        // Get all products with total_amount_bought, exclude null/empty
+        const { data: productsData, error } = await supabase.from('products')
+          .select('total_amount_bought')
+          .not('total_amount_bought', 'is', null)
+          .neq('total_amount_bought', 0)
+        
+        if (error) {
+          console.log('Error fetching products:', error.message)
+          lowStockCount = 0
+        } else {
+          console.log('Products data sample:', productsData?.slice(0, 10))
+          console.log('All product stock amounts:', productsData?.map(i => i.total_amount_bought))
+          
+          // Count items with total_amount_bought between 1 and 10 (positive stock only)
+          lowStockCount = productsData?.filter(item => {
+            // Convert to number explicitly to handle string values from database
+            const qty = Number(item.total_amount_bought)
+            // Only count POSITIVE stock between 1 and 10
+            if (isNaN(qty) || qty <= 0) return false
+            // Threshold of 10
+            return qty <= 10
+          }).length || 0
+        }
+        console.log('Low stock count:', lowStockCount)
+      } catch (err) {
+        console.log('Error fetching low stock:', err)
+        lowStockCount = 0
+      }
 
       setStats({
         totalSales: Math.round(totalSales),
@@ -457,7 +486,7 @@ export default function DashboardPage() {
         <StatCards stats={stats} />
 
         {/* Charts & Additional Stats */}
-        <DashboardCharts chartData={chartData} stats={{ todaySales: stats.todaySales, totalCustomers: stats.totalCustomers, lowStockCount: stats.lowStockCount }} />
+        <DashboardCharts chartData={chartData} stats={{ todaySales: stats.todaySales, totalCustomers: stats.totalCustomers, lowStockCount: stats.lowStockCount, pendingSales: stats.pendingOrders }} />
 
         {/* Recent Sales Table */}
         <RecentSalesTable />

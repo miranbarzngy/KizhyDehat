@@ -98,7 +98,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Load theme from localStorage on mount
+  // Load theme from localStorage on mount - DEFAULT TO DARK MODE
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('pos-theme') as Theme
@@ -106,11 +106,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (savedTheme && themes[savedTheme]) {
         document.body.classList.add(`theme-${savedTheme}`)
       } else {
-        document.body.classList.add('theme-white')
+        document.body.classList.add('theme-dark')
       }
-      return (savedTheme && themes[savedTheme]) ? savedTheme : 'white'
+      return (savedTheme && themes[savedTheme]) ? savedTheme : 'dark'
     }
-    return 'white'
+    return 'dark'
   })
 
   // Apply theme to CSS variables and document

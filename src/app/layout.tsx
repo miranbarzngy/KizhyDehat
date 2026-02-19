@@ -163,11 +163,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#1e40af" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
-        {/* Blocking script to apply theme BEFORE body renders */}
+        {/* Blocking script to apply theme BEFORE body renders - DEFAULT TO DARK */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             try {
-              const theme = localStorage.getItem('pos-theme') || 'white';
+              const theme = localStorage.getItem('pos-theme') || 'dark';
               document.documentElement.classList.add('theme-' + theme);
               document.documentElement.setAttribute('data-theme', theme);
             } catch (e) {}

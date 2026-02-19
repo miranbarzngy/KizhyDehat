@@ -3,13 +3,12 @@
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-interface InvoiceSettings {
-  shop_logo?: string
-  shop_name?: string
+interface ShopSettings {
+  shop_logo?: string | null
+  shop_name?: string | null
 }
 
 export default function LoginPage() {
@@ -17,7 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [shopSettings, setShopSettings] = useState<InvoiceSettings | null>(null)
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
   const { signIn } = useAuth()
   const router = useRouter()
   const { theme, themeConfig } = useTheme()
@@ -93,20 +92,15 @@ export default function LoginPage() {
     return 'text-gray-500'
   }
 
-  // Fetch shop settings (logo and name) from invoice_settings table
+  // Fetch shop settings from API (which uses service role to bypass RLS)
   useEffect(() => {
     const fetchShopSettings = async () => {
-      if (!supabase) return
       try {
-        const { data, error } = await supabase
-          .from('invoice_settings')
-          .select('shop_logo, shop_name')
-          .maybeSingle()
+        const response = await fetch('/api/shop-logo')
+        const data = await response.json()
         
-        if (data) {
+        if (response.ok && data.shop_logo) {
           setShopSettings(data)
-        } else if (error) {
-          console.error('Error fetching shop settings:', error)
         }
       } catch (err) {
         console.error('Error fetching shop settings:', err)

@@ -73,12 +73,10 @@ const CustomerImage = ({ customer, className = "" }: { customer: Customer, class
   </div>
 )
 
-// Kurdish numeral formatter
+// Force English digits (no Kurdish conversion)
 const toKurdishDigits = (value: any): string => {
-  if (value === null || value === undefined) return '٠'
-  const str = String(value)
-  const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
-  return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
+  if (value === null || value === undefined) return '0'
+  return String(value)
 }
 
 // Kurdish to English number converter
@@ -837,7 +835,7 @@ export default function CustomersPage() {
                           fontFamily: 'Inter'
                         }}
                       >
-                        {formatCurrency(customer.total_debt)}
+                        <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(customer.total_debt)}</span>
                       </p>
                     </div>
                   </div>
@@ -902,7 +900,7 @@ export default function CustomersPage() {
                         className="text-4xl font-bold"
                         style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'Inter' }}
                       >
-                        {formatCurrency(selectedCustomer.total_debt)}
+                        <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(selectedCustomer.total_debt)}</span>
                       </p>
                     </div>
                   </div>
@@ -1074,7 +1072,7 @@ export default function CustomersPage() {
                                   className="text-sm"
                                   style={{ color: 'var(--theme-foreground)' }}
                                 >
-                                  {history.date ? toKurdishDigits(new Date(history.date).toLocaleDateString('ku')) : '-'}
+                                  {history.date ? toKurdishDigits(new Date(history.date).toLocaleDateString('en-US')) : '-'}
                                 </span>
                               </td>
                               <td className="py-4 pr-2">
@@ -1119,12 +1117,11 @@ export default function CustomersPage() {
                                     e.stopPropagation()
                                     handleViewInvoice(history)
                                   }}
-                                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:opacity-90 active:scale-95"
+                                  className="inline-flex items-center gap-1 px-2 py-1 md:px-4 md:py-2 rounded-lg transition-all hover:opacity-90 active:scale-95 text-xs md:text-sm"
                                   style={{ 
                                     backgroundColor: 'var(--theme-accent)',
                                     color: '#ffffff',
-                                    fontFamily: 'var(--font-uni-salar)',
-                                    fontSize: '0.875rem'
+                                    fontFamily: 'var(--font-uni-salar)'
                                   }}
                                 >
                                   <FaEye className="text-sm" />

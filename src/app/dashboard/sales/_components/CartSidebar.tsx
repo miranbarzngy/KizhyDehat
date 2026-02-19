@@ -1,7 +1,7 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/numberUtils'
+import { AnimatePresence, motion } from 'framer-motion'
 import CartItem from './CartItem'
 
 interface CartItemType {
@@ -153,7 +153,7 @@ export default function CartSidebar({
         {/* Payment Method */}
         <div className="grid grid-cols-3 gap-1">
           {(['cash', 'fib', 'debt'] as const).map((method) => {
-            const labels = { cash: '💵 کاش', fib: '💳 ئۆنلاین', debt: '📝 قەرز' }
+            const labels = { cash: 'کاش', fib: 'ئۆنلاین', debt: 'قەرز' }
             const colors = {
               cash: paymentMethod === 'cash' ? 'bg-green-600 border-green-500 text-white' : 'bg-white border-gray-300 hover:bg-green-50 text-gray-800',
               fib: paymentMethod === 'fib' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-white border-gray-300 hover:bg-blue-50 text-gray-800',

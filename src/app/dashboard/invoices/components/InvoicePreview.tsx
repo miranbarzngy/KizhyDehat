@@ -13,12 +13,10 @@ interface InvoicePreviewProps {
   isCaptureMode?: boolean
 }
 
-// Kurdish numeral formatter
+// Force English digits (no Kurdish conversion)
 const toKurdishDigits = (value: any): string => {
-  if (value === null || value === undefined) return '٠'
-  const str = String(value)
-  const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
-  return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
+  if (value === null || value === undefined) return '0'
+  return String(value)
 }
 
 // Format time to 12-hour format with Kurdish numerals
@@ -192,7 +190,7 @@ function buildInvoiceDataLocal(saleData: SaleData, invoice: Invoice, settings?: 
     customerPhone: saleData?.customers?.phone1 || '',
     sellerName: saleData?.sold_by || saleData?.sellerName || 'کارمەند',
     seller_name: saleData?.sold_by || saleData?.seller_name || 'کارمەند',
-    date: new Date(invoice.date).toLocaleDateString('ku'),
+    date: new Date(invoice.date).toLocaleDateString('en-US'),
     time: formattedTime,
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',
     items,

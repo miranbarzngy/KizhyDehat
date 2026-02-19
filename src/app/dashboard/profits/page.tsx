@@ -3,19 +3,15 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
-import ProfitFilters from './components/ProfitFilters'
-import ProfitStats, { SalesTypeCards } from './components/ProfitStats'
-import ProfitsCharts from './components/ProfitsCharts'
 import SalesTab from './components/SalesTab'
+import ProfitStats, { SalesTypeCards } from './components/ProfitStats'
 import ProfitsTab from './components/ProfitsTab'
 import ExpensesTab from './components/ExpensesTab'
-import { ProfitItem, SaleItem, ExpenseItem, PurchaseExpense, ChartData, InvoiceSettings, OverviewStats, ActiveTab } from './components/types'
+import { ProfitItem, SaleItem, ExpenseItem, PurchaseExpense, OverviewStats, ActiveTab } from './components/types'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 
 export default function ProfitsPage() {
   const { openModal } = useGlobalInvoiceModal()
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => { setIsMounted(true) }, [])
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
   const [overviewStats, setOverviewStats] = useState<OverviewStats>({ totalSales: 0, totalExpenses: 0, totalProfits: 0, totalReturns: 0, cashSales: 0, onlineSales: 0, payLaterSales: 0, inventoryExpenses: 0, generalExpenses: 0 })
   const [cashSales, setCashSales] = useState<SaleItem[]>([])
@@ -25,9 +21,7 @@ export default function ProfitsPage() {
   const [totalProfit, setTotalProfit] = useState(0)
   const [purchaseExpenses, setPurchaseExpenses] = useState<PurchaseExpense[]>([])
   const [generalExpenses, setGeneralExpenses] = useState<ExpenseItem[]>([])
-  const [chartData, setChartData] = useState<ChartData[]>([])
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleViewPurchaseInvoice = async (purchaseId: string) => {
     if (!supabase) return
@@ -86,25 +80,27 @@ export default function ProfitsPage() {
     } catch (error) { console.error('Error fetching invoice:', error); alert('هەڵە لە وەرگرتنی پسوڵە') }
   }
 
-  useEffect(() => { fetchAllData() }, [dateFrom, dateTo])
-  const fetchAllData = async () => { await Promise.all([fetchOverviewStats(), fetchChartData(), fetchSalesData(), fetchProfitsData(), fetchExpensesData()]) }
+  // Initial load - fetch all data
+  useEffect(() => { 
+    setLoading(true)
+    fetchAllData().finally(() => setLoading(false)) 
+  }, [])
+  
+  const fetchAllData = async () => { await Promise.all([fetchOverviewStats(), fetchSalesData(), fetchProfitsData(), fetchExpensesData()]) }
 
   const fetchOverviewStats = async () => {
     if (!supabase) { setOverviewStats({ totalSales: 0, totalExpenses: 0, totalProfits: 0, totalReturns: 0, cashSales: 0, onlineSales: 0, payLaterSales: 0, inventoryExpenses: 0, generalExpenses: 0 }); return }
     try {
-      let dateFilter: any = {}
-      if (dateFrom) dateFilter = { ...dateFilter, gte: dateFrom }
-      if (dateTo) dateFilter = { ...dateFilter, lte: dateTo }
-      const { data: salesData } = await supabase.from('sales').select('total, payment_method, status, discount_amount').match(dateFilter).eq('status', 'completed')
+      const { data: salesData } = await supabase.from('sales').select('total, payment_method, status, discount_amount').eq('status', 'completed')
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
       const cashSalesData = salesData?.filter(sale => sale.payment_method === 'cash').reduce((sum, sale) => sum + sale.total, 0) || 0
       const onlineSalesData = salesData?.filter(sale => sale.payment_method === 'fib').reduce((sum, sale) => sum + sale.total, 0) || 0
       const payLaterSalesData = salesData?.filter(sale => sale.payment_method === 'debt').reduce((sum, sale) => sum + sale.total, 0) || 0
-      const { data: refundedData } = await supabase.from('sales').select('total').match(dateFilter).eq('status', 'refunded')
+      const { data: refundedData } = await supabase.from('sales').select('total').eq('status', 'refunded')
       const totalReturns = refundedData?.reduce((sum, sale) => sum + sale.total, 0) || 0
-      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').match(dateFilter).eq('sales.status', 'completed')
+      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').eq('sales.status', 'completed')
       const inventoryExpenses = inventoryData?.reduce((sum, item) => sum + (item.cost_price * item.quantity), 0) || 0
-      const { data: generalExpensesData } = await supabase.from('expenses').select('amount').match(dateFilter)
+      const { data: generalExpensesData } = await supabase.from('expenses').select('amount')
       const generalExpensesTotal = generalExpensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
       const totalExpenses = inventoryExpenses + generalExpensesTotal
       const totalProfits = totalSales - totalExpenses
@@ -112,38 +108,14 @@ export default function ProfitsPage() {
     } catch (error) { console.error('Error fetching overview stats:', error); setOverviewStats({ totalSales: 0, totalExpenses: 0, totalProfits: 0, totalReturns: 0, cashSales: 0, onlineSales: 0, payLaterSales: 0, inventoryExpenses: 0, generalExpenses: 0 }) }
   }
 
-  const fetchChartData = async () => {
-    if (!supabase) { setChartData([]); return }
-    try {
-      const chartDataPoints: ChartData[] = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-        const { data: daySales } = await supabase.from('sales').select('total').eq('date', dateStr).eq('status', 'completed')
-        const daySalesTotal = daySales?.reduce((sum, sale) => sum + sale.total, 0) || 0
-        const { data: dayExpenses } = await supabase.from('expenses').select('amount').eq('date', dateStr)
-        const dayExpensesTotal = dayExpenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0
-        chartDataPoints.push({ date: dateStr, sales: Math.round(daySalesTotal), expenses: Math.round(dayExpensesTotal), profit: Math.round(daySalesTotal - dayExpensesTotal) })
-      }
-      setChartData(chartDataPoints)
-    } catch (error) { console.error('Error fetching chart data:', error); setChartData([]) }
-  }
-
   const fetchSalesData = async () => {
     if (!supabase) { setCashSales([]); setOnlineSales([]); setPayLaterSales([]); return }
     try {
-      let salesQuery = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, total, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
-      if (dateFrom) salesQuery = salesQuery.gte('date', dateFrom)
-      if (dateTo) salesQuery = salesQuery.lte('date', dateTo)
-      const { data: salesData, error } = await salesQuery
+      const { data: salesData, error } = await supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, total, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
       if (error) throw error
       if (salesData) {
         const processedSales: SaleItem[] = salesData.map((sale: any) => {
-          // Format date properly - extract only YYYY-MM-DD
           const saleDate = sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0]
-          
-          // Format time from created_at (12-hour format - ENGLISH numbers)
           let saleTime = '--:--'
           if (sale.created_at) {
             try {
@@ -184,10 +156,7 @@ export default function ProfitsPage() {
   const fetchProfitsData = async () => {
     if (!supabase) { setProfits([]); setTotalProfit(0); return }
     try {
-      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, created_at, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
-      if (dateFrom) query = query.gte('sales.date', dateFrom)
-      if (dateTo) query = query.lte('sales.date', dateTo)
-      const { data, error } = await query
+      const { data, error } = await supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, created_at, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
       if (error) { console.error('Error fetching profits data:', error.message); setProfits([]); setTotalProfit(0); return }
       if (data && data.length > 0) {
         const profitData: ProfitItem[] = data.filter((item: any) => item.price && (item.cost_price || item.products?.cost_per_unit) && item.quantity).map((item: any) => {
@@ -198,9 +167,7 @@ export default function ProfitsPage() {
           let sale_id = '', date = new Date().toISOString().split('T')[0], time = '--:--', discount_amount = 0, subtotal = 0
           if (item.sales) { 
             const s = Array.isArray(item.sales) ? item.sales[0] : item.sales; 
-            // Fix date - handle both string and full ISO timestamp
             let fullDate = s.date || new Date().toISOString().split('T')[0]
-            // If it's already just YYYY-MM-DD, use it; otherwise extract
             if (fullDate && fullDate.includes('T')) {
               date = fullDate.split('T')[0]
             } else {
@@ -210,7 +177,6 @@ export default function ProfitsPage() {
             discount_amount = s.discount_amount || 0; 
             subtotal = s.subtotal || 0
             
-            // Format time from created_at (12-hour format - ENGLISH numbers)
             if (s.created_at) {
               try {
                 const createdDate = new Date(s.created_at)
@@ -243,10 +209,7 @@ export default function ProfitsPage() {
   const fetchExpensesData = async () => {
     if (!supabase) { setPurchaseExpenses([]); setGeneralExpenses([]); return }
     try {
-      let purchaseQuery = supabase.from('purchase_expenses').select('*').order('purchase_date', { ascending: false })
-      if (dateFrom) purchaseQuery = purchaseQuery.gte('purchase_date', dateFrom)
-      if (dateTo) purchaseQuery = purchaseQuery.lte('purchase_date', dateTo)
-      const { data: purchaseData, error: purchaseError } = await purchaseQuery
+      const { data: purchaseData, error: purchaseError } = await supabase.from('purchase_expenses').select('*').order('purchase_date', { ascending: false })
       if (purchaseError) { setPurchaseExpenses([]) } else {
         setPurchaseExpenses((purchaseData || []).map((item: any) => ({
           id: item.id,
@@ -254,16 +217,11 @@ export default function ProfitsPage() {
           total_purchase_price: item.total_purchase_price || 0,
           total_amount_bought: item.total_amount_bought || 0,
           unit: item.unit || '',
-          // Extract just YYYY-MM-DD from the date
           purchase_date: item.purchase_date ? item.purchase_date.split('T')[0] : new Date().toISOString().split('T')[0],
           created_at: item.created_at
         })))
       }
-      let expensesQuery = supabase.from('expenses').select('*').order('date', { ascending: false })
-      if (dateFrom) expensesQuery = expensesQuery.gte('date', dateFrom)
-      if (dateTo) expensesQuery = expensesQuery.lte('date', dateTo)
-      const { data: generalExpensesData } = await expensesQuery
-      // Extract just YYYY-MM-DD from dates
+      const { data: generalExpensesData } = await supabase.from('expenses').select('*').order('date', { ascending: false })
       setGeneralExpenses((generalExpensesData || []).map((item: any) => ({
         ...item,
         date: item.date ? item.date.split('T')[0] : item.date
@@ -277,8 +235,6 @@ export default function ProfitsPage() {
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕاپۆرتی دارایی</h1>
         <p className="text-gray-500 mt-2" style={{ fontFamily: 'var(--font-uni-salar)' }}>پوختەی دارایی و قازانجی فرۆشتن</p>
       </motion.div>
-
-      <ProfitFilters dateFrom={dateFrom} dateTo={dateTo} onDateFromChange={setDateFrom} onDateToChange={setDateTo} onClearDates={() => { setDateFrom(''); setDateTo(''); fetchAllData() }} />
 
       <div className="bg-white/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
         <div className="border-b border-gray-200/50">
@@ -304,7 +260,6 @@ export default function ProfitsPage() {
                 <ProfitStats stats={overviewStats} />
               </div>
               <SalesTypeCards stats={overviewStats} />
-              <ProfitsCharts chartData={chartData} isMounted={isMounted} />
             </motion.div>
           )}
           {activeTab === 'sales' && <SalesTab cashSales={cashSales} onlineSales={onlineSales} payLaterSales={payLaterSales} onViewInvoice={handleViewInvoice} />}
@@ -312,8 +267,6 @@ export default function ProfitsPage() {
           {activeTab === 'expenses' && <ExpensesTab purchaseExpenses={purchaseExpenses} generalExpenses={generalExpenses} onViewPurchaseInvoice={handleViewPurchaseInvoice} />}
         </div>
       </div>
-
-      {/* No local modal - GlobalInvoiceModal is handled by context in layout */}
     </div>
   )
 }

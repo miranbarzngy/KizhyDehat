@@ -35,12 +35,10 @@ const loadFont = (): Promise<void> => {
   })
 }
 
-// Kurdish numeral formatter
+// Force English digits (no Kurdish conversion)
 const toKurdishDigits = (value: any): string => {
-  if (value === null || value === undefined) return '٠'
-  const str = String(value)
-  const kurdishDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
-  return str.replace(/[0-9]/g, (digit) => kurdishDigits[parseInt(digit)])
+  if (value === null || value === undefined) return '0'
+  return String(value)
 }
 
 // Format time to 12-hour format with Kurdish numerals
@@ -252,13 +250,13 @@ export function InvoiceTemplate({ data }: { data: any }) {
             )}
             <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
             {data?.shopAddress && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#000000', ...kurdishStyle }}>
-                <FaMapMarkerAlt style={{ color: '#000000' }} /><span>{data.shopAddress}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', ...kurdishStyle }}>
+                <FaMapMarkerAlt style={{ color: '#6b7280' }} /><span>{data.shopAddress}</span>
               </div>
             )}
             {data?.shopPhone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#000000', ...kurdishNumberStyle }}>
-                <FaPhone style={{ color: '#000000' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6b7280', ...kurdishNumberStyle }}>
+                <FaPhone style={{ color: '#6b7280' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
               </div>
             )}
           </div>
@@ -266,10 +264,10 @@ export function InvoiceTemplate({ data }: { data: any }) {
           {/* Left Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: '600', color: '#000000', marginBottom: '4px', ...kurdishStyle }}>بەروار</div>
+              <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>بەروار</div>
               <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data?.date) || '-'}</div>
               {data?.time && (
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
               )}
             </div>
             {data?.customerPhone && (
@@ -289,7 +287,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
         
         {/* Payment Method */}
         <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '2px dashed #d1d5db', textAlign: 'center' }}>
-          <div style={{ fontWeight: '100', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>شێوازی پارەدان</div>
+          <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>شێوازی پارەدان</div>
           <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>{getPaymentStatus()}</div>
         </div>
       </div>
@@ -333,8 +331,8 @@ export function InvoiceTemplate({ data }: { data: any }) {
       {/* Footer - Modern Design */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#030304', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.subtotal || 0)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#000000', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>{formatPrice(data?.discount || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#374151', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.subtotal || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#dc2626', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>{formatPrice(data?.discount || 0)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}><span>کۆی گشتی:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.total || 0)}</span></div>
         </div>
         
@@ -681,7 +679,7 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     customerPhone: saleData?.customers?.phone1 || '',
     sellerName: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
     seller_name: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
-    date: new Date(invoice.date).toLocaleDateString('ku'),
+    date: new Date(invoice.date).toLocaleDateString('en-US'),
     time: formattedTime,
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',
     items,

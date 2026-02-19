@@ -1,13 +1,13 @@
 'use client'
 
-import GlobalInvoiceModal, { buildInvoiceData } from '@/components/GlobalInvoiceModal'
+import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
+import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { formatCurrency } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 import { FaEye, FaShoppingCart } from 'react-icons/fa'
-import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 
 interface PendingSale {
   id: string
@@ -462,18 +462,18 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                     </td>
                     <td className="px-6 py-4">
                       <span 
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`px-1.5 py-0.5 rounded-full text-[0.5rem] sm:text-xs font-medium ${
                           order.status === 'completed' ? 'bg-green-100 text-green-800' : 
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                           order.status === 'refunded' ? 'bg-red-100 text-red-800' : 
                           'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {order.status === 'completed' ? '✓ تەواو' : 
-                         order.status === 'pending' ? '⏳ چاوەڕوان' : 
-                         order.status === 'refunded' ? '↩️ گەڕایەوە' : 
-                         order.payment_method === 'cash' ? '💵 نەخت' : 
-                         order.payment_method === 'fib' ? '💳 ئۆنلاین' : 
+                        {order.status === 'completed' ? '✓تەواو' : 
+                         order.status === 'pending' ? '⏳چاوەڕوان' : 
+                         order.status === 'refunded' ? '↩️گەڕایەوە' : 
+                         order.payment_method === 'cash' ? '💵نەخت' : 
+                         order.payment_method === 'fib' ? '💳ئۆنلاین' : 
                          '📝 قەرز'}
                       </span>
                     </td>
@@ -484,7 +484,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                         fontFamily: 'Inter, sans-serif' 
                       }}
                     >
-                      {new Date(order.date).toLocaleDateString('ku')}
+                      {new Date(order.date).toLocaleDateString('en-US')}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <motion.button

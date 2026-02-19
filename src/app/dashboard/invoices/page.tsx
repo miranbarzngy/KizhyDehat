@@ -1,14 +1,14 @@
 'use client'
 
+import ConfirmModal from '@/components/ConfirmModal'
 import { buildInvoiceData, InvoiceTemplate } from '@/components/GlobalInvoiceModal'
+import { useToast } from '@/components/Toast'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
-import { useToast } from '@/components/Toast'
-import ConfirmModal from '@/components/ConfirmModal'
 
 interface InvoiceSettings {
   id?: number
@@ -22,9 +22,9 @@ interface InvoiceSettings {
 
 // Helper function to format currency in Kurdish numerals
 const formatCurrencyKurdish = (value: any): string => {
-  if (value === null || value === undefined) return '٠'
+  if (value === null || value === undefined) return '0'
   const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0
-  return new Intl.NumberFormat('ku-IQ', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
 }
 
 export default function InvoicesPage() {
@@ -448,7 +448,7 @@ export default function InvoicesPage() {
           </div>
 
           {/* Filters UI */}
-          <div className="mb-6 p-4 backdrop-blur-xl border shadow-sm rounded-2xl" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
+          <div className="mb-6 p-3 md:p-4 backdrop-blur-xl border shadow-sm rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
             {/* Search Bar */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>گەڕان</label>
@@ -459,7 +459,7 @@ export default function InvoicesPage() {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && applySearch()}
                   placeholder="گەڕان بەناوی کڕیار یان ژمارەی پسوڵە..."
-                  className="w-full px-4 py-3 pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  className="w-full px-3 md:px-4 py-2 md:py-3 pr-10 md:pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-base md:text-lg box-border"
                   style={{ 
                     backgroundColor: 'var(--theme-muted)', 
                     borderColor: 'var(--theme-card-border)', 
@@ -469,7 +469,7 @@ export default function InvoicesPage() {
                 />
                 <button
                   onClick={applySearch}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors"
+                  className="absolute left-1 md:left-2 top-1/2 transform -translate-y-1/2 p-1.5 md:p-2 rounded-lg transition-colors"
                   style={{ color: 'var(--theme-accent)' }}
                 >
                   <FaSearch />
@@ -478,14 +478,14 @@ export default function InvoicesPage() {
             </div>
 
             {/* Date Range Filters */}
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-1 w-full md:w-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end w-full">
+              <div className="min-w-0 w-full">
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>لە بەرواری</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  className="w-full max-w-full flex-1 px-3 md:px-4 py-2 md:py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-sm md:text-lg box-border"
                   style={{ 
                     backgroundColor: 'var(--theme-muted)', 
                     borderColor: 'var(--theme-card-border)', 
@@ -494,13 +494,13 @@ export default function InvoicesPage() {
                   }}
                 />
               </div>
-              <div className="flex-1 w-full md:w-auto">
+              <div className="min-w-0 w-full">
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>بۆ بەرواری</label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-lg"
+                  className="w-full max-w-full flex-1 px-3 md:px-4 py-2 md:py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-sm md:text-lg box-border"
                   style={{ 
                     backgroundColor: 'var(--theme-muted)', 
                     borderColor: 'var(--theme-card-border)', 
@@ -509,12 +509,12 @@ export default function InvoicesPage() {
                   }}
                 />
               </div>
-              <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex gap-2 w-full md:mt-auto">
                 <motion.button
                   onClick={applyFilters}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none py-2 md:py-3 px-4 md:px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
                   style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   <FaFilter />
@@ -524,7 +524,7 @@ export default function InvoicesPage() {
                   onClick={clearFilters}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 md:flex-none py-3 px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none py-2 md:py-3 px-4 md:px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
                   style={{ background: 'var(--theme-muted)', color: 'var(--theme-foreground)', borderColor: 'var(--theme-card-border)', border: '1px solid', fontFamily: 'var(--font-uni-salar)' }}
                 >
                   <FaTimes />
@@ -641,7 +641,7 @@ export default function InvoicesPage() {
                           transition={{ delay: index * 0.05 }}
                         >
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            #{sale.invoice_number || sale.id.slice(0, 8).toUpperCase()}
+                            #{sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '-'}
                           </td>
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             {sale.customers?.name || 'کڕیاری نەناسراو'}
@@ -649,13 +649,13 @@ export default function InvoicesPage() {
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             {sale.seller_name || sale.sold_by || '-'}
                           </td>
-                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
                             {formatCurrencyKurdish(sale.subtotal || 0)} د.ع
                           </td>
-                          <td className="px-2 py-3 text-red-600 dark:text-red-400 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <td className="px-2 py-3 text-red-600 dark:text-red-400 text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
                             -{formatCurrencyKurdish(sale.discount_amount || 0)}
                           </td>
-                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
                             {formatCurrencyKurdish(sale.total)} د.ع
                           </td>
                           <td className="px-2 py-3 text-center">
@@ -664,18 +664,18 @@ export default function InvoicesPage() {
                               sale.payment_method === 'fib' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' :
                               'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300'
                             }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              {sale.payment_method === 'cash' ? '💵 کاش' :
-                               sale.payment_method === 'fib' ? '💳 ئۆنلاین' :
+                              {sale.payment_method === 'cash' ? 'کاش' :
+                               sale.payment_method === 'fib' ? 'ئۆنلاین' :
                                '📝 قەرز'}
                             </span>
                           </td>
                           <td className="px-2 py-2">
                             <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              ⏳ چاوەڕوانکراو
+                               چاوەڕوانکراو
                             </span>
                           </td>
                           <td className="px-2 py-3 text-gray-600 dark:text-gray-400 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                            {new Date(sale.date).toLocaleDateString('ku')}
+                            {new Date(sale.date).toLocaleDateString('en-US')}
                           </td>
                           <td className="px-2 py-3">
                             <div className="flex flex-row-reverse gap-1 justify-center">

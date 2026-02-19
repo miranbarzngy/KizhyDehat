@@ -72,10 +72,10 @@ export default function InvoiceTable({
                     invoice.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300' :
                     'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300'
                   }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    {invoice.status === 'completed' ? '✅ تەواوکراو' :
-                      invoice.status === 'refunded' ? '↩️ گەڕێندراوە' :
-                      invoice.status === 'cancelled' ? '❌ هەڵوەشێنراوە' :
-                      '⏳ چاوەڕوانکراو'}
+                    {invoice.status === 'completed' ? 'تەواوکراو' :
+                      invoice.status === 'refunded' ? '↩گەڕێندراوە' :
+                      invoice.status === 'cancelled' ? 'هەڵوەشێنراوە' :
+                      ' چاوەڕوانکراو'}
                   </span>
                 </td>
                 <td className="px-2 md:px-6 py-3 md:py-4 text-center">
@@ -86,9 +86,9 @@ export default function InvoiceTable({
                     'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300'
                   }`}>
                     {invoice.status === 'cancelled' || invoice.status === 'refunded' ? 'null' :
-                      invoice.payment_method === 'cash' ? '💵 کاش' :
-                      invoice.payment_method === 'fib' ? '💳 ئۆنلاین' :
-                      '📝 قەرز'}
+                      invoice.payment_method === 'cash' ? 'کاش' :
+                      invoice.payment_method === 'fib' ? 'ئۆنلاین' :
+                      'قەرز'}
                   </span>
                 </td>
                 <td className="px-2 md:px-6 py-4">

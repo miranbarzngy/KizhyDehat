@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [shopLogo, setShopLogo] = useState<string | null>(null)
+  const [shopSettings, setShopSettings] = useState<InvoiceSettings | null>(null)
   const { signIn } = useAuth()
   const router = useRouter()
   const { theme, themeConfig } = useTheme()
@@ -93,24 +93,27 @@ export default function LoginPage() {
     return 'text-gray-500'
   }
 
+  // Fetch shop settings (logo and name) from invoice_settings table
   useEffect(() => {
-    const fetchShopLogo = async () => {
+    const fetchShopSettings = async () => {
       if (!supabase) return
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('invoice_settings')
-          .select('shop_logo')
-          .single()
+          .select('shop_logo, shop_name')
+          .maybeSingle()
         
-        if (data?.shop_logo) {
-          setShopLogo(data.shop_logo)
+        if (data) {
+          setShopSettings(data)
+        } else if (error) {
+          console.error('Error fetching shop settings:', error)
         }
       } catch (err) {
-        console.error('Error fetching shop logo:', err)
+        console.error('Error fetching shop settings:', err)
       }
     }
 
-    fetchShopLogo()
+    fetchShopSettings()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,10 +142,10 @@ export default function LoginPage() {
         <div className={`${getCardBgClass()} backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 dark:border-gray-700/30`}>
           {/* Logo Section */}
           <div className="flex flex-col items-center mb-6">
-            {shopLogo ? (
+            {shopSettings?.shop_logo ? (
               <img
-                src={shopLogo}
-                alt="Shop Logo"
+                src={shopSettings.shop_logo}
+                alt={shopSettings.shop_name || 'Shop Logo'}
                 className="w-24 h-24 rounded-full object-cover shadow-lg border-4 border-white/50 dark:border-gray-600/50 bg-white"
               />
             ) : (
@@ -153,7 +156,7 @@ export default function LoginPage() {
               </div>
             )}
             <p className={`mt-4 text-lg ${getTextClass()} font-uni-salar`}>
-              بەخێربێیتەوە
+              {shopSettings?.shop_name || 'بەخێربێیتەوە'}
             </p>
           </div>
 

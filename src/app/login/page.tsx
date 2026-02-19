@@ -98,12 +98,12 @@ export default function LoginPage() {
       if (!supabase) return
       try {
         const { data } = await supabase
-          .from('invoice_settings')
-          .select('shop_logo')
+          .from('shop_settings')
+          .select('icon')
           .single()
         
-        if (data?.shop_logo) {
-          setShopLogo(data.shop_logo)
+        if (data?.icon) {
+          setShopLogo(data.icon)
         }
       } catch (err) {
         console.error('Error fetching shop logo:', err)

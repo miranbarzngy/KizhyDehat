@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaShieldAlt, FaUsers } from 'react-icons/fa'
 
 interface User {
   id: string
@@ -18,13 +17,13 @@ interface StatCardsProps {
 
 export default function StatCards({ users, roles }: StatCardsProps) {
   return (
-    <div className="flex items-center gap-4 sm:gap-6">
-      <div className="text-center sm:text-right">
+    <div className="flex items-center gap-6 sm:gap-8">
+      <div className="flex flex-col items-center">
         <p 
           className="text-xs sm:text-sm"
           style={{ 
             color: 'var(--theme-secondary)',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'var(--font-uni-salar)'
           }}
         >
           بەکارهێنەران
@@ -40,12 +39,12 @@ export default function StatCards({ users, roles }: StatCardsProps) {
           {users.length}
         </motion.p>
       </div>
-      <div className="text-center sm:text-right">
+      <div className="flex flex-col items-center">
         <p 
           className="text-xs sm:text-sm"
           style={{ 
             color: 'var(--theme-secondary)',
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'var(--font-uni-salar)'
           }}
         >
           ڕۆڵەکان

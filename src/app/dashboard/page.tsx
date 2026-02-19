@@ -192,19 +192,44 @@ export default function DashboardPage() {
     }
 
     try {
-      // Only fetch completed sales for main stats (approved sales)
-      const { data: salesData } = await supabase.from('sales').select('total, subtotal, discount_amount').eq('status', 'completed')
+      // Get current month's date range
+      const now = new Date()
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      
+      const startDate = firstDayOfMonth.toISOString().split('T')[0]
+      const endDate = lastDayOfMonth.toISOString().split('T')[0]
+      
+      console.log('Monthly stats range:', startDate, 'to', endDate)
+
+      // Only fetch completed sales for this month
+      const { data: salesData } = await supabase.from('sales')
+        .select('total, subtotal, discount_amount, date')
+        .eq('status', 'completed')
+        .gte('date', startDate)
+        .lte('date', endDate)
+      
       const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
 
       // Count pending orders waiting for approval
       const { count: pendingOrders } = await supabase.from('sales').select('*', { count: 'exact', head: true }).eq('status', 'pending')
 
-      // Calculate inventory expenses from completed sales only
-      const { data: inventoryData } = await supabase.from('sale_items').select('quantity, cost_price, sales!inner(status)').eq('sales.status', 'completed')
+      // Calculate inventory expenses from completed sales only for this month
+      const { data: inventoryData } = await supabase.from('sale_items')
+        .select('quantity, cost_price, sales!inner(status, date)')
+        .eq('sales.status', 'completed')
+        .gte('sales.date', startDate)
+        .lte('sales.date', endDate)
+      
       const inventoryExpenses = inventoryData?.reduce((sum, item) => 
         sum + (item.cost_price || 0) * (item.quantity || 0), 0) || 0
 
-      const { data: expensesData } = await supabase.from('expenses').select('amount')
+      // Get expenses for this month only
+      const { data: expensesData } = await supabase.from('expenses')
+        .select('amount')
+        .gte('date', startDate)
+        .lte('date', endDate)
+      
       const generalExpenses = expensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
       const totalExpenses = inventoryExpenses + generalExpenses
       const netProfit = totalSales - totalExpenses

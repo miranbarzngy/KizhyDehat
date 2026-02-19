@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaCog, FaImage, FaMapMarkerAlt, FaPhone, FaQrcode, FaStore } from 'react-icons/fa'
+import { FaCog, FaImage, FaStore } from 'react-icons/fa'
 
 interface ShopSettings {
   id: string
@@ -66,48 +66,6 @@ export default function SettingsTab({
             </div>
           </div>
 
-          {/* Phone */}
-          <div>
-            <label 
-              className="block text-sm font-semibold mb-3 text-gray-700"
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              ژمارەی تەلەفۆن
-            </label>
-            <div className="relative">
-              <FaPhone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={shopSettingsForm.shop_phone || ''}
-                onChange={(e) => onUpdateForm('shop_phone', e.target.value)}
-                className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
-                style={{ fontFamily: 'Inter, sans-serif', direction: 'ltr' }}
-                placeholder="+964 XXX XXX XXXX"
-              />
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="md:col-span-2">
-            <label 
-              className="block text-sm font-semibold mb-3 text-gray-700"
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              ناونیشان
-            </label>
-            <div className="relative">
-              <FaMapMarkerAlt className="absolute right-3 top-3 text-gray-400" />
-              <textarea
-                value={shopSettingsForm.shop_address || ''}
-                onChange={(e) => onUpdateForm('shop_address', e.target.value)}
-                className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none resize-none"
-                style={{ fontFamily: 'var(--font-uni-salar)' }}
-                placeholder="ناونیشانی فرۆشگاکەت"
-                rows={3}
-              />
-            </div>
-          </div>
-
           {/* Shop Icon */}
           <div>
             <label 
@@ -135,39 +93,6 @@ export default function SettingsTab({
                 <img
                   src={shopSettings.shop_logo}
                   alt="Shop Icon"
-                  className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* QR Code Image */}
-          <div>
-            <label 
-              className="block text-sm font-semibold mb-3 text-gray-700"
-              style={{ fontFamily: 'var(--font-uni-salar)' }}
-            >
-              وێنەی QR کۆد
-            </label>
-            <div className="relative">
-              <FaQrcode className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    onQRCodeUpload(file)
-                  }
-                }}
-                className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-              />
-            </div>
-            {(shopSettings?.qr_code_url || shopSettingsForm?.qr_code_url) && (
-              <div className="mt-3">
-                <img
-                  src={shopSettingsForm?.qr_code_url || shopSettings?.qr_code_url || ''}
-                  alt="QR Code"
                   className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
                 />
               </div>

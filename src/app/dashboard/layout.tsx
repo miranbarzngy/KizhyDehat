@@ -6,6 +6,7 @@ import { useEffect, useState, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
+import Footer from '@/components/layout/Footer'
 import { useGlobalReSync } from '@/hooks/useGlobalReSync'
 import { GlobalInvoiceModalProvider, useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
@@ -50,6 +51,9 @@ function DashboardContent({ children, shopSettings }: { children: React.ReactNod
           </Suspense>
         </main>
       </div>
+
+      {/* Footer */}
+      <Footer />
 
       {/* Sidebar */}
       <Sidebar

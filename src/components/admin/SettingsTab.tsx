@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaCog, FaImage, FaStore } from 'react-icons/fa'
+import { useState, useRef } from 'react'
+import { FaCog, FaImage, FaStore, FaTimes } from 'react-icons/fa'
 
 interface ShopSettings {
   id: string
@@ -29,6 +30,37 @@ export default function SettingsTab({
   onQRCodeUpload,
   onSaveAll 
 }: SettingsTabProps) {
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleShopNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateForm('shop_name', e.target.value)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+      // Upload
+      onImageUpload(file, 'shop_logo')
+    }
+  }
+
+  const clearImagePreview = () => {
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Current image to show (preview takes priority)
+  const displayImage = imagePreview || shopSettingsForm.shop_logo || shopSettings?.shop_logo || ''
+
   return (
     <>
       {/* Settings Header */}
@@ -58,7 +90,7 @@ export default function SettingsTab({
               <input
                 type="text"
                 value={shopSettingsForm.shop_name || ''}
-                onChange={(e) => onUpdateForm('shop_name', e.target.value)}
+                onChange={handleShopNameChange}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
                 placeholder="ناوی فرۆشگاکەت"
@@ -66,7 +98,7 @@ export default function SettingsTab({
             </div>
           </div>
 
-          {/* Shop Icon */}
+          {/* Shop Icon / Account Image */}
           <div>
             <label 
               className="block text-sm font-semibold mb-3 text-gray-700"
@@ -75,26 +107,31 @@ export default function SettingsTab({
               وێنەی ئایکۆن
             </label>
             <div className="relative">
-              <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FaImage className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    onImageUpload(file, 'shop_logo')
-                  }
-                }}
+                onChange={handleImageChange}
                 className="w-full pr-10 pl-4 py-3 rounded-xl border-0 bg-white/60 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-green-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
               />
             </div>
-            {shopSettings?.shop_logo && (
-              <div className="mt-3">
+            {/* Image Preview */}
+            {displayImage && (
+              <div className="mt-3 relative inline-block">
                 <img
-                  src={shopSettings.shop_logo}
-                  alt="Shop Icon"
-                  className="w-16 h-16 object-cover rounded-xl border-2 border-green-200"
+                  src={displayImage}
+                  alt="Shop Icon Preview"
+                  className="w-20 h-20 object-cover rounded-xl border-2 border-green-200"
                 />
+                {imagePreview && (
+                  <button
+                    onClick={clearImagePreview}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                  >
+                    <FaTimes />
+                  </button>
+                )}
               </div>
             )}
           </div>

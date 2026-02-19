@@ -25,8 +25,11 @@ export interface InvoiceSettings {
 }
 
 export interface SaleData {
+  customer_name?: string
   customers?: { name: string; phone1?: string }
   sold_by?: string
+  sellerName?: string
+  seller_name?: string
   subtotal?: number
   discount_amount?: number
   sale_items?: Array<{ products?: { name: string; unit?: string }; quantity: number; price: number; total?: number; unit?: string }>

@@ -212,22 +212,12 @@ export function useAdminData(): UseAdminDataReturn {
   }, []);
 
   const updateShopSettingsField = useCallback(async (field: string, value: string | number) => {
-    if (!supabase) return;
-    try {
-      // Map form field names to shop_settings table column names
-      const fieldMapping: Record<string, string> = { 
-        shop_name: 'shopname', 
-        shop_phone: 'phone', 
-        shop_address: 'location', 
-        shop_logo: 'icon', 
-        qr_code_url: 'qrcodeimage' 
-      };
-      const dbField = fieldMapping[field] || field;
-      if (shopSettings) await supabase.from("shop_settings").update({ [dbField]: value }).eq("id", shopSettings.id);
-      else await supabase.from("shop_settings").insert({ [dbField]: value });
-      fetchShopSettings();
-    } catch { }
-  }, [shopSettings, fetchShopSettings]);
+    // First update local form state immediately - this will update the UI
+    setShopSettingsForm(prev => ({ ...prev, [field]: value }));
+    
+    // Note: We don't fetch here to avoid re-rendering the form while typing
+    // The data will be saved when user clicks the save button
+  }, []);
 
   const handleImageUpload = useCallback(async (file: File, field: string) => {
     if (!supabase) { alert("Supabase not configured"); return; }
@@ -295,18 +285,55 @@ export function useAdminData(): UseAdminDataReturn {
   const updateAllShopSettings = useCallback(async () => {
     if (!supabase) { alert("دۆخی دیمۆ"); return; }
     try {
-      // Map to shop_settings table column names
-      const updateData = { 
-        shopname: shopSettingsForm.shop_name || '', 
-        phone: shopSettingsForm.shop_phone || '', 
-        location: shopSettingsForm.shop_address || '', 
-        icon: shopSettingsForm.shop_logo || '', 
-        qrcodeimage: shopSettingsForm.qr_code_url || '' 
-      };
-      if (shopSettings) await supabase.from("shop_settings").update(updateData).eq("id", shopSettings.id);
-      else await supabase.from("shop_settings").insert(updateData);
-      alert("نوێکرایەوە"); fetchShopSettings(); if (typeof window !== "undefined") window.location.reload();
-    } catch { alert("هەڵە"); }
+      console.log("Saving shop settings...", { shopSettings, shopSettingsForm });
+      
+      // Get the raw data to see what columns exist
+      const { data: currentData } = await supabase.from("shop_settings").select("*").single();
+      
+      console.log("Current DB data:", currentData);
+      
+      if (!currentData) {
+        alert("هیچ داتایەک نەدۆزرایەوە");
+        return;
+      }
+      
+      // Build update data from only the columns that exist in the database
+      const updateData: Record<string, string> = {};
+      
+      if ('shopname' in currentData) {
+        updateData.shopname = shopSettingsForm.shop_name || '';
+      }
+      if ('icon' in currentData) {
+        updateData.icon = shopSettingsForm.shop_logo || '';
+      }
+      
+      console.log("Update data:", updateData);
+      
+      if (Object.keys(updateData).length === 0) {
+        alert("هیچ خانەیەک نەدۆزرایەوە بۆ نوێکردنەوە");
+        return;
+      }
+      
+      const result = await supabase.from("shop_settings").update(updateData).eq("id", currentData.id);
+      
+      if (result.error) {
+        console.error("Save error:", result.error);
+        alert("هەڵە: " + result.error.message);
+        return;
+      }
+      
+      console.log("Save successful!");
+      alert("نوێکرایەوە"); 
+      fetchShopSettings();
+      
+      // Reload page to reflect changes
+      if (typeof window !== "undefined") {
+        setTimeout(() => window.location.reload(), 500);
+      }
+    } catch (error) {
+      console.error("Save exception:", error);
+      alert("هەڵە");
+    }
   }, [shopSettingsForm, shopSettings, fetchShopSettings]);
 
   return {

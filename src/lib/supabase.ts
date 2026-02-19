@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import { Database } from '../types/supabase'
 
-// Singleton pattern for Supabase client
-let supabaseInstance: ReturnType<typeof createClient> | null = null
+// Singleton pattern for Supabase client - initialized at module load time
+let supabaseInstance: ReturnType<typeof createClient<Database>>
 
 export function getSupabase() {
   if (supabaseInstance) return supabaseInstance
@@ -10,11 +11,10 @@ export function getSupabase() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'your_supabase_url_here') {
-    console.error('❌ Supabase: Missing environment variables')
-    return null
+    throw new Error('Supabase: Missing environment variables NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
   }
 
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,

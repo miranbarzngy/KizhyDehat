@@ -58,8 +58,9 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Fetch from invoice_settings table (shop_name and shop_logo columns)
       const { data, error } = await supabase
-        .from('shop_settings')
+        .from('invoice_settings')
         .select('*')
         .single()
 
@@ -70,11 +71,11 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
       if (data) {
         const settings: ShopSettings = {
           id: data.id,
-          shopname: data.shopname || 'کلیک گروپ',
-          icon: data.icon || '',
-          phone: data.phone || '',
-          location: data.location || '',
-          qrcodeimage: data.qrcodeimage || ''
+          shopname: data.shop_name || 'کلیک گروپ',
+          icon: data.shop_logo || '',
+          phone: data.shop_phone || '',
+          location: data.shop_address || '',
+          qrcodeimage: ''
         }
         
         cachedSettings = settings

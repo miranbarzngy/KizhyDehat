@@ -156,7 +156,7 @@ export default function CustomersPage() {
         }
         setCustomers(prev => [...prev, mockCustomer])
         setShowAddCustomer(false)
-        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
         setImagePreview(null)
         showSuccess('کڕیارەکە زیادکرا')
         return
@@ -182,9 +182,9 @@ export default function CustomersPage() {
       }
 
       if (data) {
-        setCustomers(prev => [...prev, data])
+        setCustomers(prev => [...prev, data as Customer])
         setShowAddCustomer(false)
-        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null })
+        setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
         setImagePreview(null)
         showSuccess('کڕیارەکە زیادکرا')
       }
@@ -303,8 +303,8 @@ export default function CustomersPage() {
       }
 
       if (data) {
-        setCustomers(prev => prev.map(c => c.id === editingCustomer.id ? data : c))
-        setSelectedCustomer(data)
+        setCustomers(prev => prev.map(c => c.id === editingCustomer.id ? data as Customer : c))
+        setSelectedCustomer(data as Customer)
         setShowAddCustomer(false)
         setIsEditing(false)
         setEditingCustomer(null)
@@ -414,7 +414,7 @@ export default function CustomersPage() {
     }
     try {
       const { data } = await supabase.from('customers').select('*').order('name')
-      setCustomers(data || [])
+      setCustomers((data as Customer[]) || [])
     } catch (error) { console.error(error) }
     finally { setLoading(false) }
   }
@@ -487,15 +487,15 @@ export default function CustomersPage() {
           
           history.push({
             id: sale.id,
-            date: sale.date || sale.created_at,
+            date: sale.date || sale.created_at || '',
             amount: sale.total,
             items: items,
             note: sale.discount_amount ? `داشکاندن: ${sale.discount_amount}` : '',
             type: sale.payment_method === 'debt' ? 'sale' : 'payment',
-            payment_method: sale.payment_method,
+            payment_method: sale.payment_method || undefined,
             sale_id: sale.id,
-            invoice_number: sale.invoice_number,
-            discount_amount: sale.discount_amount,
+            invoice_number: sale.invoice_number || undefined,
+            discount_amount: sale.discount_amount || undefined,
             sold_by: sellerName
           })
         }

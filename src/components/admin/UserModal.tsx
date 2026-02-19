@@ -48,7 +48,7 @@ interface UserModalProps {
   onSetRoleId: (value: string) => void
   onSetIsActive: (value: boolean) => void
   onSubmit: () => void
-  onImageUpload: (file: File) => void
+  onImageUpload?: (file: File) => void
 }
 
 export default function UserModal({

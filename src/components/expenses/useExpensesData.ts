@@ -18,7 +18,7 @@ interface UseExpensesDataReturn {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   setActiveTab: (tab: ExpenseTab) => void;
   setDateFilters: (filters: DateFilters) => void;
-  setFormData: (data: ExpenseFormData) => void;
+  setFormData: (data: ExpenseFormData | ((prev: ExpenseFormData) => ExpenseFormData)) => void;
   setEditingExpense: (expense: Expense | null) => void;
   setShowDeleteConfirm: (id: string | null) => void;
   setShowCamera: (show: boolean) => void;

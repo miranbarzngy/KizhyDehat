@@ -2,26 +2,24 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
-import { FaCog, FaShieldAlt, FaUsers } from "react-icons/fa";
+import { FaShieldAlt, FaUsers } from "react-icons/fa";
 import StatCards from "@/components/admin/StatCards";
 import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
-import SettingsTab from "@/components/admin/SettingsTab";
 import UserModal from "@/components/admin/UserModal";
 import { useAdminData } from "@/components/admin/useAdminData";
 
 export default function AdminPage() {
   const {
-    users, roles, shopSettings, shopSettingsForm, loading, activeTab, showCreateUser, showCreateRole, editingUser,
+    users, roles, loading, activeTab, showCreateUser, showCreateRole, editingUser,
     newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive,
     setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserImage, setNewUserPhone, setNewUserLocation, 
     setNewUserEmail, setNewUserPassword, setSelectedRoleId, setNewUserIsActive,
-    fetchUsers, fetchRoles, fetchShopSettings, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
-    handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm, updateShopSettingsField,
-    handleImageUpload, handleQRCodeUpload, updateAllShopSettings
+    fetchUsers, fetchRoles, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
+    handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm
   } = useAdminData();
 
-  useEffect(() => { fetchUsers(); fetchRoles(); fetchShopSettings(); }, []);
+  useEffect(() => { fetchUsers(); fetchRoles(); }, []);
 
   if (loading) {
     return (
@@ -47,7 +45,7 @@ export default function AdminPage() {
               <p 
                 style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
               >
-                بەڕێوەبردنی بەکارهێنەران، ڕۆڵەکان و ڕێکخستنەکان
+                بەڕێوەبردنی بەکارهێنەران و ڕۆڵەکان
               </p>
             </div>
             <StatCards users={users} roles={roles} />
@@ -83,17 +81,6 @@ export default function AdminPage() {
             >
               <FaShieldAlt /> ڕۆڵەکان
             </button>
-            <button 
-              onClick={() => setActiveTab("settings")} 
-              className="flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
-              style={{ 
-                fontFamily: 'var(--font-uni-salar)',
-                background: activeTab === "settings" ? 'var(--theme-accent)' : 'transparent',
-                color: activeTab === "settings" ? '#ffffff' : 'var(--theme-secondary)'
-              }}
-            >
-              <FaCog /> ڕێکخستنەکان
-            </button>
           </div>
 
           {/* Tab Content */}
@@ -115,18 +102,6 @@ export default function AdminPage() {
                   onCreateRole={() => setShowCreateRole(true)} 
                   onEditRole={handleEditRole} 
                   onDeleteRole={handleDeleteRole} 
-                />
-              </motion.div>
-            )}
-            {activeTab === "settings" && (
-              <motion.div key="settings" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                <SettingsTab 
-                  shopSettings={shopSettings} 
-                  shopSettingsForm={shopSettingsForm}
-                  onUpdateForm={updateShopSettingsField} 
-                  onImageUpload={handleImageUpload} 
-                  onQRCodeUpload={handleQRCodeUpload}
-                  onSaveAll={updateAllShopSettings} 
                 />
               </motion.div>
             )}
@@ -157,7 +132,6 @@ export default function AdminPage() {
         onSetRoleId={setSelectedRoleId}
         onSetIsActive={setNewUserIsActive}
         onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
-        onImageUpload={handleImageUpload}
       />
     </div>
   );

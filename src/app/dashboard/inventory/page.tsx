@@ -31,7 +31,7 @@ export default function InventoryPage() {
   
   // Handle archive filter
   const applyArchiveFilter = () => {
-    fetchArchivedItems(archiveStartDate || undefined, archiveEndDate || undefined)
+    fetchArchivedItems()
   }
   
   // Clear archive filters

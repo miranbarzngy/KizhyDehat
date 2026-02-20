@@ -1,8 +1,8 @@
 'use client'
 
+import { useTheme } from '@/contexts/ThemeContext'
 import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
 import { motion } from 'framer-motion'
-import { useTheme } from '@/contexts/ThemeContext'
 
 interface SupplierCardProps {
   supplier: {
@@ -124,7 +124,7 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
         <div className="flex flex-col items-center group cursor-pointer" onClick={onHistory}>
           <motion.button
             className="w-10 h-10 bg-purple-500 hover:bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
-            title="مێژوو"
+            title="قەرز"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -132,7 +132,7 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </motion.button>
-          <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: getSecondaryText(), opacity: 0.7 }}>مێژوو</span>
+          <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: getSecondaryText(), opacity: 0.7 }}>قەرز</span>
         </div>
 
         {/* View Products Button - Indigo */}

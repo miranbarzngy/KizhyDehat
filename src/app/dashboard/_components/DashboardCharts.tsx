@@ -2,7 +2,7 @@
 
 import { formatCurrency } from '@/lib/numberUtils'
 import { motion } from 'framer-motion'
-import { FaChartLine, FaClock, FaExclamationTriangle, FaMoneyBillWave, FaUsers } from 'react-icons/fa'
+import { FaChartLine, FaClock, FaExclamationTriangle, FaMoneyBillWave, FaUserPlus } from 'react-icons/fa'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface ChartData {
@@ -126,7 +126,7 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
                     fontFamily: 'var(--font-uni-salar)' 
                   }}
                 >
-                  فرۆشتنی ئەمڕۆ
+                  نرخ ۆن فرۆشتنەکانی ئەمڕۆ
                 </h4>
                 <p 
                   className="text-sm"
@@ -166,12 +166,12 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
               <div 
                 className="w-10 h-10 backdrop-blur-md rounded-2xl flex items-center justify-center border"
                 style={{ 
-                  background: 'var(--theme-primary)',
+                  background: '#8b5cf6',
                   borderColor: 'var(--theme-card-border)',
                   color: '#ffffff'
                 }}
               >
-                <FaUsers className="w-5 h-5" />
+                <FaUserPlus className="w-5 h-5" />
               </div>
               <div>
                 <h4 

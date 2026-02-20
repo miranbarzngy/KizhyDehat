@@ -397,7 +397,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                     fontFamily: 'var(--font-uni-salar)' 
                   }}
                 >
-                  بڕ
+                  کۆی نرخ
                 </th>
                 <th 
                   className="px-6 py-4 text-right font-bold"
@@ -469,12 +469,12 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                           'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {order.status === 'completed' ? '✓تەواو' : 
+                        {order.status === 'completed' ? 'فرۆشراو✓' : 
                          order.status === 'pending' ? '⏳چاوەڕوان' : 
-                         order.status === 'refunded' ? '↩️گەڕایەوە' : 
-                         order.payment_method === 'cash' ? '💵نەخت' : 
+                         order.status === 'refunded' ? '↩️گەڕاوە' : 
+                         order.payment_method === 'cash' ? '💵کاش' : 
                          order.payment_method === 'fib' ? '💳ئۆنلاین' : 
-                         '📝 قەرز'}
+                         '📝قەرز'}
                       </span>
                     </td>
                     <td 

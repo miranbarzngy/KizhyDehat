@@ -18,9 +18,10 @@ interface SupplierCardProps {
   onDelete: () => void
   onHistory: () => void
   onPayment: () => void
+  onViewProducts?: () => void
 }
 
-export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, onPayment }: SupplierCardProps) {
+export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, onPayment, onViewProducts }: SupplierCardProps) {
   const { themeConfig } = useTheme()
   // Use total_debt if available, fallback to balance
   const displayDebt = supplier.total_debt !== undefined ? supplier.total_debt : supplier.balance
@@ -134,7 +135,22 @@ export default function SupplierCard({ supplier, onEdit, onDelete, onHistory, on
           <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: getSecondaryText(), opacity: 0.7 }}>مێژوو</span>
         </div>
 
-        {/* Payment Button - Green (only if displayDebt > 0) - Removed per user request */}
+        {/* View Products Button - Indigo */}
+        {onViewProducts && (
+          <div className="flex flex-col items-center group cursor-pointer" onClick={onViewProducts}>
+            <motion.button
+              className="w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md transition-colors duration-200"
+              title="بینینی کاڵاکان"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </motion.button>
+            <span className="text-[10px] mt-1 group-hover:opacity-100 transition-opacity" style={{ fontFamily: 'var(--font-uni-salar)', color: getSecondaryText(), opacity: 0.7 }}>کاڵاکان</span>
+          </div>
+        )}
       </div>
     </div>
   )

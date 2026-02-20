@@ -2,12 +2,12 @@
 
 import ConfirmModal from '@/components/ConfirmModal'
 import { useToast } from '@/components/Toast'
+import { formatCurrency, toEnglishDigits } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/numberUtils'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { FaEdit, FaList, FaPlus, FaSearch, FaTh, FaTimes, FaTrash, FaBox } from 'react-icons/fa'
+import { FaBox, FaEdit, FaList, FaPlus, FaSearch, FaTh, FaTimes, FaTrash } from 'react-icons/fa'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -49,10 +49,12 @@ interface Product {
   name: string
   category?: string
   image?: string
-  quantity: number
+  total_amount_bought: number
   cost_per_unit: number
-  price_per_unit: number
+  selling_price_per_unit: number
   unit?: string
+  added_date?: string
+  is_archived?: boolean
 }
 
 export default function SuppliersPage() {
@@ -392,18 +394,20 @@ export default function SuppliersPage() {
       // Fetch products where supplier_id matches
       const { data: productsData, error } = await supabase
         .from('products')
-        .select('id, name, category, image, quantity, cost_per_unit, price_per_unit, unit')
+        .select('id, name, category, image, total_amount_bought, cost_per_unit, selling_price_per_unit, unit, added_date, is_archived')
         .eq('supplier_id', supplier.id)
         .order('name', { ascending: true })
 
       if (error) {
         console.error('Error fetching products:', error)
+        showError('هەڵە لە فێڵکردنەوەی کاڵاکان: ' + error.message)
         setSelectedSupplierProducts([])
       } else {
         setSelectedSupplierProducts(productsData || [])
       }
     } catch (error) {
       console.error('Error fetching products:', error)
+      showError('هەڵە لە فێڵکردنەوەی کاڵاکان')
       setSelectedSupplierProducts([])
     } finally {
       setLoadingProducts(false)
@@ -592,9 +596,9 @@ export default function SuppliersPage() {
 
   // Helper function to get stock status color
   const getStockColor = (quantity: number) => {
-    if (quantity === 0) return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30', label: 'تەواو' }
-    if (quantity <= 5) return { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30', label: 'کەمە' }
-    return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30', label: 'باشە' }
+    if (quantity === 0) return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-500', label: 'تەواو' }
+    if (quantity <= 5) return { bg: 'bg-yellow-500', text: 'text-black', border: 'border-yellow-400', label: 'کەمە' }
+    return { bg: 'bg-green-600', text: 'text-white', border: 'border-green-500', label: 'باشە' }
   }
 
   return (
@@ -721,7 +725,7 @@ export default function SuppliersPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="px-3 py-1 rounded-full text-sm" style={{ background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', fontFamily: 'var(--font-uni-salar)' }}>
-                    {selectedSupplierProducts.length} کاڵا
+                    {toEnglishDigits(selectedSupplierProducts.length)} کاڵا
                   </span>
                   <button onClick={() => setShowProductsModal(false)} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                     <FaTimes size={20} />
@@ -738,7 +742,7 @@ export default function SuppliersPage() {
                 ) : selectedSupplierProducts.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedSupplierProducts.map((product) => {
-                      const stockStatus = getStockColor(product.quantity)
+                      const stockStatus = getStockColor(Math.abs(product.total_amount_bought))
                       return (
                         <div 
                           key={product.id}
@@ -759,6 +763,18 @@ export default function SuppliersPage() {
                           
                           {/* Product Info */}
                           <div className="flex-1 min-w-0">
+                            {/* Archived Badge */}
+                            {product.is_archived && (
+                              <div 
+                                className="px-2 py-0.5 rounded-full text-xs text-white font-bold mb-1 inline-block"
+                                style={{ 
+                                  backgroundColor: '#ef4444',
+                                  fontFamily: 'var(--font-uni-salar)'
+                                }}
+                              >
+                                تەواو بووە
+                              </div>
+                            )}
                             <h4 className="font-bold truncate" style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
                               {product.name}
                             </h4>
@@ -767,15 +783,20 @@ export default function SuppliersPage() {
                                 {product.category}
                               </p>
                             )}
+                            {product.added_date && (
+                              <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.4)', fontFamily: 'var(--font-uni-salar)' }}>
+                                {new Date(product.added_date).toLocaleDateString('en-US')}
+                              </p>
+                            )}
                           </div>
 
                           {/* Stock & Price */}
                           <div className="text-right flex-shrink-0">
-                            <div className={`px-2 py-1 rounded-full text-xs mb-1 inline-block ${stockStatus.bg} ${stockStatus.text} border ${stockStatus.border}`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                              {stockStatus.label}: {product.quantity} {product.unit || 'دانە'}
+                            <div className={`px-2 py-1 rounded-full text-xs mb-1 inline-block ${stockStatus.bg} ${stockStatus.text} border ${stockStatus.border}`} style={{ fontFamily: 'Inter, sans-serif' }}>
+                              {toEnglishDigits(Math.abs(product.total_amount_bought))} {product.unit || 'دانە'}
                             </div>
-                            <div className="text-sm font-bold" style={{ color: '#22c55e', fontFamily: 'var(--font-uni-salar)' }}>
-                              {formatCurrency(product.price_per_unit)} د.ع
+                            <div className="text-sm font-bold" style={{ color: '#22c55e', fontFamily: 'Inter, sans-serif' }}>
+                              {toEnglishDigits(formatCurrency(product.selling_price_per_unit))} د.ع
                             </div>
                           </div>
                         </div>
@@ -809,7 +830,7 @@ export default function SuppliersPage() {
                 <div className="px-4 py-2 rounded-xl" style={{ background: selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? 'rgba(220, 38, 38, 0.2)' : 'rgba(22, 163, 74, 0.2)', border: `1px solid ${selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? 'rgba(220, 38, 38, 0.5)' : 'rgba(22, 163, 74, 0.5)'}` }}>
                   <span className="text-xs block" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>{selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? 'قەرزی ئێستا' : 'دۆخی قەرز'}</span>
                   <span className="text-lg font-bold" style={{ color: selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? '#fca5a5' : '#86efac', fontFamily: 'var(--font-uni-salar)' }}>
-                    {selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? `${(selectedSupplier.total_debt || 0).toLocaleString()} د.ع` : ' قەرز ✓'}
+                    {selectedSupplier.total_debt && selectedSupplier.total_debt > 0 ? `${toEnglishDigits((selectedSupplier.total_debt || 0).toLocaleString('en-US'))} د.ع` : ' قەرز ✓'}
                   </span>
                 </div>
                 <button onClick={handleCloseHistoryModal} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'rgba(255, 255, 255, 0.7)' }}><FaTimes size={20} /></button>
@@ -858,11 +879,11 @@ export default function SuppliersPage() {
                         <div className="flex items-center gap-4">
                           <div className="text-center min-w-[80px]">
                             <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بەروار</div>
-                            <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{new Date(payment.date).toLocaleDateString('ar-IQ')}</div>
+                            <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{new Date(payment.date).toLocaleDateString('en-US')}</div>
                           </div>
                           <div className="text-center min-w-[100px]">
                             <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بڕی پارە</div>
-                            <div style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>{payment.amount.toLocaleString()} د.ع</div>
+                            <div style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>{toEnglishDigits(payment.amount.toLocaleString('en-US'))} د.ع</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

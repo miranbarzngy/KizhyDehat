@@ -198,23 +198,25 @@ export function useInventoryData(): UseInventoryDataReturn {
         // by matching the product name
         const productNames = productsData.map(p => p.name)
         
-        // Get the latest sale item for each product name
-        const { data: saleItemsData, error: saleItemsError } = await supabase
+        // Get the latest sale item for each product name (simpler query without nested relationship)
+        let saleItemsQuery = supabase
           .from('sale_items')
-          .select('item_name, sales(created_at)')
+          .select('item_name, created_at')
           .in('item_name', productNames)
           .order('created_at', { ascending: false })
         
+        const { data: saleItemsData, error: saleItemsError } = await saleItemsQuery
+        
         if (saleItemsError) {
-          console.error('Error fetching sale items dates:', saleItemsError)
+          console.warn('Error fetching sale items dates (non-critical):', saleItemsError.message)
         }
         
         // Create a map of product name to latest sale date
         const latestSaleDates: Record<string, string> = {}
-        if (saleItemsData) {
+        if (saleItemsData && saleItemsData.length > 0) {
           // Get the most recent sale date for each product name
           for (const item of saleItemsData) {
-            const saleDate = item.sales?.created_at
+            const saleDate = item.created_at
             if (saleDate && !latestSaleDates[item.item_name]) {
               latestSaleDates[item.item_name] = saleDate
             }

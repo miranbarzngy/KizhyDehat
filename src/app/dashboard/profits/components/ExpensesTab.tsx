@@ -27,7 +27,7 @@ function GlassTable({ children }: { children: React.ReactNode }) {
 const tabConfig = {
   inventory: { 
     id: 'inventory', 
-    label: 'خەرجی کاڵا', 
+    label: 'خەرجی کڕینی کاڵا', 
     icon: '📦',
     activeBg: 'bg-gradient-to-r from-red-500 to-orange-500',
     glow: 'shadow-red-500/30'

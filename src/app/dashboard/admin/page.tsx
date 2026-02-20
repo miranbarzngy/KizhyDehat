@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaShieldAlt, FaUsers } from "react-icons/fa";
+import ConfirmModal from "@/components/ConfirmModal";
 import StatCards from "@/components/admin/StatCards";
 import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
@@ -18,6 +19,38 @@ export default function AdminPage() {
     fetchUsers, fetchRoles, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
     handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm
   } = useAdminData();
+
+  // Confirm modal state for delete operations
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    title: '',
+    message: '',
+    type: 'danger' as 'danger' | 'success',
+    onConfirm: () => {}
+  })
+  const [pendingDeleteUser, setPendingDeleteUser] = useState<{userId: string, userName: string} | null>(null)
+
+  // Wrapper function for delete user with confirmation modal
+  const handleDeleteUserWithConfirm = async (userId: string, userName: string) => {
+    setPendingDeleteUser({ userId, userName })
+    setConfirmModalConfig({
+      title: 'سڕینەوەی بەکارهێنەر',
+      message: `دڵنیایت لە سڕینەوەی "${userName}"؟`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: userId }) });
+          if (!response.ok) throw new Error("Failed");
+          fetchUsers();
+        } catch (error) {
+          console.error("Error deleting user:", error);
+        }
+        setShowConfirmModal(false)
+        setPendingDeleteUser(null)
+      }
+    })
+    setShowConfirmModal(true)
+  }
 
   useEffect(() => { fetchUsers(); fetchRoles(); }, []);
 
@@ -91,7 +124,7 @@ export default function AdminPage() {
                   users={users} 
                   onCreateUser={() => setShowCreateUser(true)} 
                   onEditUser={handleEditUser} 
-                  onDeleteUser={handleDeleteUser} 
+                  onDeleteUser={handleDeleteUserWithConfirm} 
                 />
               </motion.div>
             )}
@@ -132,6 +165,18 @@ export default function AdminPage() {
         onSetRoleId={setSelectedRoleId}
         onSetIsActive={setNewUserIsActive}
         onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
+      />
+
+      {/* Confirm Modal for delete operations */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText="سڕینەوە"
+        cancelText="پاشگەزبوونەوە"
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={() => setShowConfirmModal(false)}
+        type={confirmModalConfig.type}
       />
     </div>
   );

@@ -31,14 +31,14 @@ export default function InventoryPage() {
   
   // Handle archive filter
   const applyArchiveFilter = () => {
-    fetchArchivedItems()
+    fetchArchivedItems(archiveStartDate, archiveEndDate)
   }
   
   // Clear archive filters
   const clearArchiveFilters = () => {
     setArchiveStartDate('')
     setArchiveEndDate('')
-    fetchArchivedItems()
+    fetchArchivedItems('', '')
   }
 
   useEffect(() => { fetchAll() }, [fetchAll])
@@ -77,7 +77,7 @@ export default function InventoryPage() {
           {tabs.map(tab => (
             <button 
               key={tab.id} 
-              onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'archive') fetchArchivedItems() }}
+              onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'archive') fetchArchivedItems(archiveStartDate, archiveEndDate) }}
               className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2`}
               style={{ 
                 fontFamily: 'var(--font-uni-salar)',

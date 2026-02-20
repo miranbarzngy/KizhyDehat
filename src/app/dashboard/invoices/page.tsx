@@ -640,7 +640,7 @@ export default function InvoicesPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
                         >
-                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'sans-serif' }}>
                             #{sale.invoice_number || sale.id?.slice(0, 8).toUpperCase() || '-'}
                           </td>
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
@@ -649,13 +649,13 @@ export default function InvoicesPage() {
                           <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                             {sale.seller_name || sale.sold_by || '-'}
                           </td>
-                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 text-center text-xs" style={{ fontFamily: 'sans-serif' }}>
                             {formatCurrencyKurdish(sale.subtotal || 0)} د.ع
                           </td>
-                          <td className="px-2 py-3 text-red-600 dark:text-red-400 text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <td className="px-2 py-3 text-red-600 dark:text-red-400 text-center text-xs" style={{ fontFamily: 'sans-serif' }}>
                             -{formatCurrencyKurdish(sale.discount_amount || 0)}
                           </td>
-                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <td className="px-2 py-3 text-gray-900 dark:text-gray-200 font-bold text-center text-xs" style={{ fontFamily: 'sans-serif' }}>
                             {formatCurrencyKurdish(sale.total)} د.ع
                           </td>
                           <td className="px-2 py-3 text-center">

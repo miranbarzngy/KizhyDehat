@@ -1,5 +1,6 @@
 'use client'
 
+import ConfirmModal from '@/components/ConfirmModal'
 import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
@@ -64,6 +65,16 @@ export default function SuppliersPage() {
   const [paymentForm, setPaymentForm] = useState({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
   const [submittingPayment, setSubmittingPayment] = useState(false)
   const [editingPayment, setEditingPayment] = useState<SupplierPayment | null>(null)
+
+  // Confirm modal state for delete operations
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
+  const [pendingDeleteSupplier, setPendingDeleteSupplier] = useState<Supplier | null>(null)
+  const [pendingDeletePayment, setPendingDeletePayment] = useState<SupplierPayment | null>(null)
 
   useEffect(() => { fetchSuppliers() }, [])
 
@@ -194,30 +205,108 @@ export default function SuppliersPage() {
     }
   }
 
-  const handleDeleteSupplier = async (supplier: Supplier) => {
-    const confirmed = window.confirm(`دڵنیایت لە سڕینەوەی "${supplier.name}"؟`)
-    if (!confirmed) return
+  const confirmDeleteSupplier = (supplier: Supplier) => {
+    setPendingDeleteSupplier(supplier)
+    setConfirmModalConfig({
+      title: 'سڕینەوەی دابینکەر',
+      message: `دڵنیایت لە سڕینەوەی "${supplier.name}"؟`,
+      onConfirm: () => executeDeleteSupplier(supplier)
+    })
+    setShowConfirmModal(true)
+  }
 
+  const executeDeleteSupplier = async (supplier: Supplier) => {
     if (!supabase) {
-      alert('هەڵە لە پەیوەستبوون بە داتابەیس')
+      showError('هەڵە لە پەیوەستبوون بە داتابەیس')
+      setShowConfirmModal(false)
       return
     }
 
     try {
+      // First, check if supplier has related records (transactions, payments, or products)
+      // Note: If RLS blocks these queries, we may not be able to check - in that case, 
+      // we'll try to delete and handle the error
+      let hasProducts = false
+      let hasTransactions = false
+      let hasPayments = false
+      
+      try {
+        const { data: productsData, count: productsCount } = await supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplier.id)
+        hasProducts = (productsCount || 0) > 0
+      } catch (e) {
+        console.warn('Could not check products:', e)
+      }
+      
+      try {
+        const { data: txData, count: txCount } = await supabase
+          .from('supplier_transactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplier.id)
+        hasTransactions = (txCount || 0) > 0
+      } catch (e) {
+        console.warn('Could not check transactions:', e)
+      }
+      
+      try {
+        const { data: payData, count: payCount } = await supabase
+          .from('supplier_payments')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplier.id)
+        hasPayments = (payCount || 0) > 0
+      } catch (e) {
+        console.warn('Could not check payments:', e)
+      }
+
+      if (hasProducts) {
+        showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە چونکە بەرهەمەکانی لە لیستی کاڵاکاندایە')
+        setShowConfirmModal(false)
+        return
+      }
+
+      if (hasTransactions || hasPayments) {
+        showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە چونکە مێژووی پارەدانەکانی هەیە')
+        setShowConfirmModal(false)
+        return
+      }
+
       const { error } = await supabase.from('suppliers').delete().eq('id', supplier.id)
 
       if (error) {
         console.error('Error deleting supplier:', error)
-        alert('هەڵە لە سڕینەوە: ' + error.message)
+        // Check for foreign key constraint errors
+        const errorStr = JSON.stringify(error)
+        if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+          showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە - ڕەنگە پەیوەست بێت بە زانیارییەکانی تر')
+        } else if (error.message) {
+          showError('هەڵە لە سڕینەوە: ' + error.message)
+        } else {
+          showError('هەڵە لە سڕینەوە')
+        }
+        setShowConfirmModal(false)
         return
       }
 
       await fetchSuppliers()
-    } catch (error) {
+      showSuccess('دابینکەرەکە سڕایەوە')
+    } catch (error: any) {
       console.error('Error deleting supplier:', error)
-      alert('هەڵە لە سڕینەوە')
+      const errorStr = error?.toString() || ''
+      if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+        showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە - ڕەنگە پەیوەست بێت بە زانیارییەکانی تر')
+      } else {
+        showError('هەڵە لە سڕینەوە')
+      }
+    } finally {
+      setShowConfirmModal(false)
+      setPendingDeleteSupplier(null)
     }
   }
+
+  // Wrapper function for delete supplier (called from UI)
+  const handleDeleteSupplier = confirmDeleteSupplier
 
   const handleEditSupplier = (supplier: Supplier) => {
     setEditingSupplier(supplier)
@@ -962,6 +1051,18 @@ export default function SuppliersPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal for delete operations */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText="سڕینەوە"
+        cancelText="پاشگەزبوونەوە"
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={() => setShowConfirmModal(false)}
+        type="danger"
+      />
     </div>
   )
 }

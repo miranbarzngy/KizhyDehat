@@ -1,5 +1,6 @@
 'use client'
 
+import ConfirmModal from '@/components/ConfirmModal'
 import { buildInvoiceData } from '@/components/GlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
@@ -117,7 +118,16 @@ export default function CustomersPage() {
     note: ''
   })
   const [editingPayment, setEditingPayment] = useState<any>(null)
-  
+
+  // Confirm modal state for delete operations
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
+  const [pendingDeleteCustomer, setPendingDeleteCustomer] = useState<Customer | null>(null)
+
   // Handle add customer form submission
   const handleAddCustomer = async () => {
     if (!newCustomer.name.trim()) {
@@ -681,6 +691,71 @@ export default function CustomersPage() {
     setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
   }
 
+  // Execute delete customer
+  const executeDeleteCustomer = async (customer: Customer) => {
+    if (!supabase) {
+      showError('هەڵە لە پەیوەستبوون بە داتابەیس')
+      setShowConfirmModal(false)
+      return
+    }
+
+    try {
+      // Check if customer has related sales
+      let hasSales = false
+      try {
+        const { data: salesData, count: salesCount } = await supabase
+          .from('sales')
+          .select('id', { count: 'exact', head: true })
+          .eq('customer_id', customer.id)
+        hasSales = (salesCount || 0) > 0
+      } catch (e) {
+        console.warn('Could not check sales:', e)
+      }
+
+      if (hasSales) {
+        showError('ناتوانرێت ئەم کڕیارە بسڕدرێتەوە چونکە پێشتر کاڵای کڕیوە')
+        setShowConfirmModal(false)
+        return
+      }
+
+      const { error } = await supabase.from('customers').delete().eq('id', customer.id)
+
+      if (error) {
+        console.error('Error deleting customer:', error)
+        // Check for foreign key constraint errors
+        const errorStr = JSON.stringify(error)
+        if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+          showError('ناتوانرێت ئەم کڕیارە بسڕدرێتەوە - ڕەنگە پەیوەست بێت بە زانیارییەکانی تر')
+        } else {
+          showError('هەڵە لە سڕینەوە: ' + (error.message || 'هەڵەی نەزانراو'))
+        }
+        setShowConfirmModal(false)
+        return
+      }
+
+      // Remove customer from the list
+      setCustomers(prev => prev.filter(c => c.id !== customer.id))
+      
+      // If this was the selected customer, clear selection
+      if (selectedCustomer?.id === customer.id) {
+        setSelectedCustomer(null)
+      }
+      
+      showSuccess('کڕیارەکە سڕایەوە')
+    } catch (error: any) {
+      console.error('Error deleting customer:', error)
+      const errorStr = error?.toString() || ''
+      if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+        showError('ناتوانرێت ئەم کڕیارە بسڕدرێتەوە - ڕەنگە پەیوەست بێت بە زانیارییەکانی تر')
+      } else {
+        showError('هەڵە لە سڕینەوە')
+      }
+    } finally {
+      setShowConfirmModal(false)
+      setPendingDeleteCustomer(null)
+    }
+  }
+
   // Close payment modal
   const closePaymentModal = () => {
     setShowPaymentModal(false)
@@ -821,7 +896,7 @@ export default function CustomersPage() {
                         className="text-base"
                         style={{ 
                           color: selectedCustomer?.id === customer.id ? 'rgba(255,255,255,0.8)' : 'var(--theme-secondary)',
-                          fontFamily: 'Inter'
+                          fontFamily: 'sans-serif'
                         }}
                       >
                         {customer.phone1}
@@ -832,10 +907,10 @@ export default function CustomersPage() {
                         className="text-base font-bold"
                         style={{ 
                           color: selectedCustomer?.id === customer.id ? '#ffffff' : customer.total_debt > 0 ? '#ef4444' : '#22c55e',
-                          fontFamily: 'Inter'
+                          fontFamily: 'var(--font-uni-salar)'
                         }}
                       >
-                        <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(customer.total_debt)}</span>
+                        <span style={{ fontFamily: 'sans-serif' }}>{formatCurrency(customer.total_debt)}</span>
                       </p>
                     </div>
                   </div>
@@ -879,7 +954,7 @@ export default function CustomersPage() {
                           <a 
                             href={`tel:${selectedCustomer.phone1}`}
                             className="font-semibold text-lg flex items-center gap-2 p-2 -mx-2 rounded-lg hover:bg-blue-50 active:bg-blue-100 transition-colors"
-                            style={{ color: 'var(--theme-accent)', fontFamily: 'Inter' }}
+                            style={{ color: 'var(--theme-accent)', fontFamily: 'sans-serif' }}
                           >
                             <FaPhone className="text-sm" />
                             {selectedCustomer.phone1}
@@ -898,9 +973,9 @@ export default function CustomersPage() {
                       <p className="text-lg mb-2" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>قەرز</p>
                       <p 
                         className="text-4xl font-bold"
-                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'Inter' }}
+                        style={{ color: selectedCustomer.total_debt > 0 ? '#ef4444' : '#22c55e', fontFamily: 'var(--font-uni-salar)' }}
                       >
-                        <span style={{ fontFamily: 'Inter, sans-serif' }}>{formatCurrency(selectedCustomer.total_debt)}</span>
+                        <span style={{ fontFamily: 'sans-serif' }}>{formatCurrency(selectedCustomer.total_debt)}</span>
                       </p>
                     </div>
                   </div>
@@ -922,9 +997,13 @@ export default function CustomersPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm('دڵنیایت لە سڕینەوەی ئەم کڕیارە؟')) {
-                          alert('سڕینەوە')
-                        }
+                        setPendingDeleteCustomer(selectedCustomer)
+                        setConfirmModalConfig({
+                          title: 'سڕینەوەی کڕیار',
+                          message: `دڵنیایت لە سڕینەوەی "${selectedCustomer.name}"؟`,
+                          onConfirm: () => executeDeleteCustomer(selectedCustomer)
+                        })
+                        setShowConfirmModal(true)
                       }}
                       className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all hover:opacity-90 active:scale-95"
                       style={{ 
@@ -1025,7 +1104,7 @@ export default function CustomersPage() {
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      <table className="w-full">
                         <thead>
                           <tr 
                             className="text-sm"
@@ -1034,12 +1113,12 @@ export default function CustomersPage() {
                               borderBottom: '2px solid var(--theme-card-border)'
                             }}
                           >
-                            <th className="text-right pb-3 pr-2 font-medium">#</th>
-                            <th className="text-right pb-3 pr-2 font-medium">بەروار</th>
-                            <th className="text-right pb-3 pr-2 font-medium">کۆی گشتی</th>
-                            <th className="text-right pb-3 pr-2 font-medium">داشکاندن</th>
-                            <th className="text-right pb-3 pr-2 font-medium">جۆری پارەدان</th>
-                            <th className="text-center pb-3 font-medium">کردار</th>
+                            <th className="text-right pb-3 pr-2 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>#</th>
+                            <th className="text-right pb-3 pr-2 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>بەروار</th>
+                            <th className="text-right pb-3 pr-2 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>کۆی گشتی</th>
+                            <th className="text-right pb-3 pr-2 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>داشکاندن</th>
+                            <th className="text-right pb-3 pr-2 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>جۆری پارەدان</th>
+                            <th className="text-center pb-3 font-medium" style={{ fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1058,10 +1137,11 @@ export default function CustomersPage() {
                             >
                               <td className="py-4 pr-2">
                                 <span 
-                                  className="font-bold text-sm"
+                                  className="font-bold"
                                   style={{ 
                                     color: 'var(--theme-accent)',
-                                    fontFamily: 'monospace'
+                                    fontFamily: 'sans-serif',
+                                    fontSize: '1.1rem'
                                   }}
                                 >
                                   {history.invoice_number ? `#${history.invoice_number}` : '-'}
@@ -1069,10 +1149,9 @@ export default function CustomersPage() {
                               </td>
                               <td className="py-4 pr-2">
                                 <span 
-                                  className="text-sm"
-                                  style={{ color: 'var(--theme-foreground)' }}
+                                  style={{ color: 'var(--theme-foreground)', fontFamily: 'sans-serif', fontSize: '1.1rem' }}
                                 >
-                                  {history.date ? toKurdishDigits(new Date(history.date).toLocaleDateString('en-US')) : '-'}
+                                  {history.date ? new Date(history.date).toLocaleDateString('en-US') : '-'}
                                 </span>
                               </td>
                               <td className="py-4 pr-2">
@@ -1080,32 +1159,34 @@ export default function CustomersPage() {
                                   className="font-bold"
                                   style={{ 
                                     color: 'var(--theme-foreground)',
-                                    fontFamily: 'monospace'
+                                    fontFamily: 'sans-serif',
+                                    fontSize: '1.1rem'
                                   }}
                                 >
-                                  {toKurdishDigits(formatCurrency(history.amount))}
+                                  {formatCurrency(history.amount)}
                                   <span className="text-xs mr-1" style={{ color: 'var(--theme-secondary)' }}>د.ع</span>
                                 </span>
                               </td>
                               <td className="py-4 pr-2">
                                 {history.discount_amount && history.discount_amount > 0 ? (
                                   <span 
-                                    className="font-medium text-sm"
-                                    style={{ color: '#ef4444' }}
+                                    className="font-medium"
+                                    style={{ color: '#ef4444', fontFamily: 'sans-serif', fontSize: '1.1rem' }}
                                   >
-                                    -{toKurdishDigits(formatCurrency(history.discount_amount))}
+                                    -{formatCurrency(history.discount_amount)}
                                   </span>
                                 ) : (
-                                  <span className="text-sm" style={{ color: 'var(--theme-secondary)' }}>-</span>
+                                  <span style={{ color: 'var(--theme-secondary)', fontFamily: 'sans-serif', fontSize: '1.1rem' }}>-</span>
                                 )}
                               </td>
                               <td className="py-4 pr-2">
                                 <span 
-                                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium"
+                                  className="inline-flex items-center px-3 py-1.5 rounded-full font-medium"
                                   style={{ 
                                     backgroundColor: history.payment_method === 'cash' ? '#dcfce7' : history.payment_method === 'debt' ? '#fef3c7' : '#dbeafe',
                                     color: history.payment_method === 'cash' ? '#16a34a' : history.payment_method === 'debt' ? '#d97706' : '#2563eb',
-                                    fontFamily: 'var(--font-uni-salar)'
+                                    fontFamily: 'var(--font-uni-salar)',
+                                    fontSize: '1rem'
                                   }}
                                 >
                                   {history.payment_method === 'cash' ? 'کاش' : history.payment_method === 'debt' ? 'قەرز' : 'ئۆنلاین'}
@@ -1117,14 +1198,15 @@ export default function CustomersPage() {
                                     e.stopPropagation()
                                     handleViewInvoice(history)
                                   }}
-                                  className="inline-flex items-center gap-1 px-2 py-1 md:px-4 md:py-2 rounded-lg transition-all hover:opacity-90 active:scale-95 text-xs md:text-sm"
+                                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg transition-all hover:opacity-90 active:scale-95"
                                   style={{ 
                                     backgroundColor: 'var(--theme-accent)',
                                     color: '#ffffff',
-                                    fontFamily: 'var(--font-uni-salar)'
+                                    fontFamily: 'var(--font-uni-salar)',
+                                    fontSize: '1rem'
                                   }}
                                 >
-                                  <FaEye className="text-sm" />
+                                  <FaEye className="text-base" />
                                   <span>بینینی وەسڵ</span>
                                 </button>
                               </td>
@@ -1303,7 +1385,7 @@ export default function CustomersPage() {
                           backgroundColor: 'var(--theme-muted)',
                           borderColor: 'var(--theme-card-border)',
                           color: 'var(--theme-foreground)',
-                          fontFamily: 'Inter, system-ui, sans-serif',
+                          fontFamily: 'sans-serif',
                           minHeight: '48px'
                         }}
                       />
@@ -1335,7 +1417,7 @@ export default function CustomersPage() {
                           backgroundColor: 'var(--theme-muted)',
                           borderColor: 'var(--theme-card-border)',
                           color: 'var(--theme-foreground)',
-                          fontFamily: 'Inter, system-ui, sans-serif',
+                          fontFamily: 'sans-serif',
                           minHeight: '48px'
                         }}
                       />
@@ -1710,6 +1792,18 @@ export default function CustomersPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Confirm Modal for delete operations */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText="سڕینەوە"
+        cancelText="پاشگەزبوونەوە"
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={() => setShowConfirmModal(false)}
+        type="danger"
+      />
 
     </div>
   )

@@ -22,7 +22,9 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config: any) => config, // Explicitly force webpack mode
+  // Turbopack configuration (Next.js 16+ defaults to Turbopack)
+  turbopack: {},
+  webpack: (config: any) => config, // Keep webpack config for compatibility
 }
 
 export default withPWA({

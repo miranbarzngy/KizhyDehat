@@ -1,6 +1,8 @@
 'use client'
 
 import { FaEdit, FaTrash } from 'react-icons/fa'
+import { toEnglishDigits } from '@/lib/numberUtils'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface Supplier {
   id: string
@@ -18,24 +20,30 @@ interface SupplierTableProps {
 }
 
 export default function SupplierTable({ suppliers, onEdit, onDelete }: SupplierTableProps) {
+  const { themeConfig } = useTheme()
+  const getPrimaryText = () => themeConfig.primary
+  const getSecondaryText = () => themeConfig.secondary
+  const getMutedBg = () => themeConfig.muted
+  const getBorderColor = () => themeConfig.border
+  
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full table-auto">
         <thead>
-          <tr style={{ background: 'var(--theme-muted)' }}>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>وێنە</th>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>ناو</th>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>کۆمپانیا</th>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>مۆبایل</th>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>قەرز</th>
-            <th className="px-3 py-3 text-right" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
+          <tr style={{ background: getMutedBg() }}>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>وێنە</th>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>ناو</th>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>کۆمپانیا</th>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>مۆبایل</th>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>قەرز</th>
+            <th className="px-3 py-3 text-right" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>کردار</th>
           </tr>
         </thead>
         <tbody>
           {suppliers.map((supplier) => (
-            <tr key={supplier.id} style={{ borderTop: '1px solid var(--theme-border)' }}>
+            <tr key={supplier.id} style={{ borderTop: `1px solid ${getBorderColor()}` }}>
               <td className="px-3 py-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.1)' }}>
+                <div className="w-10 h-10 rounded-full overflow-hidden" style={{ background: getMutedBg() }}>
                   {supplier.supplier_image ? (
                     <img src={supplier.supplier_image} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -43,14 +51,14 @@ export default function SupplierTable({ suppliers, onEdit, onDelete }: SupplierT
                   )}
                 </div>
               </td>
-              <td className="px-3 py-3 font-semibold" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              <td className="px-3 py-3 font-semibold" style={{ color: getPrimaryText(), fontFamily: 'var(--font-uni-salar)' }}>
                 {supplier.name}
               </td>
-              <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
+              <td className="px-3 py-3" style={{ color: getSecondaryText(), fontFamily: 'var(--font-uni-salar)' }}>
                 {supplier.company || '-'}
               </td>
-              <td className="px-3 py-3" style={{ color: 'var(--theme-primary)', fontFamily: 'var(--font-uni-salar)' }}>
-                {supplier.phone}
+              <td className="px-3 py-3" style={{ color: getSecondaryText(), fontFamily: 'sans-serif' }} dir="ltr">
+                {toEnglishDigits(supplier.phone)}
               </td>
               <td className="px-3 py-3 font-semibold" style={{ color: supplier.balance > 0 ? '#dc2626' : '#16a34a', fontFamily: 'var(--font-uni-salar)' }}>
                 {supplier.balance.toFixed(2)}

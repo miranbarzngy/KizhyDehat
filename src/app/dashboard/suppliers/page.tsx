@@ -224,8 +224,6 @@ export default function SuppliersPage() {
 
     try {
       // First, check if supplier has related records (transactions, payments, or products)
-      // Note: If RLS blocks these queries, we may not be able to check - in that case, 
-      // we'll try to delete and handle the error
       let hasProducts = false
       let hasTransactions = false
       let hasPayments = false
@@ -276,7 +274,6 @@ export default function SuppliersPage() {
 
       if (error) {
         console.error('Error deleting supplier:', error)
-        // Check for foreign key constraint errors
         const errorStr = JSON.stringify(error)
         if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
           showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە - ڕەنگە پەیوەست بێت بە زانیارییەکانی تر')
@@ -314,12 +311,10 @@ export default function SuppliersPage() {
   }
 
   // Helper function to calculate debt dynamically
-  // Formula: Total Debt = (Sum of debt_amount from supplier_transactions) - (Sum of amount from supplier_payments)
   const calculateDebtDynamically = async (supplierId: string): Promise<number> => {
     if (!supabase) return 0
     
     try {
-      // Get sum of debt_amount from supplier_transactions
       const { data: transactions } = await supabase
         .from('supplier_transactions')
         .select('debt_amount')
@@ -327,7 +322,6 @@ export default function SuppliersPage() {
 
       const totalDebtFromTransactions = (transactions || []).reduce((sum, tx) => sum + (tx.debt_amount || 0), 0)
 
-      // Get sum of amount from supplier_payments
       const { data: payments } = await supabase
         .from('supplier_payments')
         .select('amount')
@@ -335,10 +329,8 @@ export default function SuppliersPage() {
 
       const totalPaidFromPayments = (payments || []).reduce((sum, pay) => sum + (pay.amount || 0), 0)
 
-      // Calculate: Total Debt = Total Debt from Transactions - Total Paid
       const calculatedDebt = totalDebtFromTransactions - totalPaidFromPayments
       
-      // Ensure debt is not negative
       return Math.max(0, calculatedDebt)
     } catch (error) {
       console.error('Error calculating debt:', error)
@@ -361,7 +353,6 @@ export default function SuppliersPage() {
     }
 
     try {
-      // Fetch transactions
       const { data: txData } = await supabase
         .from('supplier_transactions')
         .select('*')
@@ -370,7 +361,6 @@ export default function SuppliersPage() {
 
       setTransactions(txData || [])
 
-      // Fetch payments
       const { data: payData } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -379,13 +369,10 @@ export default function SuppliersPage() {
 
       setPayments(payData || [])
 
-      // Calculate debt dynamically when modal opens
       const calculatedDebt = await calculateDebtDynamically(supplier.id)
       
-      // Update the selected supplier with calculated debt
       setSelectedSupplier({ ...supplier, total_debt: calculatedDebt })
       
-      // Also update the supplier in the suppliers list
       setSuppliers(prev => prev.map(s => 
         s.id === supplier.id ? { ...s, total_debt: calculatedDebt } : s
       ))
@@ -413,7 +400,6 @@ export default function SuppliersPage() {
       return
     }
 
-    // Format date as YYYY-MM-DD string
     const dateStr = paymentForm.date
     
     setSubmittingPayment(true)
@@ -437,7 +423,6 @@ export default function SuppliersPage() {
         return
       }
 
-      // Success - refresh payments list
       const { data: payData } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -445,14 +430,12 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
       setPayments(payData || [])
 
-      // Calculate new debt
       const newDebt = await calculateDebtDynamically(selectedSupplier.id)
       setSelectedSupplier({ ...selectedSupplier, total_debt: newDebt })
       setSuppliers(prev => prev.map(s => 
         s.id === selectedSupplier.id ? { ...s, total_debt: newDebt } : s
       ))
 
-      // Reset form
       setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
       alert('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
     } catch (error) {
@@ -498,7 +481,6 @@ export default function SuppliersPage() {
         return
       }
 
-      // Refresh payments
       const { data: payData } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -506,15 +488,12 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
       setPayments(payData || [])
 
-      // Update local supplier total_debt
       setSelectedSupplier({ ...selectedSupplier, total_debt: result.newDebt })
       
-      // Update suppliers list
       setSuppliers(prev => prev.map(s => 
         s.id === selectedSupplier.id ? { ...s, total_debt: result.newDebt } : s
       ))
 
-      // Reset form
       setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
       setEditingPayment(null)
     } catch (error) {
@@ -535,7 +514,6 @@ export default function SuppliersPage() {
         method: 'DELETE'
       })
 
-      // Check if response is OK
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'هەڵە لە سڕینەوە' }))
         alert(errorData.error || 'هەڵە لە سڕینەوە')
@@ -544,7 +522,6 @@ export default function SuppliersPage() {
 
       const result = await response.json()
 
-      // Refresh payments
       const { data: payData } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -552,15 +529,12 @@ export default function SuppliersPage() {
         .order('created_at', { ascending: false })
       setPayments(payData || [])
 
-      // Calculate new debt using the API result or recalculate locally
       const newDebt = result.newDebt !== undefined 
         ? result.newDebt 
         : await calculateDebtDynamically(selectedSupplier.id)
       
-      // Update local supplier total_debt
       setSelectedSupplier({ ...selectedSupplier, total_debt: newDebt })
       
-      // Update suppliers list
       setSuppliers(prev => prev.map(s => 
         s.id === selectedSupplier.id ? { ...s, total_debt: newDebt } : s
       ))
@@ -693,7 +667,7 @@ export default function SuppliersPage() {
                   onEdit={() => handleEditSupplier(supplier)}
                   onDelete={() => handleDeleteSupplier(supplier)}
                   onHistory={() => handleHistoryClick(supplier)}
-                  onPayment={() => {}}
+                  onViewProducts={() => console.log('View products for:', supplier.name)}
                 />
               ))
             ) : (

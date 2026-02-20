@@ -21,12 +21,12 @@ export async function GET(request: NextRequest) {
       .select('*')
       .single()
 
-    const shopName = shopSettings?.shopname || 'سیستمی فرۆشتن'
+    const shopName = shopSettings?.shopname || 'کیژی دێهات'
     const shopIcon = shopSettings?.icon
 
     // Base manifest structure
     const manifest = {
-      name: `${shopName} - سیستم فرۆشتن`,
+      name: `${shopName} - کیژی دێهات`,
       short_name: shopName,
       description: `Professional Point of Sale system - ${shopName}`,
       start_url: "/",
@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
 
     // Fallback manifest
     const fallbackManifest = {
-      name: "سیستمی فرۆشتن - سیستم فرۆشتن",
-      short_name: "سیستمی فرۆشتن",
-      description: "Professional Point of Sale system for Kurdish businesses",
+      name: "سیستیمی فرۆشتن - کیژی دێهات",
+      short_name: "کیژی دێهات",
+      description: "Professional Point of Sale system for Kurdish businesses Powered by Click Group",
       start_url: "/",
       display: "standalone",
       background_color: "#0f172a",

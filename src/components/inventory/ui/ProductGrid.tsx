@@ -110,7 +110,7 @@ export default function ProductGrid({ products, soldProductIds, openEditItem, co
                 فرۆش: {item.selling_price_per_unit?.toLocaleString() || 0}
               </span>
             </div>
-            <div className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+            <div className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Inter, system-ui, sans-serif', direction: 'ltr' }}>
               {item.barcode1 && <span>بارکۆد: {item.barcode1}</span>}
               {item.barcode1 && item.barcode4 && <span> | </span>}
               {item.barcode4 && <span>{item.barcode4}</span>}

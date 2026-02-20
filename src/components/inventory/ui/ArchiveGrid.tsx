@@ -211,9 +211,9 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
               </div>
             )}
             
-            {/* Restock button - only show if total_amount_bought is 0 (can be restocked) */}
+            {/* Restore button - show if total_amount_bought > 0 (has remaining quantity) */}
             <div className="flex justify-center mt-4">
-              {item.total_amount_bought === 0 && (
+              {item.total_amount_bought > 0 && (
                 <button 
                   onClick={() => restoreItem(item)}
                   className="px-4 py-2 bg-green-100 text-green-600 rounded-lg flex items-center"

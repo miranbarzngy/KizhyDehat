@@ -97,7 +97,6 @@ export async function GET(request: NextRequest) {
     // Fallback manifest
     const fallbackManifest = {
       name: "سیستیمی فرۆشتن",
-      short_name: "کیژی دێهات",
       description: "Professional Point of Sale system for Kurdish businesses Powered by Click Group",
       start_url: "/",
       display: "standalone",

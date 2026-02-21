@@ -238,6 +238,11 @@ export function InvoiceTemplate({ data }: { data: any }) {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>کڕیار</div>
               <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', wordBreak: 'break-word', ...kurdishStyle }}>{data?.customerName || 'نەناسراو'}</div>
+              {data?.customerPhone && (
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', marginTop: '2px', direction: 'ltr' }}>
+                  {toKurdishDigits(data.customerPhone)}
+                </div>
+              )}
             </div>
           </div>
           
@@ -270,12 +275,6 @@ export function InvoiceTemplate({ data }: { data: any }) {
                 <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
               )}
             </div>
-            {data?.customerPhone && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>تەلەفۆن</div>
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data.customerPhone)}</div>
-              </div>
-            )}
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>فرۆشیار</div>
               <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>

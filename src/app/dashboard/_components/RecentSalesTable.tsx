@@ -98,7 +98,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
             name
           )
         `)
-        .eq('status', 'completed')
+        .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -114,7 +114,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('sales')
           .select('*')
-          .eq('status', 'completed')
+          .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(10)
 
@@ -257,7 +257,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
         event: '*',
         schema: 'public',
         table: 'sales',
-        filter: 'status=eq.completed'
+        filter: 'status=eq.pending'
       }, () => {
         fetchPendingSales()
       })

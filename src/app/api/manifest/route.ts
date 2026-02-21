@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     const shopName = shopSettings?.shopname || 'کیژی دێهات'
-    const shopIcon = shopSettings?.icon
-
+const shopIcon = shopSettings?.shop_logo
     // Base manifest structure
     const manifest = {
       name: `${shopName} - کیژی دێهات`,

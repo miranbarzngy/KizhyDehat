@@ -314,7 +314,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                 fontFamily: 'var(--font-uni-salar)' 
               }}
             >
-              فرۆشتنەکانی ئەمڕۆ
+              فرۆشتنە چاوەڕوانکراوەکان
             </h3>
           </div>
         </div>
@@ -355,7 +355,7 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
                 fontFamily: 'var(--font-uni-salar)' 
               }}
             >
-              فرۆشتنەکانی ئەمڕۆ
+            فرۆشتنەکان چاوەڕوانی پەسەندکردنن
             </h3>
           </div>
           <motion.button

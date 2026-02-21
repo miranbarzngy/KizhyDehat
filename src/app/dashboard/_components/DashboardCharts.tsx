@@ -126,7 +126,7 @@ export default function DashboardCharts({ chartData, stats }: DashboardChartsPro
                     fontFamily: 'var(--font-uni-salar)' 
                   }}
                 >
-                  نرخ ۆن فرۆشتنەکانی ئەمڕۆ
+                   فرۆشتنەکانی ئەمڕۆ
                 </h4>
                 <p 
                   className="text-sm"

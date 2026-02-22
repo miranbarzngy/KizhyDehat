@@ -22,10 +22,10 @@ export async function GET(request: NextRequest) {
       .single()
 
     const shopName = shopSettings?.shopname || 'کیژی دێهات'
-const shopIcon = shopSettings?.shop_logo
+const shopIcon = shopSettings?.shop_logo  || '/image/kizhdehat.jpg'
     // Base manifest structure
     const manifest = {
-      name: `${shopName} - کیژی دێهات`,
+      name: `${shopName}`,
       short_name: shopName,
       description: `Professional Point of Sale system - ${shopName}`,
       start_url: "/",

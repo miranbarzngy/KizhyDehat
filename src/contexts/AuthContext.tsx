@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
-import { User, Session } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase'
+import { Session, User } from '@supabase/supabase-js'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 interface RoleData {
   name: string
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return null
 
     // SUPER ADMIN: Check email first before fetching profile
-    const SUPER_ADMIN_EMAIL = 'rezhna@clickgroup.com'
+    const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.com'
     const authEmail = userEmail?.toLowerCase()
     const isSuperAdmin = authEmail === SUPER_ADMIN_EMAIL.toLowerCase()
 

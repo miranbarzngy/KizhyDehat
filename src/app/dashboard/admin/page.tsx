@@ -25,6 +25,7 @@ export default function AdminPage() {
     editingRole, newRoleName, permissions, togglePermission,
     setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserImage, setNewUserPhone, setNewUserLocation, 
     setNewUserEmail, setNewUserPassword, setSelectedRoleId, setNewUserIsActive,
+    setNewRoleName,
     fetchUsers, fetchRoles, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
     handleCreateRole, handleUpdateRole, handleDeleteRole, handleEditRole, resetRoleForm
   } = useAdminData();

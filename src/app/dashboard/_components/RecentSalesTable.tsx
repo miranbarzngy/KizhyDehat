@@ -358,20 +358,6 @@ function RecentSalesTable({ onOrderClick }: RecentSalesTableProps) {
             فرۆشتنەکان چاوەڕوانی پەسەندکردنن
             </h3>
           </div>
-          <motion.button
-            onClick={() => router.push('/dashboard/invoices')}
-            className="px-4 py-2 backdrop-blur-md border shadow-lg transition-all duration-300"
-            style={{ 
-              background: 'var(--theme-accent)',
-              borderColor: 'var(--theme-card-border)',
-              color: '#ffffff',
-              fontFamily: 'var(--font-uni-salar)'
-            }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            بینینی هەمووی
-          </motion.button>
         </div>
 
         <div className="overflow-x-auto">

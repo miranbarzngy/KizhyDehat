@@ -1,5 +1,6 @@
 'use client'
 
+import { useTheme } from '@/contexts/ThemeContext'
 import { motion } from 'framer-motion'
 
 // Animation variants for staggered entrance
@@ -41,6 +42,8 @@ const cardVariants = {
 }
 
 export default function HelpPage() {
+  const { themeConfig } = useTheme()
+
   return (
     <div className="min-h-screen w-full max-w-[2800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Section */}
@@ -50,7 +53,7 @@ export default function HelpPage() {
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className="text-center mb-12"
       >
-        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 drop-shadow-lg">
+        <h1 className="text-4xl sm:text-5xl font-bold mb-4 drop-shadow-lg" style={{ color: themeConfig.primary }}>
           ڕێنمایی بەکارهێنانی سیستم
         </h1>
         <p className="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
@@ -77,7 +80,7 @@ export default function HelpPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">ئامادەکارییە سەرەتاییەکان</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: themeConfig.primary }}>ئامادەکارییە سەرەتاییەکان</h2>
             </div>
             
             <p className="text-slate-300 mb-6 text-lg leading-relaxed">
@@ -97,7 +100,7 @@ export default function HelpPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-bold text-white">یەکە</h3>
+                  <h3 className="text-lg font-bold" style={{ color: themeConfig.primary }}>یەکە</h3>
                 </div>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   زیادکردنی یەکەکان (دانە، کیلۆ، لیتر، مەتر...)
@@ -115,7 +118,7 @@ export default function HelpPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-bold text-white">پۆل</h3>
+                  <h3 className="text-lg font-bold" style={{ color: themeConfig.primary }}>پۆل</h3>
                 </div>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   دروستکردنی پۆلەکان بۆ دابەشکردنی کاڵاکان
@@ -134,7 +137,7 @@ export default function HelpPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-bold text-white">دابینکار</h3>
+                  <h3 className="text-lg font-bold" style={{ color: themeConfig.primary }}>دابینکار</h3>
                 </div>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   زیادکردنی دابینکاران بۆ کڕینی کاڵا
@@ -153,7 +156,7 @@ export default function HelpPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
                 </svg>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">پرۆسەی فرۆشتن و پسوڵەکان</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: themeConfig.primary }}>پرۆسەی فرۆشتن و پسوڵەکان</h2>
             </div>
 
             <div className="space-y-5">
@@ -169,7 +172,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-1">هەڵبژاردنی کڕیار</h3>
+                    <h3 className="text-lg font-bold mb-1" style={{ color: themeConfig.primary }}>هەڵبژاردنی کڕیار</h3>
                     <p className="text-slate-300 text-sm leading-relaxed">
                       بۆ ئەنجامدانی هەر فرۆشتنێک، پێویستە کڕیارێک هەڵبژێرین. ئەمە یارمەتی دەدات لە ڕاستی مێژووی فرۆشتن و قەرز.
                     </p>
@@ -189,7 +192,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-1">لۆجیکی فرۆشتن</h3>
+                    <h3 className="text-lg font-bold mb-1" style={{ color: themeConfig.primary }}>لۆجیکی فرۆشتن</h3>
                     <p className="text-slate-300 text-sm leading-relaxed">
                       فرۆشتنەکان بە شێوەیەکی کاتی تۆمار دەکرێن و <span className="text-amber-400 font-bold"> پێویستە لە بەشی پسوڵەکان پەسەند بکرێن </span> 
                         بۆ ئەوەی قازانج و خەرجییەکان و کۆگاکە نوێ ببنەوە.
@@ -210,7 +213,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-2">تێبینیکردنی دۆخ</h3>
+                    <h3 className="text-lg font-bold mb-2" style={{ color: themeConfig.primary }}>تێبینیکردنی دۆخ</h3>
                     <div className="flex flex-wrap gap-2">
                       <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-sm font-medium">
                         فرۆشراو
@@ -238,7 +241,7 @@ export default function HelpPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">پاراستنی داتاکان</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: themeConfig.primary }}>پاراستنی داتاکان</h2>
             </div>
 
             <div className="space-y-4">
@@ -253,7 +256,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <p className="text-slate-300 text-sm">
-                    <span className="text-white font-bold">کاڵا:</span> ناتوانرێت سڕینەوەی کاڵایەک ئەنجام بدرێت کە مێژووی فرۆشتنی هەبێت
+                    <span className="text-yellow-400 font-bold">کاڵا:</span> ناتوانرێت سڕینەوەی کاڵایەک ئەنجام بدرێت کە مێژووی فرۆشتنی هەبێت
                   </p>
                 </div>
               </motion.div>
@@ -269,7 +272,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <p className="text-slate-300 text-sm">
-                    <span className="text-white font-bold">کڕیار:</span> ناتوانرێت سڕینەوەی کڕیارێک ئەنجام بدرێت کە پسوڵەی فرۆشتنی بەناو بێت
+                    <span className="text-yellow-400 font-bold">کڕیار:</span> ناتوانرێت سڕینەوەی کڕیارێک ئەنجام بدرێت کە پسوڵەی فرۆشتنی بەناو بێت
                   </p>
                 </div>
               </motion.div>
@@ -285,7 +288,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <p className="text-slate-300 text-sm">
-                    <span className="text-white font-bold">دابینکار:</span> ناتوانرێت سڕینەوەی دابینکارێک ئەنجام بدرێت کە کاڵا بەناو زید کرابێت
+                    <span className="text-yellow-400 font-bold">دابینکار:</span> ناتوانرێت سڕینەوەی دابینکارێک ئەنجام بدرێت کە کاڵا بەناو زید کرابێت
                   </p>
                 </div>
               </motion.div>
@@ -302,7 +305,7 @@ export default function HelpPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">بەڕێوەبردنی ئەژمێرەکان</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: themeConfig.primary }}>بەڕێوەبردنی ئەژمێرەکان</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -318,7 +321,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-2">ڕۆڵ و دەسەڵاتەکان</h3>
+                    <h3 className="text-lg font-bold mb-2" style={{ color: themeConfig.primary }}>ڕۆڵ و دەسەڵاتەکان</h3>
                     <p className="text-slate-300 text-sm leading-relaxed">
                       بەپێی ڕۆڵەکەیان، بەکارهێنەران دەتوانن پەیوەندی بە بەشە جیاوازەکانی سیستەمەوە هەبێت .
                       ئەمە یارمەتی دەدات بۆ کۆنترۆڵکردنی دەستپێگەیشتن.
@@ -339,7 +342,7 @@ export default function HelpPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-2">نا چالاکردنی بەکارهێنەر</h3>
+                    <h3 className="text-lg font-bold mb-2" style={{ color: themeConfig.primary }}>نا چالاکردنی بەکارهێنەر</h3>
                     <p className="text-slate-300 text-sm leading-relaxed">
                       ئەدمینەکان دەتوانن بەکارهێنەرێکی ناچالاک بکەن بۆ ئەوەی ڕێگە بەو بەکارهێنەرە نەدرێت بچێتە ناو سیستەمەوە.
                     </p>

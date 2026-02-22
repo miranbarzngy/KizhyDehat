@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { Theme, useTheme } from '@/contexts/ThemeContext'
 import { getSupabase } from '@/lib/supabase'
+import { logActivity } from '@/lib/activityLogger'
 import { motion } from 'framer-motion'
 import { Crown, LogOut, Moon, Palette, PlusCircle, Sun, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -45,6 +46,8 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Use profile from AuthContext directly
   useEffect(() => {
@@ -65,6 +68,96 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
   const handleSignOut = async () => {
     await signOut()
     router.push('/login')
+  }
+
+  // Handle profile image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user?.id) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      alert('تکایە وێنەیەکی دروستختار هەڵبژێرە (JPEG, PNG, WebP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('وێنەکە گەورەیە (زیاتر لە 5MB)')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      const supabase = getSupabase()
+      if (!supabase) {
+        alert('Supabase not configured')
+        return
+      }
+
+      // Create unique filename: profile_{userId}_{timestamp}.{ext}
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const fileName = `profile_${user.id}_${Date.now()}.${fileExt}`
+
+      // Upload to profile-images bucket
+      const { error: uploadError } = await supabase.storage
+        .from('profile-images')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        alert('هەڵە لە ئەپلۆدکردنی وێنە')
+        return
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-images')
+        .getPublicUrl(fileName)
+
+      if (!urlData?.publicUrl) {
+        alert('هەڵە لە وەرگرتنی URL')
+        return
+      }
+
+      // Update profile in database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ image: urlData.publicUrl })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('Update error:', updateError)
+        alert('هەڵە لە نوێکردنەوەی پرۆفایل')
+        return
+      }
+
+      // Log activity
+      await logActivity(
+        null,
+        null,
+        'update_user',
+        'گۆڕینی وێنەی پرۆفایل',
+        'user',
+        user.id
+      )
+
+      // Update local profile state - manually trigger a refresh
+      // The auth context will automatically pick up changes on next refresh
+      window.location.reload()
+
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert('هەڵە')
+    } finally {
+      setUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   if (!isOpen) return null
@@ -102,6 +195,15 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
           <div className="flex flex-col items-center py-3">
             {/* Avatar with add-circle style border */}
             <div className="relative">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              
               <div 
                 className="w-20 h-20 rounded-full p-1 shadow-lg"
                 style={{
@@ -112,7 +214,7 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                 className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                 style={{ backgroundColor: 'var(--theme-card-bg)' }}
               >
-                {loading ? (
+                {loading || uploading ? (
                   <div 
                     className="w-8 h-8 border-2 rounded-full animate-spin"
                     style={{ 
@@ -139,16 +241,22 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
                   )}
                 </div>
               </div>
-              {/* Add circle indicator */}
-              <div 
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md"
+              {/* Add circle indicator - clickable */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md disabled:opacity-50"
                 style={{
                   background: 'black',
                   color: 'white',
                 }}
               >
-                <PlusCircle className="w-4 h-4" />
-              </div>
+                {uploading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <PlusCircle className="w-4 h-4" />
+                )}
+              </button>
             </div>
             
             {/* User Name */}

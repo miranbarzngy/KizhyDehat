@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Product, Category, Unit } from './types'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
@@ -137,10 +137,6 @@ export function useInventoryData(): UseInventoryDataReturn {
   const [newUnitSymbol, setNewUnitSymbol] = useState('')
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
-
-  const fetchAll = useCallback(async () => {
-    await Promise.all([fetchProducts(), fetchCategories(), fetchUnits(), fetchSuppliers(), fetchSoldProductIds()])
-  }, [])
 
   const fetchProducts = useCallback(async () => {
     if (!supabase) {
@@ -477,6 +473,132 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (!searchTerm) return true
     return item.name?.toLowerCase().includes(searchTerm.toLowerCase())
   })
+
+  // Real-time subscription for products - optimized with debounce and payload-aware updates
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('inventory-products-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          // For INSERT/UPDATE, optimize by updating local state directly instead of refetching
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setProducts(prev => [newRecord, ...prev])
+          } else if (eventType === 'UPDATE') {
+            setProducts(prev => prev.map(item => item.id === newRecord.id ? { ...item, ...newRecord } : item))
+          } else if (eventType === 'DELETE') {
+            setProducts(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for categories - optimized
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('inventory-categories-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        (payload) => {
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setCategories(prev => [...prev, newRecord])
+          } else if (eventType === 'UPDATE') {
+            setCategories(prev => prev.map(item => item.id === newRecord.id ? { ...item, ...newRecord } : item))
+          } else if (eventType === 'DELETE') {
+            setCategories(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for units - optimized
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('inventory-units-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'units' },
+        (payload) => {
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setUnits(prev => [...prev, newRecord])
+          } else if (eventType === 'UPDATE') {
+            setUnits(prev => prev.map(item => item.id === newRecord.id ? { ...item, ...newRecord } : item))
+          } else if (eventType === 'DELETE') {
+            setUnits(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for suppliers - optimized
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('inventory-suppliers-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'suppliers' },
+        (payload) => {
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setSuppliers(prev => [...prev, newRecord])
+          } else if (eventType === 'UPDATE') {
+            setSuppliers(prev => prev.map(item => item.id === newRecord.id ? { ...item, ...newRecord } : item))
+          } else if (eventType === 'DELETE') {
+            setSuppliers(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Combined fetchAll function (defined after all fetch functions)
+  const fetchAll = useCallback(async () => {
+    await Promise.all([fetchProducts(), fetchCategories(), fetchUnits(), fetchSuppliers(), fetchSoldProductIds()])
+  }, [fetchProducts, fetchCategories, fetchUnits, fetchSuppliers, fetchSoldProductIds])
 
   return {
     activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory, archiveStartDate, archiveEndDate, currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete, deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal, newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,

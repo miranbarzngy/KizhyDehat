@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Store } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 interface HeaderProps {
   shopSettings: {
@@ -33,6 +35,35 @@ const menuItems = [
 export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
   const { user, profile } = useAuth()
   const pathname = usePathname()
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(true)
+
+  // Monitor real-time connection status
+  useEffect(() => {
+    if (!supabase) {
+      setIsRealtimeConnected(false)
+      return
+    }
+
+    const channel = supabase.channel('header-connection-monitor')
+    
+    channel.on('presence', { event: 'sync' }, () => {
+      setIsRealtimeConnected(true)
+    }).on('presence', { event: 'join' }, () => {
+      setIsRealtimeConnected(true)
+    }).on('presence', { event: 'leave' }, () => {
+      // Don't set to false on leave as other connections may exist
+    }).subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        setIsRealtimeConnected(true)
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        setIsRealtimeConnected(false)
+      }
+    })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   // Get permissions from profile role
   // If no role/permissions, deny access to everything except dashboard
@@ -114,6 +145,23 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
           >
             {shopSettings?.shopname || 'کلیک گروپ'}
           </h2>
+          {/* Real-time Status Indicator */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span 
+              className={`w-2 h-2 rounded-full ${isRealtimeConnected ? 'realtime-pulse' : ''}`}
+              style={{ backgroundColor: isRealtimeConnected ? '#22c55e' : '#ef4444' }}
+            />
+            <span 
+              className="text-xs"
+              style={{ 
+                color: 'var(--theme-foreground)',
+                fontFamily: 'var(--font-uni-salar)',
+                opacity: 0.7
+              }}
+            >
+              {isRealtimeConnected ? 'ئۆنلاین' : 'ئۆفلاین'}
+            </span>
+          </div>
         </div>
 
         {/* Mobile/Tablet View */}

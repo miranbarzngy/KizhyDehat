@@ -36,10 +36,17 @@ export default function PermissionGuard({ permission, children }: PermissionGuar
       const safePermissions = { ...defaultPermissions, ...userPermissions }
       
       // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
+      // Also check for SUPER ADMIN email
+      const SUPER_ADMIN_EMAIL = 'rezhna@clickgroup.com'
+      const userEmail = user?.email?.toLowerCase()
+      const isSuperAdmin = userEmail === SUPER_ADMIN_EMAIL.toLowerCase()
+      
       const isAdmin = profile?.role_id === '6dc4d359-8907-4815-baa7-9e003b662f2a' ||
                       profile?.role?.name?.toLowerCase() === 'ئادمین' ||
                       profile?.role?.name?.toLowerCase() === 'admin' ||
                       profile?.role?.name?.toLowerCase() === 'administrator' ||
+                      profile?.role?.name?.toLowerCase() === 'سوپەر ئادمین' ||
+                      isSuperAdmin ||
                       !profile?.role // Fallback for recovery
 
       // If permission is admin, check admin role

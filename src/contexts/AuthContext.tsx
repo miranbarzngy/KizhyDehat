@@ -36,9 +36,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null)
 
   // Function to fetch profile with role and permissions
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, userEmail?: string) => {
     const supabase = getSupabase()
     if (!supabase) return null
+
+    // SUPER ADMIN: Check email first before fetching profile
+    const SUPER_ADMIN_EMAIL = 'rezhna@clickgroup.com'
+    const authEmail = userEmail?.toLowerCase()
+    const isSuperAdmin = authEmail === SUPER_ADMIN_EMAIL.toLowerCase()
+
+    // If super admin, return super admin permissions even without profile
+    if (isSuperAdmin) {
+      return {
+        id: userId,
+        name: 'سوپەر ئادمین',
+        image: null,
+        role_id: null,
+        role: {
+          name: 'سوپەر ئادمین',
+          permissions: {
+            dashboard: true,
+            sales: true,
+            inventory: true,
+            customers: true,
+            suppliers: true,
+            invoices: true,
+            expenses: true,
+            profits: true,
+            help: true,
+            admin: true
+          }
+        }
+      }
+    }
 
     try {
       // Fetch profile data
@@ -55,7 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch role data if role_id exists
       let roleData: RoleData | null = null
+      
       if (profileData.role_id) {
+        // Normal role fetching
         const { data: role, error: roleError } = await supabase
           .from('roles')
           .select('name, permissions')
@@ -98,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Fetch profile with role after session is set
       if (session?.user) {
-        const profileData = await fetchProfile(session.user.id)
+        const profileData = await fetchProfile(session.user.id, session.user.email || undefined)
         setProfile(profileData)
       }
       
@@ -120,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Fetch profile with role when user signs in
             if (session?.user) {
-              const profileData = await fetchProfile(session.user.id)
+              const profileData = await fetchProfile(session.user.id, session.user.email || undefined)
               setProfile(profileData)
             } else {
               setProfile(null)
@@ -141,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(freshUser)
             setSession(await supabase.auth.getSession())
             // Also refresh profile data
-            const profileData = await fetchProfile(freshUser.id)
+            const profileData = await fetchProfile(freshUser.id, freshUser.email || undefined)
             setProfile(profileData)
           }
         } catch (error: any) {

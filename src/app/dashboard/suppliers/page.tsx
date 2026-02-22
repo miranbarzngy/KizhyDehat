@@ -499,7 +499,7 @@ export default function SuppliersPage() {
       ))
 
       setPaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], note: '' })
-      alert('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
+      showSuccess('پارەدانەکە بە سەرکەوتوویی تۆمارکرا!')
     } catch (error) {
       console.error('Error adding payment:', error)
       alert('هەڵە لە تۆمارکردن')

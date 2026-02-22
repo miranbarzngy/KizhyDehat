@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/server-supabase'
 import { NextResponse } from 'next/server'
+import { logActivity } from '@/lib/activityLogger'
 
 // Force dynamic to prevent static optimization
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,29 @@ export async function POST(request: Request) {
     if (error) {
       console.error('Insert error:', error)
       return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+    }
+
+    // Log the activity
+    try {
+      const { data: supplierData } = await supabase
+        .from('suppliers')
+        .select('name')
+        .eq('id', supplier_id)
+        .single()
+      
+      const supplierName = supplierData?.name || 'نەناسراو'
+      
+      await logActivity(
+        null,
+        null,
+        'add_supplier_payment',
+        `پارەدانی ${parseFloat(amount).toLocaleString()} دینار بۆ دابینکەر: ${supplierName}`,
+        'supplier_payment',
+        data.id,
+        supabase
+      )
+    } catch (logError) {
+      console.error('Error logging activity:', logError)
     }
 
     console.log('Insert success:', data)
@@ -128,12 +152,44 @@ export async function DELETE(request: Request) {
   }
 
   try {
+    // Get payment amount before deleting
+    const { data: payment } = await supabase
+      .from('supplier_payments')
+      .select('amount')
+      .eq('id', id)
+      .single()
+
+    const paymentAmount = payment?.amount || 0
+
     const { error } = await supabase
       .from('supplier_payments')
       .delete()
       .eq('id', id)
 
     if (error) throw error
+
+    // Log the delete activity
+    try {
+      const { data: supplierData } = await supabase
+        .from('suppliers')
+        .select('name')
+        .eq('id', supplierId)
+        .single()
+      
+      const supplierName = supplierData?.name || 'نەناسراو'
+      
+      await logActivity(
+        null,
+        null,
+        'delete_supplier_payment',
+        `سڕینەوەی پارەدانی ${paymentAmount.toLocaleString()} دینار بۆ دابینکەر: ${supplierName}`,
+        'supplier_payment',
+        id,
+        supabase
+      )
+    } catch (logError) {
+      console.error('Error logging delete activity:', logError)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, ChangeEvent, useEffect } from 'react'
 import { uploadFile } from '@/lib/storage'
-import { FaImage, FaTimes, FaSpinner, FaUser, FaBuilding, FaPhone, FaMapMarkerAlt, FaCloudUploadAlt } from 'react-icons/fa'
+import { ChangeEvent, useEffect, useRef, useState } from 'react'
+import { FaBuilding, FaCloudUploadAlt, FaMapMarkerAlt, FaPhone, FaSpinner, FaTimes, FaUser } from 'react-icons/fa'
 
 // Kurdish to English number converter
 const convertKurdishToEnglish = (input: string): string => {

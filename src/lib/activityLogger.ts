@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Logs an activity to the activity_logs table
@@ -9,6 +10,7 @@ import { supabase } from './supabase'
  * @param details - Detailed description of the action (e.g., 'Product iPhone 15 added')
  * @param entityType - The type of entity being affected (e.g., 'product', 'sale', 'customer', 'supplier', 'user')
  * @param entityId - The ID of the entity being affected (optional)
+ * @param supabaseClient - Optional server-side Supabase client (for API routes)
  */
 export async function logActivity(
   userId: string | null,
@@ -16,11 +18,15 @@ export async function logActivity(
   action: string,
   details: string,
   entityType: string,
-  entityId?: string
+  entityId?: string,
+  supabaseClient?: SupabaseClient<any, any>
 ): Promise<void> {
   try {
+    // Use provided client if available, otherwise fall back to default client
+    const client = supabaseClient || supabase
+
     // If no Supabase client, skip logging (for demo mode)
-    if (!supabase) {
+    if (!client) {
       console.log('[Activity Log]', { userName, action, details, entityType })
       return
     }
@@ -29,7 +35,7 @@ export async function logActivity(
     let finalUserId = userId
     if (!finalUserId) {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user } } = await client.auth.getUser()
         finalUserId = user?.id || null
       } catch (authError) {
         console.warn('Could not get current user:', authError)
@@ -38,7 +44,7 @@ export async function logActivity(
 
     // The database trigger will automatically set user_name from profiles table
     // Only send user_id - omit user_name completely to let trigger handle it
-    const { error } = await supabase.from('activity_logs').insert({
+    const { error } = await client.from('activity_logs').insert({
       user_id: finalUserId,
       action,
       details,

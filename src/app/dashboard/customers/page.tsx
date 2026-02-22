@@ -324,6 +324,17 @@ export default function CustomersPage() {
       if (data) {
         setCustomers(prev => prev.map(c => c.id === editingCustomer.id ? data as Customer : c))
         setSelectedCustomer(data as Customer)
+        
+        // Log the activity
+        await logActivity(
+          null,
+          null,
+          'update_customer',
+          `دەستکاریکردنی زانیارییەکانی کڕیار: ${newCustomer.name}`,
+          'customer',
+          editingCustomer.id
+        )
+        
         setShowAddCustomer(false)
         setIsEditing(false)
         setEditingCustomer(null)
@@ -569,14 +580,18 @@ export default function CustomersPage() {
 
     setSubmittingPayment(true)
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const response = await fetch('/api/customer-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_id: selectedCustomer.id,
-          amount: amount,
+          amount: parseFloat(paymentForm.amount),
           date: paymentForm.date,
-          note: paymentForm.note || ''
+          note: paymentForm.note || '',
+          user_id: user?.id
         })
       })
       const result = await response.json()

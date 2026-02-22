@@ -429,22 +429,22 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
                             return (
                               <div className="flex flex-col">
                                 <span 
-                                  className="text-sm whitespace-nowrap"
+                                  className="text-sm font-medium whitespace-nowrap"
+                                  style={{ 
+                                    color: 'var(--theme-foreground)',
+                                    fontFamily: 'var(--font-uni-salar)'
+                                  }}
+                                >
+                                  {exact}
+                                </span>
+                                <span 
+                                  className="text-[11px] opacity-60"
                                   style={{ 
                                     color: 'var(--theme-secondary)',
                                     fontFamily: 'var(--font-uni-salar)'
                                   }}
                                 >
                                   {relative}
-                                </span>
-                                <span 
-                                  className="text-xs opacity-70"
-                                  style={{ 
-                                    color: 'var(--theme-secondary)',
-                                    fontFamily: 'var(--font-uni-salar)'
-                                  }}
-                                >
-                                  ({exact})
                                 </span>
                               </div>
                             )

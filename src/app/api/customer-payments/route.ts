@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/server-supabase'
 import { NextResponse } from 'next/server'
+import { logActivity } from '@/lib/activityLogger'
 
 // Force dynamic to prevent static optimization
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     console.log('Received body:', body)
     
-    const { customer_id, amount, date, note } = body
+    const { customer_id, amount, date, note, user_id } = body
     
     if (!customer_id || !amount || !date) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
@@ -62,6 +63,31 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error('Error updating customer debt:', updateError)
+    }
+
+    // Log the activity - get customer name
+    console.log('Debt Log Triggered for customer:', customer_id)
+    try {
+      const { data: customerData2 } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', customer_id)
+        .single()
+      
+      const customerName = customerData2?.name || 'نەناسراو'
+      
+      await logActivity(
+        user_id || null,
+        null,
+        'add_customer_payment',
+        `وەرگرتنی بڕی ${parseFloat(amount).toLocaleString()} دینار لە کڕیار: ${customerName}`,
+        'customer_payment',
+        data.id,
+        supabase
+      )
+      console.log('Debt Log Success for customer:', customerName)
+    } catch (logError) {
+      console.error('Error logging activity:', logError)
     }
 
     console.log('Insert success:', data, 'New debt:', newDebt)
@@ -212,6 +238,29 @@ export async function DELETE(request: Request) {
       .from('customers')
       .update({ total_debt: newDebt })
       .eq('id', customerId)
+
+    // Log the delete activity
+    try {
+      const { data: customerData2 } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', customerId)
+        .single()
+      
+      const customerName = customerData2?.name || 'نەناسراو'
+      
+      await logActivity(
+        null,
+        null,
+        'delete_customer_payment',
+        `سڕینەوەی پارەدانی ${paymentAmount.toLocaleString()} دینار لە کڕیار: ${customerName}`,
+        'customer_payment',
+        id,
+        supabase
+      )
+    } catch (logError) {
+      console.error('Error logging delete activity:', logError)
+    }
 
     return NextResponse.json({ success: true, newDebt })
   } catch (error: any) {

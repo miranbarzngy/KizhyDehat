@@ -180,6 +180,22 @@ export default function SuppliersPage() {
           return
         }
 
+        // Log the activity BEFORE closing modal (using hardcoded strings for testing)
+        console.log('Supplier Edit Log Triggered', { name: data.name, id: editingSupplier.id })
+        try {
+          await logActivity(
+            null,
+            null,
+            'update_supplier',
+            `دەستکاریکردنی زانیارییەکانی دابینکەر: ${data.name}`,
+            'supplier',
+            editingSupplier.id
+          )
+          console.log('Supplier Edit Log Success')
+        } catch (logError) {
+          console.error('Supplier Edit Log Error:', logError)
+        }
+
         await fetchSuppliers()
         setEditingSupplier(null)
         setShowAddModal(false)
@@ -208,7 +224,7 @@ export default function SuppliersPage() {
         // Log the activity
         await logActivity(
           null,
-          'سیستەم',
+          null,
           ActivityActions.ADD_SUPPLIER,
           `دابینکەری ${data.name} زیادکرا`,
           EntityTypes.SUPPLIER
@@ -297,6 +313,16 @@ export default function SuppliersPage() {
 
       await fetchSuppliers()
       showSuccess('دابینکەرەکە سڕایەوە')
+
+      // Log the activity
+      await logActivity(
+        null,
+        null,
+        ActivityActions.DELETE_SUPPLIER,
+        `دابینکەر ${supplier.name} سڕایەوە`,
+        EntityTypes.SUPPLIER,
+        supplier.id
+      )
     } catch (error: any) {
       console.error('Error deleting supplier:', error)
       showError('هەڵە لە سڕینەوە')

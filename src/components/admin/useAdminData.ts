@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Role, ShopSettings, AdminTab } from './types';
+import { logActivity } from '@/lib/activityLogger';
 
 interface UseAdminDataReturn {
   users: User[];
@@ -40,14 +41,14 @@ interface UseAdminDataReturn {
   fetchUsers: () => Promise<void>;
   fetchRoles: () => Promise<void>;
   fetchShopSettings: () => Promise<void>;
-  handleCreateUser: () => Promise<void>;
-  handleUpdateUser: () => Promise<void>;
-  handleDeleteUser: (userId: string, userName: string) => Promise<void>;
+  handleCreateUser: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  handleUpdateUser: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  handleDeleteUser: (userId: string, userName: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   handleEditUser: (user: User) => void;
   resetUserForm: () => void;
-  handleCreateRole: () => Promise<void>;
-  handleUpdateRole: () => Promise<void>;
-  handleDeleteRole: (roleId: string, roleName: string) => Promise<void>;
+  handleCreateRole: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  handleUpdateRole: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  handleDeleteRole: (roleId: string, roleName: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   handleEditRole: (role: Role) => void;
   resetRoleForm: () => void;
   updateShopSettingsField: (field: string, value: string | number) => Promise<void>;
@@ -58,7 +59,7 @@ interface UseAdminDataReturn {
 
 const DEFAULT_PERMISSIONS = {
   dashboard: false, sales: false, inventory: false, customers: false,
-  suppliers: false, expenses: false, profits: false, help: false, admin: false,
+  suppliers: false, invoices: false, expenses: false, profits: false, help: false, admin: false,
 };
 
 const DEMO_USERS: User[] = [
@@ -67,9 +68,9 @@ const DEMO_USERS: User[] = [
 ];
 
 const DEMO_ROLES: Role[] = [
-  { id: "admin-role", name: "Admin", permissions: { sales: true, inventory: true, customers: true, suppliers: true, payroll: true, profits: true } },
-  { id: "manager-role", name: "Manager", permissions: { sales: true, inventory: true, customers: true, suppliers: false, payroll: false, profits: true } },
-  { id: "cashier-role", name: "Cashier", permissions: { sales: true, inventory: false, customers: false, suppliers: false, payroll: false, profits: false } },
+  { id: "admin-role", name: "Admin", permissions: { dashboard: true, sales: true, inventory: true, customers: true, suppliers: true, invoices: true, expenses: true, profits: true, help: true, admin: true } },
+  { id: "manager-role", name: "Manager", permissions: { dashboard: true, sales: true, inventory: true, customers: true, suppliers: false, invoices: true, expenses: true, profits: true, help: false, admin: false } },
+  { id: "cashier-role", name: "Cashier", permissions: { dashboard: true, sales: true, inventory: false, customers: false, suppliers: false, invoices: false, expenses: false, profits: false, help: false, admin: false } },
 ];
 
 const DEMO_SETTINGS: ShopSettings = {
@@ -139,27 +140,95 @@ export function useAdminData(): UseAdminDataReturn {
   const handleCreateUser = useCallback(async () => {
     try {
       const response = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newUserName, image: newUserImage, phone: newUserPhone, location: newUserLocation, email: newUserEmail, password: newUserPassword, roleId: selectedRoleId, isActive: newUserIsActive }) });
-      if (!response.ok) throw new Error("Failed");
-      setShowCreateUser(false); resetUserForm(); fetchUsers(); alert("بەکارهێنەر زیادکرا");
-    } catch (error) { console.error(error); alert("هەڵە"); }
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.error || "هەڵە" };
+      }
+      
+      // Log activity for adding user
+      const newUserId = data.user?.id || data.id;
+      await logActivity(
+        null, 
+        null, 
+        'add_user', 
+        `زیادکردنی بەکارهێنەری نوێ: ${newUserName}`, 
+        'user', 
+        newUserId
+      );
+      
+      setShowCreateUser(false); resetUserForm(); fetchUsers(); 
+      return { success: true, message: "بەکارهێنەر زیادکرا" };
+    } catch (error) { 
+      console.error(error); 
+      return { success: false, error: "هەڵە" };
+    }
   }, [newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers]);
 
   const handleUpdateUser = useCallback(async () => {
-    if (!editingUser) return;
+    if (!editingUser) return { success: false, error: "هیچ بەکارهێنەرێک دیارنەکراوە" };
     try {
-      const response = await fetch("/api/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingUser.id, name: newUserName, image: newUserImage, phone: newUserPhone, location: newUserLocation, email: newUserEmail, password: newUserPassword || undefined, roleId: selectedRoleId, isActive: newUserIsActive }) });
-      if (!response.ok) throw new Error("Failed");
-      setShowCreateUser(false); setEditingUser(null); resetUserForm(); fetchUsers(); alert("بەکارهێنەر نوێکرایەوە");
-    } catch (error) { console.error(error); alert("هەڵە"); }
+      // Only include password if it has a value
+      const updateData: any = { 
+        id: editingUser.id, 
+        name: newUserName, 
+        image: newUserImage, 
+        phone: newUserPhone, 
+        location: newUserLocation, 
+        email: newUserEmail, 
+        roleId: selectedRoleId, 
+        isActive: newUserIsActive 
+      };
+      
+      // Only add password to the update if it's not empty
+      if (newUserPassword && newUserPassword.trim() !== '') {
+        updateData.password = newUserPassword;
+      }
+      
+      const response = await fetch("/api/users", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updateData) });
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.error || "هەڵە لە نوێکردنەوە" };
+      }
+      
+      // Log activity for updating user
+      await logActivity(
+        null, 
+        null, 
+        'update_user', 
+        `دەستکاریکردنی زانیارییەکانی: ${newUserName}`, 
+        'user', 
+        editingUser.id
+      );
+      
+      setShowCreateUser(false); setEditingUser(null); resetUserForm(); fetchUsers(); 
+      return { success: true, message: "بەکارهێنەر نوێکرایەوە" };
+    } catch (error) { 
+      console.error(error); 
+      return { success: false, error: "هەڵە" };
+    }
   }, [editingUser, newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers]);
 
   const handleDeleteUser = useCallback(async (userId: string, userName: string) => {
-    if (!confirm(`سڕینەوەی "${userName}"?`)) return;
+    // Note: Confirmation is handled by ConfirmModal in the admin page
     try {
       const response = await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: userId }) });
       if (!response.ok) throw new Error("Failed");
-      fetchUsers(); alert("سڕدرایەوە");
-    } catch { alert("هەڵە"); }
+      
+      // Log activity for deleting user
+      await logActivity(
+        null, 
+        null, 
+        'delete_user', 
+        `سڕینەوەی بەکارهێنەر: ${userName}`, 
+        'user', 
+        userId
+      );
+      
+      fetchUsers(); 
+      return { success: true, message: "سڕدرایەوە" };
+    } catch { 
+      return { success: false, error: "هەڵە" };
+    }
   }, [fetchUsers]);
 
   const handleEditUser = useCallback((user: User) => {
@@ -174,33 +243,78 @@ export function useAdminData(): UseAdminDataReturn {
   }, []);
 
   const handleCreateRole = useCallback(async () => {
-    if (!supabase) { alert("دیمۆ"); return; }
+    if (!supabase) { return { success: false, error: "دیمۆ" }; }
     try {
       const { error } = await supabase.from("roles").insert({ name: newRoleName, permissions });
       if (error) throw error;
-      setShowCreateRole(false); resetRoleForm(); fetchRoles(); alert("ڕۆڵ زیادکرا");
-    } catch { alert("هەڵە"); }
+      
+      // Log activity for adding role
+      await logActivity(
+        null, 
+        null, 
+        'add_role', 
+        `زیادکردنی ڕۆڵی نوێ: ${newRoleName}`, 
+        'role', 
+        null
+      );
+      
+      setShowCreateRole(false); resetRoleForm(); fetchRoles(); 
+      return { success: true, message: "ڕۆڵ زیادکرا" };
+    } catch (error) { 
+      console.error(error); 
+      return { success: false, error: "هەڵە" };
+    }
   }, [newRoleName, permissions, fetchRoles]);
 
   const handleUpdateRole = useCallback(async () => {
-    if (!editingRole || !supabase) return;
+    if (!editingRole || !supabase) return { success: false, error: "هیچ ڕۆڵێک دیارنەکراوە" };
     try {
       const { error } = await supabase.from("roles").update({ name: newRoleName, permissions }).eq("id", editingRole.id);
       if (error) throw error;
-      setShowCreateRole(false); setEditingRole(null); resetRoleForm(); fetchRoles(); alert("ڕۆڵ نوێکرایەوە");
-    } catch { alert("هەڵە"); }
+      
+      // Log activity for updating role
+      await logActivity(
+        null, 
+        null, 
+        'update_role', 
+        `دەستکاریکردنی ڕۆڵ: ${newRoleName}`, 
+        'role', 
+        editingRole.id
+      );
+      
+      setShowCreateRole(false); setEditingRole(null); resetRoleForm(); fetchRoles(); 
+      return { success: true, message: "ڕۆڵ نوێکرایەوە" };
+    } catch (error) { 
+      console.error(error); 
+      return { success: false, error: "هەڵە" };
+    }
   }, [editingRole, newRoleName, permissions, fetchRoles]);
 
   const handleDeleteRole = useCallback(async (roleId: string, roleName: string) => {
     const usersWithRole = users.filter((u) => u.role_id === roleId);
-    if (usersWithRole.length > 0) { alert(`ناتوانرێت سڕدرێتەوە`); return; }
-    if (!confirm(`سڕینەوەی "${roleName}"?`)) return;
-    if (!supabase) return;
+    if (usersWithRole.length > 0) { return { success: false, error: "ناتوانرێت سڕدرێتەوە - بەکارهێنەر بەکاردەهێنێت" }; }
+    if (!confirm(`سڕینەوەی "${roleName}"?`)) return { success: false, error: "" };
+    if (!supabase) return { success: false, error: "هیچ پەیوەندییەک نییە" };
     try {
       const { error } = await supabase.from("roles").delete().eq("id", roleId);
       if (error) throw error;
-      fetchRoles(); alert("سڕدرایەوە");
-    } catch { alert("هەڵە"); }
+      
+      // Log activity for deleting role
+      await logActivity(
+        null, 
+        null, 
+        'delete_role', 
+        `سڕینەوەی ڕۆڵ: ${roleName}`, 
+        'role', 
+        roleId
+      );
+      
+      fetchRoles(); 
+      return { success: true, message: "سڕدرایەوە" };
+    } catch (error) { 
+      console.error(error); 
+      return { success: false, error: "هەڵە" };
+    }
   }, [users, fetchRoles]);
 
   const handleEditRole = useCallback((role: Role) => {

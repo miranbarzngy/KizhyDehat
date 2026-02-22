@@ -91,6 +91,15 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Check if Supabase admin is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured')
+      return NextResponse.json(
+        { error: 'Server configuration error', details: 'Service role key not configured' },
+        { status: 500 }
+      )
+    }
+
     const { id, name, image, phone, location, email, password, roleId, isActive } = await request.json()
 
     // Validate required fields
@@ -128,35 +137,41 @@ export async function PUT(request: NextRequest) {
     if (profileError) {
       console.error('Profile update error:', profileError)
       return NextResponse.json(
-        { error: 'Failed to update user profile' },
+        { error: 'Failed to update user profile', details: profileError.message },
         { status: 400 }
       )
     }
 
-    // Update password if provided
+    // Update password if provided (this is optional - don't fail the whole update if password update fails)
+    let passwordUpdated = false
     if (password && password.trim() !== '') {
-      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(id, {
-        password: password
-      })
+      try {
+        const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(id, {
+          password: password
+        })
 
-      if (passwordError) {
-        console.error('Password update error:', passwordError)
-        return NextResponse.json(
-          { error: 'Failed to update password' },
-          { status: 400 }
-        )
+        if (passwordError) {
+          console.warn('Password update warning:', passwordError.message)
+          // Don't fail the whole operation - just warn about password
+        } else {
+          passwordUpdated = true
+        }
+      } catch (passwordCatchError: any) {
+        console.warn('Password update exception:', passwordCatchError?.message)
+        // Continue anyway - profile update might have succeeded
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'User updated successfully'
+      message: passwordUpdated ? 'User and password updated successfully' : 'User updated successfully',
+      warning: !passwordUpdated && password ? 'Password could not be updated' : undefined
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('User update error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }

@@ -7,6 +7,7 @@ import ProductGrid from '@/components/inventory/ui/ProductGrid'
 import UnitGrid from '@/components/inventory/ui/UnitGrid'
 import { useInventoryData } from '@/components/inventory/useInventoryData'
 import { useSyncPause } from '@/contexts/SyncPauseContext'
+import PermissionGuard from '@/components/PermissionGuard'
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 import { FaArchive, FaBox, FaCalculator, FaSearch, FaTags, FaTrash } from 'react-icons/fa'
@@ -51,6 +52,7 @@ export default function InventoryPage() {
   ]
 
   return (
+    <PermissionGuard permission="inventory">
     <div className="p-4 md:p-6 w-full">
       <div className="w-full max-w-[2800px] mx-auto">
         <motion.h1 
@@ -492,5 +494,6 @@ export default function InventoryPage() {
         )}
       </div>
     </div>
+    </PermissionGuard>
   )
 }

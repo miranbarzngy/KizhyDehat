@@ -40,111 +40,27 @@ interface ProfileData {
 }
 
 export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps) {
-  const { user, profile: authProfile, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const router = useRouter()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
-  const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch profile data from Supabase - simplified approach
+  // Use profile from AuthContext directly
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) {
-        setLoading(false)
-        return
-      }
-      
-      const supabase = getSupabase()
-      if (!supabase) {
-        console.log('No supabase client')
-        setLoading(false)
-        return
-      }
-
-      console.log('Sidebar: Fetching profile for user:', user.id)
-
-      try {
-        // First try to get profile from auth context
-        if (authProfile && authProfile.name) {
-          console.log('Using authProfile:', authProfile)
-          setProfileData(authProfile as ProfileData)
-          setLoading(false)
-          return
-        }
-
-        // If not available, fetch from database
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        
-        console.log('Sidebar: Profile query result:', profile, error)
-        
-        if (profile && !error) {
-          // Get role name if role_id exists
-          let roleName = 'ڕۆڵی نەناسراو'
-          if (profile.role_id) {
-            try {
-              const { data: roleData } = await supabase
-                .from('roles')
-                .select('name')
-                .eq('id', profile.role_id)
-                .single()
-              if (roleData?.name) {
-                roleName = roleData.name
-              }
-            } catch (roleError) {
-              console.log('Role fetch error:', roleError)
-            }
-          }
-
-          const transformedProfile: ProfileData = {
-            id: profile.id,
-            name: profile.name || null,
-            image: profile.image || null,
-            role_id: profile.role_id || null,
-            role: { name: roleName, permissions: {} }
-          }
-          
-          console.log('Sidebar: Transformed profile:', transformedProfile)
-          setProfileData(transformedProfile)
-        } else {
-          console.log('Sidebar: No profile found, using user email')
-          // No profile exists yet - use user email as fallback
-          setProfileData({
-            id: user.id,
-            name: user.email?.split('@')[0] || null,
-            image: null,
-            role_id: null,
-            role: { name: 'ڕۆڵی نەناسراو', permissions: {} }
-          })
-        }
-      } catch (err) {
-        console.error('Sidebar: Profile fetch error:', err)
-        // Fallback to email
-        setProfileData({
-          id: user.id,
-          name: user.email?.split('@')[0] || null,
-          image: null,
-          role_id: null,
-          role: { name: 'ڕۆڵی نەناسراو', permissions: {} }
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
     if (isOpen) {
-      fetchProfile()
+      // Small delay to allow profile to load from auth context
+      const timer = setTimeout(() => {
+        setLoading(false)
+      }, 100)
+      return () => clearTimeout(timer)
     }
-  }, [user, isOpen, authProfile])
+  }, [isOpen, profile])
 
-  // Use profileData as primary source (loaded from DB)
-  const displayName = profileData?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'
-  const displayImage = profileData?.image || null
-  const displayRole = profileData?.role?.name || 'ڕۆڵی نەناسراو'
+  // Use profile from auth context
+  const displayName = profile?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'
+  const displayImage = profile?.image || null
+  const displayRole = profile?.role?.name || 'ڕۆڵی نەناسراو'
 
   const handleSignOut = async () => {
     await signOut()

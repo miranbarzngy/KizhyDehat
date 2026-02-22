@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
+import PermissionGuard from '@/components/PermissionGuard'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 
 interface Customer {
@@ -818,8 +819,9 @@ export default function CustomersPage() {
   }
 
   return (
+    <PermissionGuard permission="customers">
     <div style={{ background: 'var(--theme-background)', minHeight: '100vh' }}>
-      <h1 
+      <h1
         className="text-3xl font-bold mb-8 p-6 pl-0"
         style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
       >
@@ -1842,5 +1844,6 @@ export default function CustomersPage() {
       />
 
     </div>
+    </PermissionGuard>
   )
 }

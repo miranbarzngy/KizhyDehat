@@ -1,5 +1,8 @@
 'use client'
 
+import { motion } from 'framer-motion'
+import { FaShieldAlt, FaTimes } from 'react-icons/fa'
+
 interface Role {
   id: string
   name: string
@@ -23,6 +26,7 @@ const permissionList = [
   { key: 'inventory', name: 'کۆگا', icon: '📦' },
   { key: 'customers', name: 'کڕیاران', icon: '👥' },
   { key: 'suppliers', name: 'دابینکاران', icon: '🏭' },
+  { key: 'invoices', name: 'پسوڵەکان', icon: '🧾' },
   { key: 'expenses', name: 'خەرجییەکان', icon: '💸' },
   { key: 'profits', name: 'قازانج', icon: '📈' },
   { key: 'help', name: 'یارمەتی', icon: '❓' },
@@ -42,70 +46,171 @@ export default function RoleModal({
   if (!showCreateRole) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div 
-        className="bg-white p-6 rounded-2xl w-[90%] max-w-md max-h-[90vh] overflow-y-auto"
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+
+      {/* Modal Container - Glassmorphism */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className="relative w-[90%] max-w-lg max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/20"
         style={{ fontFamily: 'var(--font-uni-salar)' }}
       >
-        <h3 
-          className="text-xl font-bold mb-4 text-gray-800"
+        {/* Header */}
+        <div 
+          className="sticky top-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-b border-gray-100 rounded-t-[2.5rem] z-10"
+          style={{ background: 'var(--theme-card-bg)' }}
         >
-          {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
-        </h3>
-        
-        {/* Role Name */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1 text-gray-700">ناوی ڕۆڵ</label>
-          <input
-            type="text"
-            placeholder="ناوی ڕۆڵ"
-            value={newRoleName}
-            onChange={(e) => onSetName(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white/60 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          />
-        </div>
-
-        {/* Permissions */}
-        <div>
-          <label className="block text-sm font-medium mb-3 text-gray-700">مۆڵەتەکان</label>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {permissionList.map((perm) => (
-              <label 
-                key={perm.key} 
-                className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={permissions[perm.key]}
-                  onChange={() => onTogglePermission(perm.key)}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
-                />
-                <span className="text-lg">{perm.icon}</span>
-                <span className="font-medium text-gray-700">{perm.name}</span>
-              </label>
-            ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold" style={{ color: 'var(--theme-foreground)' }}>
+                {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
+              </h3>
+              <p className="text-sm mt-1" style={{ color: 'var(--theme-secondary)' }}>
+                {editingRole ? 'مۆڵەتەکانی ڕۆڵەکە بگۆڕە' : 'ڕۆڵێکی نوێ دروست بکە'}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300"
+              style={{ 
+                background: 'var(--theme-muted)',
+                color: 'var(--theme-secondary)'
+              }}
+            >
+              <FaTimes />
+            </button>
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            onClick={() => {
-              onClose()
-            }}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
-          >
-            پاشگەزبوونەوە
-          </button>
-          <button
-            onClick={onSubmit}
-            className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            style={{ fontFamily: 'var(--font-uni-salar)' }}
-          >
-            {editingRole ? 'نوێکردنەوە' : 'زیادکردن'}
-          </button>
+        {/* Form Content */}
+        <div className="p-8 space-y-6">
+          {/* Role Name */}
+          <div className="relative">
+            <label 
+              className="block text-sm font-medium mb-2 pr-1" 
+              style={{ color: 'var(--theme-foreground)' }}
+            >
+              ناوی ڕۆڵ
+            </label>
+            <div className="relative">
+              <FaShieldAlt 
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+                style={{ color: 'var(--theme-secondary)' }}
+              />
+              <input
+                type="text"
+                placeholder="ناوی ڕۆڵ"
+                value={newRoleName}
+                onChange={(e) => onSetName(e.target.value)}
+                className="w-full pl-4 pr-12 py-3.5 rounded-2xl border-0 shadow-inner focus:ring-2 transition-all duration-300"
+                style={{ 
+                  background: 'var(--theme-muted)',
+                  color: 'var(--theme-foreground)',
+                  '--tw-ring-color': 'var(--theme-accent)'
+                } as React.CSSProperties}
+              />
+            </div>
+          </div>
+
+          {/* Permissions */}
+          <div>
+            <label 
+              className="block text-sm font-medium mb-3 pr-1" 
+              style={{ color: 'var(--theme-foreground)' }}
+            >
+              مۆڵەتەکان
+            </label>
+            <div 
+              className="space-y-2 max-h-64 overflow-y-auto rounded-2xl p-2"
+              style={{ background: 'var(--theme-muted)' }}
+            >
+              {permissionList.map((perm) => (
+                <motion.label 
+                  key={perm.key} 
+                  className="flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-colors"
+                  style={{ color: 'var(--theme-foreground)' }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <div 
+                    className="w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-300"
+                    style={{ 
+                      background: permissions[perm.key] ? 'var(--theme-accent)' : 'rgba(156, 163, 175, 0.3)',
+                      border: '2px solid',
+                      borderColor: permissions[perm.key] ? 'var(--theme-accent)' : 'var(--theme-border)'
+                    }}
+                  >
+                    {permissions[perm.key] && (
+                      <motion.svg
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-4 h-4 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </motion.svg>
+                    )}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={permissions[perm.key]}
+                    onChange={() => onTogglePermission(perm.key)}
+                    className="sr-only"
+                  />
+                  <span className="text-xl">{perm.icon}</span>
+                  <span className="font-medium">{perm.name}</span>
+                </motion.label>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Footer Buttons */}
+        <div 
+          className="sticky bottom-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-t border-gray-100 rounded-b-[2.5rem]"
+          style={{ background: 'var(--theme-card-bg)' }}
+        >
+          <div className="flex justify-end gap-4">
+            <motion.button
+              onClick={onClose}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-3 rounded-2xl border-2 font-medium transition-all duration-300"
+              style={{ 
+                borderColor: 'var(--theme-border)',
+                color: 'var(--theme-secondary)',
+                background: 'transparent'
+              }}
+            >
+              پاشگەزبوونەوە
+            </motion.button>
+            <motion.button
+              onClick={onSubmit}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-8 py-3 rounded-2xl font-bold shadow-lg transition-all duration-300"
+              style={{ 
+                background: 'var(--theme-accent)',
+                color: 'white'
+              }}
+            >
+              {editingRole ? 'نوێکردنەوە' : 'زیادکردن'}
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   )
 }

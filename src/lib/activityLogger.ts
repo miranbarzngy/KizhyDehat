@@ -91,6 +91,11 @@ export const ActivityActions = {
   DEACTIVATE_USER: 'deactivate_user',
   ACTIVATE_USER: 'activate_user',
   
+  // Role actions
+  ADD_ROLE: 'add_role',
+  UPDATE_ROLE: 'update_role',
+  DELETE_ROLE: 'delete_role',
+  
   // Expense actions
   ADD_EXPENSE: 'add_expense',
   UPDATE_EXPENSE: 'update_expense',
@@ -148,6 +153,11 @@ export const ActionLabels: Record<string, string> = {
   deactivate_user: 'ناچالاککردنی بەکارهێنەر',
   activate_user: 'چالاککردنی بەکارهێنەر',
   
+  // Roles
+  add_role: 'زیادکردنی ڕۆڵ',
+  update_role: 'دەستکاریکردنی ڕۆڵ',
+  delete_role: 'سڕینەوەی ڕۆڵ',
+  
   // Expenses
   add_expense: 'زیادکردنی خەرجی',
   update_expense: 'دەستکاریکردنی خەرجی',
@@ -162,9 +172,9 @@ export const ActionLabels: Record<string, string> = {
 
 // Get color for action type
 export function getActionColor(action: string): string {
-  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user']
-  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_expense', 'change_user_role']
-  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment']
+  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user']
+  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role']
+  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment']
   const cancelActions = ['cancel_sale', 'refund_sale', 'deactivate_user']
   
   if (addActions.includes(action)) return 'green'

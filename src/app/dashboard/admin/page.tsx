@@ -9,15 +9,20 @@ import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
 import ActivityTab from "@/components/admin/ActivityTab";
 import UserModal from "@/components/admin/UserModal";
+import RoleModal from "@/components/admin/RoleModal";
+import PermissionGuard from "@/components/PermissionGuard";
+import { useToast } from "@/components/Toast";
 import { useAdminData } from "@/components/admin/useAdminData";
 import { ActivityActions, EntityTypes } from "@/lib/activityLogger";
 import { logActivity } from "@/lib/activityLogger";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminPage() {
+  const { showSuccess, showError } = useToast()
   const {
     users, roles, loading, activeTab, showCreateUser, showCreateRole, editingUser,
     newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive,
+    editingRole, newRoleName, permissions, togglePermission,
     setActiveTab, setShowCreateUser, setShowCreateRole, setNewUserName, setNewUserImage, setNewUserPhone, setNewUserLocation, 
     setNewUserEmail, setNewUserPassword, setSelectedRoleId, setNewUserIsActive,
     fetchUsers, fetchRoles, handleCreateUser, handleUpdateUser, handleDeleteUser, handleEditUser, resetUserForm,
@@ -42,18 +47,67 @@ export default function AdminPage() {
       message: `دڵنیایت لە سڕینەوەی "${userName}"؟`,
       type: 'danger',
       onConfirm: async () => {
-        try {
-          const response = await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: userId }) });
-          if (!response.ok) throw new Error("Failed");
-          fetchUsers();
-        } catch (error) {
-          console.error("Error deleting user:", error);
+        const result = await handleDeleteUser(userId, userName)
+        if (result.success) {
+          showSuccess(result.message || 'سڕدرایەوە')
+        } else if (result.error) {
+          showError(result.error)
         }
         setShowConfirmModal(false)
         setPendingDeleteUser(null)
       }
     })
     setShowConfirmModal(true)
+  }
+
+  // Wrapper for create user
+  const handleCreateUserWrapper = async () => {
+    const result = await handleCreateUser()
+    if (result.success) {
+      showSuccess(result.message || 'بەکارهێنەر زیادکرا')
+    } else if (result.error) {
+      showError(result.error)
+    }
+  }
+
+  // Wrapper for update user
+  const handleUpdateUserWrapper = async () => {
+    const result = await handleUpdateUser()
+    if (result.success) {
+      showSuccess(result.message || 'بەکارهێنەر نوێکرایەوە')
+    } else if (result.error) {
+      showError(result.error)
+    }
+  }
+
+  // Wrapper for create role
+  const handleCreateRoleWrapper = async () => {
+    const result = await handleCreateRole()
+    if (result.success) {
+      showSuccess(result.message || 'ڕۆڵ زیادکرا')
+    } else if (result.error) {
+      showError(result.error)
+    }
+  }
+
+  // Wrapper for update role
+  const handleUpdateRoleWrapper = async () => {
+    const result = await handleUpdateRole()
+    if (result.success) {
+      showSuccess(result.message || 'ڕۆڵ نوێکرایەوە')
+    } else if (result.error) {
+      showError(result.error)
+    }
+  }
+
+  // Wrapper for delete role
+  const handleDeleteRoleWrapper = async (roleId: string, roleName: string) => {
+    const result = await handleDeleteRole(roleId, roleName)
+    if (result.success) {
+      showSuccess(result.message || 'سڕدرایەوە')
+    } else if (result.error) {
+      showError(result.error)
+    }
   }
 
   useEffect(() => { fetchUsers(); fetchRoles(); }, []);
@@ -67,6 +121,7 @@ export default function AdminPage() {
   }
 
   return (
+    <PermissionGuard permission="admin">
     <div className="p-4 md:p-6 w-full" style={{ background: 'var(--theme-background)', minHeight: '100vh' }}>
       <div className="w-full max-w-[2800px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -149,7 +204,7 @@ export default function AdminPage() {
                   roles={roles} 
                   onCreateRole={() => setShowCreateRole(true)} 
                   onEditRole={handleEditRole} 
-                  onDeleteRole={handleDeleteRole} 
+                  onDeleteRole={handleDeleteRoleWrapper} 
                 />
               </motion.div>
             )}
@@ -184,7 +239,7 @@ export default function AdminPage() {
         onSetPassword={setNewUserPassword}
         onSetRoleId={setSelectedRoleId}
         onSetIsActive={setNewUserIsActive}
-        onSubmit={editingUser ? handleUpdateUser : handleCreateUser}
+        onSubmit={editingUser ? handleUpdateUserWrapper : handleCreateUserWrapper}
       />
 
       {/* Confirm Modal for delete operations */}
@@ -198,6 +253,21 @@ export default function AdminPage() {
         onCancel={() => setShowConfirmModal(false)}
         type={confirmModalConfig.type}
       />
+
+      {/* Role Modal */}
+      <RoleModal
+        showCreateRole={showCreateRole}
+        editingRole={editingRole}
+        newRoleName={newRoleName}
+        permissions={permissions}
+        onClose={() => { setShowCreateRole(false); resetRoleForm(); }}
+        onSetName={(value) => {
+          setNewRoleName(value);
+        }}
+        onTogglePermission={togglePermission}
+        onSubmit={editingRole ? handleUpdateRoleWrapper : handleCreateRoleWrapper}
+      />
     </div>
+    </PermissionGuard>
   );
 }

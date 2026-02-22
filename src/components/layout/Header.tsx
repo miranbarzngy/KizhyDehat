@@ -23,7 +23,7 @@ const menuItems = [
   { name: 'کۆگا', href: '/dashboard/inventory', icon: '📦', permission: 'inventory' },
   { name: 'کڕیاران', href: '/dashboard/customers', icon: '👥', permission: 'customers' },
   { name: 'دابینکاران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
-  { name: 'پسوڵەکان', href: '/dashboard/invoices', icon: '🧾', permission: 'sales' },
+  { name: 'پسوڵەکان', href: '/dashboard/invoices', icon: '🧾', permission: 'invoices' },
   { name: 'خەرجییەکان', href: '/dashboard/expenses', icon: '💸', permission: 'expenses' },
   { name: 'قازانج', href: '/dashboard/profits', icon: '📈', permission: 'profits' },
   { name: 'یارمەتی', href: '/dashboard/help', icon: '❓', permission: 'help' },
@@ -34,23 +34,38 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
   const { user, profile } = useAuth()
   const pathname = usePathname()
 
-  // Get permissions from profile role, with fallback for admin access
+  // Get permissions from profile role
+  // If no role/permissions, deny access to everything except dashboard
   const permissions = profile?.role?.permissions || {
     dashboard: true,
-    sales: true,
-    inventory: true,
-    customers: true,
-    suppliers: true,
-    invoices: true,
-    expenses: true,
-    profits: true,
-    help: true,
-    admin: true
+    sales: false,
+    inventory: false,
+    customers: false,
+    suppliers: false,
+    invoices: false,
+    expenses: false,
+    profits: false,
+    help: false,
+    admin: false
+  }
+
+  // Ensure all permissions are defined (for roles that might not have all keys)
+  const safePermissions = {
+    dashboard: true,
+    sales: false,
+    inventory: false,
+    customers: false,
+    suppliers: false,
+    invoices: false,
+    expenses: false,
+    profits: false,
+    help: false,
+    admin: false,
+    ...permissions
   }
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.permission === 'dashboard') return true
-    if (item.permission) return permissions[item.permission as keyof typeof permissions]
+    if (item.permission) return safePermissions[item.permission as keyof typeof safePermissions]
     return true
   })
 

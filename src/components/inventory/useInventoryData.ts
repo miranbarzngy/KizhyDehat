@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Product, Category, Unit } from './types'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 
 interface InventoryFormData {
   supplier_id: string
@@ -347,6 +348,16 @@ export function useInventoryData(): UseInventoryDataReturn {
       // Finally delete the product itself
       await supabase.from('products').delete().eq('id', itemId)
       
+      // Log the activity
+      await logActivity(
+        null, 
+        'سیستەم', 
+        ActivityActions.DELETE_PRODUCT, 
+        `کاڵای ${itemName} سڕایەوە`, 
+        EntityTypes.PRODUCT, 
+        itemId
+      )
+      
       setDeleteStatus('success')
       setDeleteMessage(`کاڵا و هەموو حساباتە پەیوەندیدارەکانی بەسەرکەوتوویی سڕانەوە`)
       fetchProducts()
@@ -361,6 +372,17 @@ export function useInventoryData(): UseInventoryDataReturn {
   const archiveItem = useCallback(async (item: Product) => {
     if (!supabase) return
     await supabase.from('products').update({ is_archived: true }).eq('id', item.id)
+    
+    // Log the archive activity
+    await logActivity(
+      null,
+      null,
+      ActivityActions.UPDATE_PRODUCT,
+      `ئەرشیفکردنی کاڵای ${item.name}`,
+      EntityTypes.PRODUCT,
+      item.id
+    )
+    
     fetchProducts()
     fetchArchivedItems()
   }, [fetchProducts, fetchArchivedItems])
@@ -368,6 +390,17 @@ export function useInventoryData(): UseInventoryDataReturn {
   const restoreItem = useCallback(async (item: Product) => {
     if (!supabase) return
     await supabase.from('products').update({ is_archived: false }).eq('id', item.id)
+    
+    // Log the restore activity
+    await logActivity(
+      null,
+      null,
+      ActivityActions.UPDATE_PRODUCT,
+      `گەڕاندنەوەی کاڵای ${item.name} لە ئەرشیفەوە بۆ لیستی سەرەکی`,
+      EntityTypes.PRODUCT,
+      item.id
+    )
+    
     fetchArchivedItems()
     fetchProducts()
   }, [fetchArchivedItems, fetchProducts])

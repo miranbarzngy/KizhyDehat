@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { FaCamera, FaEdit, FaEye, FaMoneyBillWave, FaPhone, FaPlus, FaSearch, FaTimes, FaTrash, FaUserPlus } from 'react-icons/fa'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 
 interface Customer {
   id: string
@@ -195,6 +196,16 @@ export default function CustomersPage() {
         setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
         setImagePreview(null)
         showSuccess('کڕیارەکە زیادکرا')
+        
+        // Log the activity
+        await logActivity(
+          null,
+          'سیستەم',
+          ActivityActions.ADD_CUSTOMER,
+          `کڕیاری ${newCustomer.name} زیادکرا`,
+          EntityTypes.CUSTOMER,
+          data.id
+        )
       }
     } catch (error) {
       console.error('Error:', error)
@@ -740,6 +751,16 @@ export default function CustomersPage() {
       if (selectedCustomer?.id === customer.id) {
         setSelectedCustomer(null)
       }
+      
+      // Log the activity
+      await logActivity(
+        null,
+        'سیستەم',
+        ActivityActions.DELETE_CUSTOMER,
+        `کڕیاری ${customer.name} سڕایەوە`,
+        EntityTypes.CUSTOMER,
+        customer.id
+      )
       
       showSuccess('کڕیارەکە سڕایەوە')
     } catch (error: any) {

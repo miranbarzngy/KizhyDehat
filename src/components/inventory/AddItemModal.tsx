@@ -2,6 +2,7 @@
 
 import { useSyncPause } from '@/contexts/SyncPauseContext'
 import { supabase } from '@/lib/supabase'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
 import {
@@ -231,11 +232,35 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
       }
       if (editingItem) {
         await supabase.from('products').update(productsData).eq('id', editingItem.id)
+        
+        // Log edit activity
+        console.log('[Activity] Logging UPDATE_PRODUCT for:', formData.name)
+        await logActivity(
+          null,
+          null,
+          ActivityActions.UPDATE_PRODUCT,
+          `دەستکاریکردنی زانیاریەکانی ${formData.name}`,
+          EntityTypes.PRODUCT,
+          editingItem.id
+        )
+        
         setErrorMessage('کاڵاکە نوێکرایەوە')
       } else {
         const referenceId = crypto.randomUUID()
         const result = await supabase.from('products').insert({ ...productsData, reference_id: referenceId })
         if (result.error) throw result.error
+        
+        // Log add activity
+        console.log('[Activity] Logging ADD_PRODUCT for:', formData.name)
+        await logActivity(
+          null,
+          null,
+          ActivityActions.ADD_PRODUCT,
+          `زیادکردنی کاڵای نوێ: ${formData.name}`,
+          EntityTypes.PRODUCT,
+          null
+        )
+        
         if (formData.supplier_id) {
           await supabase.from('purchase_expenses').insert({
             item_name: formData.name, 

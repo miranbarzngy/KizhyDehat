@@ -11,6 +11,7 @@ import CustomerSelector from './_components/CustomerSelector'
 import UnitModal from './_components/UnitModal'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 
 interface InventoryItem {
   id: string
@@ -188,6 +189,17 @@ export default function SalesPage() {
         status: 'pending', created_at: new Date().toISOString()
       }).select('id, total, payment_method, date').single()
       if (saleError) throw saleError
+
+      // Log the sale activity
+      const customerNameForLog = customers.find(c => c.id === selectedCustomer)?.name || 'نەناسراو'
+      await logActivity(
+        user?.id || null,
+        null,
+        ActivityActions.CREATE_SALE,
+        `فرۆشتنێکی نوێ بۆ ${customerNameForLog} بە بڕی ${total.toLocaleString()} IQD`,
+        EntityTypes.SALE,
+        saleData.id
+      )
 
       const saleItems = cart.map(item => ({
         sale_id: saleData.id, item_id: item.item.id, item_name: item.item.name, category: item.item.category,

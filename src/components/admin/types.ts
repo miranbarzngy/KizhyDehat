@@ -44,7 +44,7 @@ export interface RoleFormData {
   permissions: Record<string, boolean>;
 }
 
-export type AdminTab = "users" | "roles" | "settings";
+export type AdminTab = "users" | "roles" | "settings" | "activity";
 
 export interface Permission {
   key: string;

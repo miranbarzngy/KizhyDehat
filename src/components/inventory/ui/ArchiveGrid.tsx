@@ -152,7 +152,7 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
                   className="px-4 py-2 bg-green-100 text-green-600 rounded-lg flex items-center"
                 >
                   <FaPlus className="ml-1" />
-                  <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>دووبارە کڕینەوە</span>
+                  <span style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '0.85em' }}>دووبارە گەڕاندنەوە بۆ بەشی کاڵاکان</span>
                 </button>
               )}
             </div>

@@ -5,6 +5,8 @@ import { buildInvoiceData, InvoiceTemplate } from '@/components/GlobalInvoiceMod
 import { useToast } from '@/components/Toast'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { supabase } from '@/lib/supabase'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
+import { useAuth } from '@/contexts/AuthContext'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
@@ -703,10 +705,22 @@ export default function InvoicesPage() {
                                     setConfirmModalConfig({
                                       title: 'دڵنیایی لە پەسەندکردن',
                                       message: 'ئایا دڵنیایت لە پەسەندکردنی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
-                                      onConfirm: async () => {
+                                  onConfirm: async () => {
                                         try {
                                           const { error } = await supabase?.rpc('approve_sale', { p_sale_id: sale.id });
                                           if (error) throw error;
+                                          
+                                          // Log activity
+                                          const invoiceNum = sale.invoice_number || sale.id?.slice(0, 8).toUpperCase()
+                                          await logActivity(
+                                            null,
+                                            'سیستەم',
+                                            ActivityActions.APPROVE_SALE,
+                                            `پسوڵەی ژمارە #${invoiceNum} پەسەندکرا`,
+                                            EntityTypes.SALE,
+                                            sale.id
+                                          )
+                                          
                                           await fetchPendingSales();
                                           showSuccess('وەسڵەکە بە سەرکەوتوویی پەسەند کرا')
                                         } catch (err: any) {
@@ -742,6 +756,18 @@ export default function InvoicesPage() {
                                         try {
                                           await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
                                           await supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id)
+                                          
+                                          // Log activity
+                                          const invoiceNum = sale.invoice_number || sale.id?.slice(0, 8).toUpperCase()
+                                          await logActivity(
+                                            null,
+                                            'سیستەم',
+                                            ActivityActions.REFUND_SALE,
+                                            `پسوڵەی ژمارە #${invoiceNum} گەڕێندرایەوە`,
+                                            EntityTypes.SALE,
+                                            sale.id
+                                          )
+                                          
                                           await fetchPendingSales()
                                           showSuccess('فرۆشتنەکە بە سەرکەوتوویی گەڕێندرایەوە')
                                         } catch (err) {
@@ -777,6 +803,18 @@ export default function InvoicesPage() {
                                         try {
                                           await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
                                           await supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id)
+                                          
+                                          // Log activity
+                                          const invoiceNum = sale.invoice_number || sale.id?.slice(0, 8).toUpperCase()
+                                          await logActivity(
+                                            null,
+                                            null,
+                                            ActivityActions.CANCEL_SALE,
+                                            `هەڵوەشاندنەوەی پسوڵەی ژمارە #${invoiceNum}`,
+                                            EntityTypes.SALE,
+                                            sale.id
+                                          )
+                                          
                                           await fetchPendingSales()
                                           showSuccess('فرۆشتنەکە هەڵوەشێنرایەوە')
                                         } catch (err) {

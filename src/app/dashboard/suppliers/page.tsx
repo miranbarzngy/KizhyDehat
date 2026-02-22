@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { FaBox, FaEdit, FaList, FaPlus, FaSearch, FaTh, FaTimes, FaTrash } from 'react-icons/fa'
+import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -203,6 +204,15 @@ export default function SuppliersPage() {
         await fetchSuppliers()
         setShowAddModal(false)
         showSuccess('دابینکەرەکە زیادکرا')
+        
+        // Log the activity
+        await logActivity(
+          null,
+          'سیستەم',
+          ActivityActions.ADD_SUPPLIER,
+          `دابینکەری ${data.name} زیادکرا`,
+          EntityTypes.SUPPLIER
+        )
       }
     } catch (error) {
       console.error('Error saving supplier:', error)

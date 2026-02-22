@@ -2,13 +2,17 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { FaShieldAlt, FaUsers } from "react-icons/fa";
+import { FaShieldAlt, FaUsers, FaHistory } from "react-icons/fa";
 import ConfirmModal from "@/components/ConfirmModal";
 import StatCards from "@/components/admin/StatCards";
 import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
+import ActivityTab from "@/components/admin/ActivityTab";
 import UserModal from "@/components/admin/UserModal";
 import { useAdminData } from "@/components/admin/useAdminData";
+import { ActivityActions, EntityTypes } from "@/lib/activityLogger";
+import { logActivity } from "@/lib/activityLogger";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminPage() {
   const {
@@ -114,6 +118,17 @@ export default function AdminPage() {
             >
               <FaShieldAlt /> ڕۆڵەکان
             </button>
+            <button 
+              onClick={() => setActiveTab("activity")} 
+              className="flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                background: activeTab === "activity" ? 'var(--theme-accent)' : 'transparent',
+                color: activeTab === "activity" ? '#ffffff' : 'var(--theme-secondary)'
+              }}
+            >
+              <FaHistory /> چاودێری سیستم
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -136,6 +151,11 @@ export default function AdminPage() {
                   onEditRole={handleEditRole} 
                   onDeleteRole={handleDeleteRole} 
                 />
+              </motion.div>
+            )}
+            {activeTab === "activity" && (
+              <motion.div key="activity" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                <ActivityTab />
               </motion.div>
             )}
           </AnimatePresence>

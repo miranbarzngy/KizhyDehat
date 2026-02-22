@@ -11,7 +11,7 @@ interface ShopSettings {
   shop_name?: string | null
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,6 +26,17 @@ export default function LoginPage() {
       router.push('/dashboard')
     }
   }, [user, authLoading, router])
+
+  // Check for inactive reason in URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const reason = params.get('reason')
+    if (reason === 'inactive') {
+      setError('ئەم هەژمارە ڕاگیراوە، تکایە پەیوەندی بە بەڕێوەبەرەوە بکە.')
+      // Clear the URL param after showing the message
+      window.history.replaceState({}, '', '/login')
+    }
+  }, [])
 
   // Show loading while checking auth state
   if (authLoading) {
@@ -269,3 +280,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+export default LoginForm

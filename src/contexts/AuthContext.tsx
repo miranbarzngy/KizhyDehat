@@ -15,6 +15,7 @@ interface ProfileData {
   image: string | null
   role_id: string | null
   role: RoleData | null
+  is_active: boolean
 }
 
 interface AuthContextType {
@@ -66,7 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             help: true,
             admin: true
           }
-        }
+        },
+        is_active: true
       }
     }
 
@@ -81,6 +83,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileError || !profileData) {
         console.log('No profile found for user:', userId)
         return null
+      }
+
+      // Check if user is inactive - if so, sign them out
+      if (profileData.is_active === false) {
+        console.log('User account is inactive:', userId)
+        await supabase.auth.signOut()
+        // Return a special flag to indicate inactive user
+        return {
+          id: profileData.id,
+          name: profileData.name,
+          image: profileData.image,
+          role_id: profileData.role_id,
+          role: null,
+          is_active: false
+        }
       }
 
       // Fetch role data if role_id exists
@@ -107,7 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: profileData.name,
         image: profileData.image,
         role_id: profileData.role_id,
-        role: roleData
+        role: roleData,
+        is_active: profileData.is_active !== false
       }
     } catch (err) {
       console.error('Error fetching profile:', err)
@@ -154,6 +172,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (session?.user) {
               const profileData = await fetchProfile(session.user.id, session.user.email || undefined)
               setProfile(profileData)
+              
+              // Check if user became inactive and redirect to login
+              if (profileData && profileData.is_active === false) {
+                console.log('User account became inactive, redirecting to login...')
+                await supabase.auth.signOut()
+                window.location.href = '/login?reason=inactive'
+              }
             } else {
               setProfile(null)
             }
@@ -172,9 +197,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (freshUser) {
             setUser(freshUser)
             setSession(await supabase.auth.getSession())
-            // Also refresh profile data
+            // Also refresh profile data and check if user is still active
             const profileData = await fetchProfile(freshUser.id, freshUser.email || undefined)
             setProfile(profileData)
+            
+            // If user became inactive, redirect to login
+            if (profileData && profileData.is_active === false) {
+              console.log('User account became inactive (on focus), redirecting to login...')
+              await supabase.auth.signOut()
+              window.location.href = '/login?reason=inactive'
+            }
           }
         } catch (error: any) {
           console.warn('⚠️ Wake up failed:', error?.message)

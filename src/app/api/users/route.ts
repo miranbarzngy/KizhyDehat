@@ -142,6 +142,30 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // If user is being set to inactive, invalidate their sessions
+    if (isActive === false) {
+      try {
+        // Get all sessions for this user and invalidate them
+        const { data: sessionsData, error: sessionsError } = await supabaseAdmin.auth.admin.listSessions(id)
+        
+        if (sessionsError) {
+          console.warn('Could not list sessions:', sessionsError.message)
+        } else if (sessionsData && sessionsData.sessions && sessionsData.sessions.length > 0) {
+          // Sign out user from all devices by invalidating refresh tokens
+          const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(id)
+          
+          if (signOutError) {
+            console.warn('Could not sign out user from all sessions:', signOutError.message)
+          } else {
+            console.log('User sessions invalidated successfully for user:', id)
+          }
+        }
+      } catch (sessionError: any) {
+        console.warn('Session invalidation error:', sessionError?.message)
+        // Don't fail the update - just log the warning
+      }
+    }
+
     // Update password if provided (this is optional - don't fail the whole update if password update fails)
     let passwordUpdated = false
     if (password && password.trim() !== '') {
@@ -164,7 +188,9 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: passwordUpdated ? 'User and password updated successfully' : 'User updated successfully',
+      message: isActive === false 
+        ? 'User deactivated and logged out from all devices' 
+        : (passwordUpdated ? 'User and password updated successfully' : 'User updated successfully'),
       warning: !passwordUpdated && password ? 'Password could not be updated' : undefined
     })
 

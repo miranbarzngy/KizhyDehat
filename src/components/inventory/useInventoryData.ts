@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Product, Category, Unit } from './types'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface InventoryFormData {
   supplier_id: string
@@ -50,6 +51,11 @@ interface UseInventoryDataReturn {
   newUnitSymbol: string
   editingCategory: Category | null
   editingUnit: Unit | null
+  // Delete confirmation for categories and units
+  showDeleteCategoryConfirm: boolean
+  categoryToDelete: Category | null
+  showDeleteUnitConfirm: boolean
+  unitToDelete: Unit | null
   setActiveTab: (tab: 'inventory' | 'categories' | 'units' | 'archive') => void
   setSearchTerm: (term: string) => void
   setSelectedCategory: (category: string) => void
@@ -67,6 +73,10 @@ interface UseInventoryDataReturn {
   setNewUnitSymbol: (symbol: string) => void
   setEditingCategory: (category: Category | null) => void
   setEditingUnit: (unit: Unit | null) => void
+  setShowDeleteCategoryConfirm: (show: boolean) => void
+  setCategoryToDelete: (category: Category | null) => void
+  setShowDeleteUnitConfirm: (show: boolean) => void
+  setUnitToDelete: (unit: Unit | null) => void
   fetchAll: () => Promise<void>
   fetchProducts: () => Promise<void>
   fetchArchivedItems: () => Promise<void>
@@ -81,11 +91,15 @@ interface UseInventoryDataReturn {
   restoreItem: (item: Product) => Promise<void>
   handleAddCategory: () => void
   handleEditCategory: (category: Category) => void
+  confirmDeleteCategory: (category: Category) => void
   handleDeleteCategory: (category: Category) => Promise<void>
+  executeDeleteCategory: () => Promise<void>
   saveCategory: () => Promise<void>
   handleAddUnit: () => void
   handleEditUnit: (unit: Unit) => void
+  confirmDeleteUnit: (unit: Unit) => void
   handleDeleteUnit: (unit: Unit) => Promise<void>
+  executeDeleteUnit: () => Promise<void>
   saveUnit: () => Promise<void>
   filteredProducts: Product[]
 }
@@ -111,6 +125,7 @@ const DEFAULT_FORM_DATA: InventoryFormData = {
 }
 
 export function useInventoryData(): UseInventoryDataReturn {
+  const { user, profile } = useAuth()
   const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'units' | 'archive'>('inventory')
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -137,6 +152,12 @@ export function useInventoryData(): UseInventoryDataReturn {
   const [newUnitSymbol, setNewUnitSymbol] = useState('')
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
+  
+  // Delete confirmation states for categories and units
+  const [showDeleteCategoryConfirm, setShowDeleteCategoryConfirm] = useState(false)
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const [showDeleteUnitConfirm, setShowDeleteUnitConfirm] = useState(false)
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
 
   const fetchProducts = useCallback(async () => {
     if (!supabase) {
@@ -413,6 +434,33 @@ export function useInventoryData(): UseInventoryDataReturn {
     setShowCategoryModal(true)
   }, [])
 
+  // Confirm delete category - shows confirmation dialog
+  const confirmDeleteCategory = useCallback((category: Category) => {
+    setCategoryToDelete(category)
+    setShowDeleteCategoryConfirm(true)
+  }, [])
+
+  // Execute delete category - performs the actual deletion
+  const executeDeleteCategory = useCallback(async () => {
+    if (!categoryToDelete || !supabase) return
+    
+    const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete.id)
+    if (!error) {
+      // Log the activity
+      await logActivity(
+        user?.id || null,
+        profile?.name || null,
+        ActivityActions.DELETE_CATEGORY,
+        `پۆلی ${categoryToDelete.name} سڕایەوە`,
+        EntityTypes.CATEGORY,
+        categoryToDelete.id
+      )
+      fetchCategories()
+    }
+    setShowDeleteCategoryConfirm(false)
+    setCategoryToDelete(null)
+  }, [categoryToDelete, fetchCategories, user, profile])
+
   const handleDeleteCategory = useCallback(async (category: Category) => {
     if (!supabase) return
     const { error } = await supabase.from('categories').delete().eq('id', category.id)
@@ -437,8 +485,8 @@ export function useInventoryData(): UseInventoryDataReturn {
       if (!error) {
         // Log the activity
         await logActivity(
-          null,
-          null,
+          user?.id || null,
+          profile?.name || null,
           ActivityActions.UPDATE_CATEGORY,
           `پۆل دەستکاری کرا بۆ: ${newCategoryName.trim()}`,
           EntityTypes.CATEGORY,
@@ -451,8 +499,8 @@ export function useInventoryData(): UseInventoryDataReturn {
       if (!error) {
         // Log the activity
         await logActivity(
-          null,
-          null,
+          user?.id || null,
+          profile?.name || null,
           ActivityActions.ADD_CATEGORY,
           `پۆلی نوێ زیادکرا: ${newCategoryName.trim()}`,
           EntityTypes.CATEGORY
@@ -463,7 +511,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     setShowCategoryModal(false)
     setNewCategoryName('')
     setEditingCategory(null)
-  }, [editingCategory, newCategoryName, fetchCategories])
+  }, [editingCategory, newCategoryName, fetchCategories, user, profile])
 
   const handleAddUnit = useCallback(() => {
     setEditingUnit(null)
@@ -478,6 +526,40 @@ export function useInventoryData(): UseInventoryDataReturn {
     setNewUnitSymbol(unit.symbol || '')
     setShowUnitModal(true)
   }, [])
+
+  // Confirm delete unit - shows confirmation dialog
+  const confirmDeleteUnit = useCallback((unit: Unit) => {
+    setUnitToDelete(unit)
+    setShowDeleteUnitConfirm(true)
+  }, [])
+
+  // Execute delete unit - performs the actual deletion
+  const executeDeleteUnit = useCallback(async () => {
+    if (!unitToDelete || !supabase) return
+    
+    const { error } = await supabase.from('units').delete().eq('id', unitToDelete.id)
+    if (!error) {
+      // Log the activity - ensure user is logged
+      console.log('Logging DELETE_UNIT activity:', { userId: user?.id, profileName: profile?.name })
+      try {
+        await logActivity(
+          user?.id || null,
+          profile?.name || 'سیستەم',
+          ActivityActions.DELETE_UNIT,
+          `یەکەی ${unitToDelete.name} سڕایەوە`,
+          EntityTypes.UNIT,
+          unitToDelete.id
+        )
+      } catch (logError) {
+        console.error('Failed to log DELETE_UNIT activity:', logError)
+      }
+      fetchUnits()
+    } else {
+      console.error('Failed to delete unit:', error)
+    }
+    setShowDeleteUnitConfirm(false)
+    setUnitToDelete(null)
+  }, [unitToDelete, fetchUnits, user, profile])
 
   const handleDeleteUnit = useCallback(async (unit: Unit) => {
     if (!supabase) return
@@ -501,36 +583,50 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (editingUnit) {
       const { error } = await supabase.from('units').update({ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }).eq('id', editingUnit.id)
       if (!error) {
-        // Log the activity
-        await logActivity(
-          null,
-          null,
-          ActivityActions.UPDATE_UNIT,
-          `یەکە دەستکاری کرا بۆ: ${newUnitName.trim()}`,
-          EntityTypes.UNIT,
-          editingUnit.id
-        )
+        // Log the activity - ensure user is logged
+        console.log('Logging UPDATE_UNIT activity:', { userId: user?.id, profileName: profile?.name })
+        try {
+          await logActivity(
+            user?.id || null,
+            profile?.name || 'سیستەم',
+            ActivityActions.UPDATE_UNIT,
+            `یەکە دەستکاری کرا بۆ: ${newUnitName.trim()}`,
+            EntityTypes.UNIT,
+            editingUnit.id
+          )
+        } catch (logError) {
+          console.error('Failed to log UPDATE_UNIT activity:', logError)
+        }
         fetchUnits()
+      } else {
+        console.error('Failed to update unit:', error)
       }
     } else {
       const { error } = await supabase.from('units').insert([{ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }])
       if (!error) {
         // Log the activity
-        await logActivity(
-          null,
-          null,
-          ActivityActions.ADD_UNIT,
-          `یەکەی نوێ زیادکرا: ${newUnitName.trim()}`,
-          EntityTypes.UNIT
-        )
+        console.log('Logging ADD_UNIT activity:', { userId: user?.id, profileName: profile?.name })
+        try {
+          await logActivity(
+            user?.id || null,
+            profile?.name || 'سیستەم',
+            ActivityActions.ADD_UNIT,
+            `یەکەی نوێ زیادکرا: ${newUnitName.trim()}`,
+            EntityTypes.UNIT
+          )
+        } catch (logError) {
+          console.error('Failed to log ADD_UNIT activity:', logError)
+        }
         fetchUnits()
+      } else {
+        console.error('Failed to add unit:', error)
       }
     }
     setShowUnitModal(false)
     setNewUnitName('')
     setNewUnitSymbol('')
     setEditingUnit(null)
-  }, [editingUnit, newUnitName, newUnitSymbol, fetchUnits])
+  }, [editingUnit, newUnitName, newUnitSymbol, fetchUnits, user, profile])
 
   const filteredProducts = products.filter(item => {
     if (selectedCategory && item.category !== selectedCategory) return false
@@ -666,7 +762,9 @@ export function useInventoryData(): UseInventoryDataReturn {
 
   return {
     activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory, archiveStartDate, archiveEndDate, currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete, deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal, newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,
+    showDeleteCategoryConfirm, categoryToDelete, showDeleteUnitConfirm, unitToDelete,
     setActiveTab, setSearchTerm, setSelectedCategory, setArchiveStartDate, setArchiveEndDate, setCurrentStep, setShowStockEntry, setFormData, setShowDeleteConfirm, setItemToDelete, setShowCategoryModal, setShowUnitModal, setNewCategoryName, setNewUnitName, setNewUnitSymbol, setEditingCategory, setEditingUnit,
-    fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers, openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem, handleAddCategory, handleEditCategory, handleDeleteCategory, saveCategory, handleAddUnit, handleEditUnit, handleDeleteUnit, saveUnit, filteredProducts
+    setShowDeleteCategoryConfirm, setCategoryToDelete, setShowDeleteUnitConfirm, setUnitToDelete,
+    fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers, openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem, handleAddCategory, handleEditCategory, confirmDeleteCategory, handleDeleteCategory, executeDeleteCategory, saveCategory, handleAddUnit, handleEditUnit, confirmDeleteUnit, handleDeleteUnit, executeDeleteUnit, saveUnit, filteredProducts
   }
 }

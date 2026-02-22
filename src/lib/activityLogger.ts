@@ -42,10 +42,11 @@ export async function logActivity(
       }
     }
 
-    // The database trigger will automatically set user_name from profiles table
-    // Only send user_id - omit user_name completely to let trigger handle it
+    // Include user_name directly since database trigger may not exist
+    // This ensures activity logs always show the user name
     const { error } = await client.from('activity_logs').insert({
       user_id: finalUserId,
+      user_name: userName, // Include user_name to avoid "Unknown User" issue
       action,
       details,
       entity_type: entityType,
@@ -53,10 +54,13 @@ export async function logActivity(
     })
 
     if (error) {
-      console.error('Error logging activity:', error)
+      // Silent fail for activity logging - don't throw errors for logging failures
+      console.warn('Activity log insert failed:', error.message || 'Unknown error')
     }
   } catch (error) {
-    console.error('Error logging activity:', error)
+    // Silent fail for activity logging - don't throw errors for logging failures
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.warn('Activity logging failed:', errorMessage)
   }
 }
 

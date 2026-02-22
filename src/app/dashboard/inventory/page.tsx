@@ -27,7 +27,10 @@ export default function InventoryPage() {
     fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers,
     openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem,
     handleAddCategory, handleEditCategory, handleDeleteCategory, saveCategory,
-    handleAddUnit, handleEditUnit, handleDeleteUnit, saveUnit, filteredProducts
+    handleAddUnit, handleEditUnit, confirmDeleteCategory, confirmDeleteUnit, executeDeleteCategory, executeDeleteUnit, saveUnit,
+    showDeleteCategoryConfirm, categoryToDelete, showDeleteUnitConfirm, unitToDelete,
+    setShowDeleteCategoryConfirm, setShowDeleteUnitConfirm,
+    filteredProducts
   } = useInventoryData()
   
   // Handle archive filter
@@ -148,7 +151,7 @@ export default function InventoryPage() {
             products={products} 
             onAddCategory={handleAddCategory} 
             onEditCategory={handleEditCategory} 
-            onDeleteCategory={handleDeleteCategory} 
+            onDeleteCategory={confirmDeleteCategory} 
           />
         )}
 
@@ -157,7 +160,7 @@ export default function InventoryPage() {
             units={units} 
             onAddUnit={handleAddUnit} 
             onEditUnit={handleEditUnit} 
-            onDeleteUnit={handleDeleteUnit} 
+            onDeleteUnit={confirmDeleteUnit} 
           />
         )}
 
@@ -488,6 +491,172 @@ export default function InventoryPage() {
                 >
                   {editingUnit ? 'نوێکردنەوە' : 'زیادکردن'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Category Confirmation Modal */}
+        {showDeleteCategoryConfirm && categoryToDelete && (
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }} 
+              className="w-full max-w-md rounded-2xl shadow-2xl p-8 border"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)'
+              }}
+            >
+              <div className="text-center">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+                >
+                  <FaTrash className="text-3xl" style={{ color: '#ef4444' }} />
+                </div>
+                <h3 
+                  className="text-xl font-bold mb-3"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  سڕینەوەی پۆل
+                </h3>
+                <p 
+                  className="mb-4"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  دڵنیایت لە سڕینەوەی پۆلی <span className="font-bold" style={{ color: 'var(--theme-foreground)' }}>{categoryToDelete.name}</span>؟
+                </p>
+                <div 
+                  className="mb-6 p-3 rounded-xl"
+                  style={{ 
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  <p 
+                    style={{ 
+                      color: '#dc2626',
+                      fontFamily: 'var(--font-uni-salar)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    ئاگاداری: ئەم پۆلە لە کاڵاکان بەکاردێت. سڕینەوەی ئەم پۆلە کاریگەری لەسەر کاڵاکان دەبێت.
+                  </p>
+                </div>
+                <div className="flex gap-4 justify-center">
+                  <button 
+                    onClick={() => setShowDeleteCategoryConfirm(false)} 
+                    className="px-6 py-3 rounded-xl font-bold transition-all"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)',
+                      color: 'var(--theme-foreground)',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    پاشگەزبوونەوە
+                  </button>
+                  <button 
+                    onClick={executeDeleteCategory} 
+                    className="px-6 py-3 rounded-xl font-bold transition-all"
+                    style={{ 
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    سڕینەوە
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Unit Confirmation Modal */}
+        {showDeleteUnitConfirm && unitToDelete && (
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
+            <motion.div 
+              initial={{ scale: 0.9 }} 
+              animate={{ scale: 1 }} 
+              className="w-full max-w-md rounded-2xl shadow-2xl p-8 border"
+              style={{ 
+                backgroundColor: 'var(--theme-card-bg)',
+                borderColor: 'var(--theme-card-border)'
+              }}
+            >
+              <div className="text-center">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+                >
+                  <FaTrash className="text-3xl" style={{ color: '#ef4444' }} />
+                </div>
+                <h3 
+                  className="text-xl font-bold mb-3"
+                  style={{ 
+                    color: 'var(--theme-foreground)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  سڕینەوەی یەکە
+                </h3>
+                <p 
+                  className="mb-4"
+                  style={{ 
+                    color: 'var(--theme-secondary)',
+                    fontFamily: 'var(--font-uni-salar)' 
+                  }}
+                >
+                  دڵنیایت لە سڕینەوەی یەکەی <span className="font-bold" style={{ color: 'var(--theme-foreground)' }}>{unitToDelete.name}</span>؟
+                </p>
+                <div 
+                  className="mb-6 p-3 rounded-xl"
+                  style={{ 
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  <p 
+                    style={{ 
+                      color: '#dc2626',
+                      fontFamily: 'var(--font-uni-salar)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    ئاگاداری: ئەم یەکە لە کاڵاکان بەکاردێت. سڕینەوەی ئەم یەکە کاریگەری لەسەر کاڵاکان دەبێت.
+                  </p>
+                </div>
+                <div className="flex gap-4 justify-center">
+                  <button 
+                    onClick={() => setShowDeleteUnitConfirm(false)} 
+                    className="px-6 py-3 rounded-xl font-bold transition-all"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)',
+                      color: 'var(--theme-foreground)',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    پاشگەزبوونەوە
+                  </button>
+                  <button 
+                    onClick={executeDeleteUnit} 
+                    className="px-6 py-3 rounded-xl font-bold transition-all"
+                    style={{ 
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    سڕینەوە
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

@@ -11,7 +11,7 @@ interface UnitGridProps {
   onDeleteUnit: (unit: Unit) => void
 }
 
-export default function UnitGrid({ units, onAddUnit, onEditUnit, onDeleteUnit }: UnitGridProps) {
+export default function UnitGrid({ units, onAddUnit, onEditUnit, onDeleteUnit: confirmDeleteUnit }: UnitGridProps) {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -83,7 +83,7 @@ export default function UnitGrid({ units, onAddUnit, onEditUnit, onDeleteUnit }:
                 <FaEdit />
               </motion.button>
               <motion.button
-                onClick={() => onDeleteUnit(unit)}
+                onClick={() => confirmDeleteUnit(unit)}
                 className="w-10 h-10 flex items-center justify-center rounded-xl shadow-lg transition-colors"
                 style={{ backgroundColor: '#ef4444', color: 'white' }}
                 whileHover={{ scale: 1.05 }}

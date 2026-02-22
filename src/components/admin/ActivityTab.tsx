@@ -54,13 +54,19 @@ const ActionLabels: Record<string, string> = {
   add_customer_payment: 'زیادکردنی پارەدانی کڕیار',
   delete_customer_payment: 'سڕینەوەی پارەدانی کڕیار',
   add_supplier_payment: 'زیادکردنی پارەدانی دابینکار',
-  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکار'
+  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکار',
+  add_category: 'زیادکردنی پۆل',
+  update_category: 'دەستکاریکردنی پۆل',
+  delete_category: 'سڕینەوەی پۆل',
+  add_unit: 'زیادکردنی یەکە',
+  update_unit: 'دەستکاریکردنی یەکە',
+  delete_unit: 'سڕینەوەی یەکە'
 }
 
 function getActionColor(action: string): { bg: string; text: string; border: string } {
-  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user']
-  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role']
-  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment']
+  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
+  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
+  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'delete_category', 'delete_unit']
   const cancelActions = ['cancel_sale', 'refund_sale', 'deactivate_user']
   
   if (addActions.includes(action)) {
@@ -118,6 +124,8 @@ function getEntityIcon(entityType: string | null): string {
     case 'expense': return '💸'
     case 'customer_payment': return '💵'
     case 'supplier_payment': return '💳'
+    case 'category': return '🏷️'
+    case 'unit': return '⚖️'
     default: return '📋'
   }
 }
@@ -233,13 +241,13 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
     
     if (actionFilter !== 'all') {
       if (actionFilter === 'add') {
-        const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user']
+        const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
         if (!addActions.includes(log.action)) return false
       } else if (actionFilter === 'update') {
-        const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role']
+        const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
         if (!updateActions.includes(log.action)) return false
       } else if (actionFilter === 'delete') {
-        const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'cancel_sale', 'refund_sale', 'deactivate_user']
+        const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'cancel_sale', 'refund_sale', 'deactivate_user', 'delete_category', 'delete_unit']
         if (!deleteActions.includes(log.action)) return false
       }
     }

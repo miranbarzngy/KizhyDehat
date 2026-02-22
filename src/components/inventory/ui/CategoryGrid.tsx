@@ -12,7 +12,7 @@ interface CategoryGridProps {
   onDeleteCategory: (category: Category) => void
 }
 
-export default function CategoryGrid({ categories, products, onAddCategory, onEditCategory, onDeleteCategory }: CategoryGridProps) {
+export default function CategoryGrid({ categories, products, onAddCategory, onEditCategory, onDeleteCategory: confirmDeleteCategory }: CategoryGridProps) {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -83,8 +83,8 @@ export default function CategoryGrid({ categories, products, onAddCategory, onEd
                 >
                   <FaEdit />
                 </motion.button>
-                <motion.button
-                  onClick={() => onDeleteCategory(category)}
+              <motion.button
+                onClick={() => confirmDeleteCategory(category)}
                   className="w-10 h-10 flex items-center justify-center rounded-xl shadow-lg transition-colors"
                   style={{ backgroundColor: '#ef4444', color: 'white' }}
                   whileHover={{ scale: 1.05 }}

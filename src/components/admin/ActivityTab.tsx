@@ -233,6 +233,7 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
       const search = searchTerm.toLowerCase()
       const matchesSearch = 
         log.profiles?.name?.toLowerCase().includes(search) ||
+        log.user_name?.toLowerCase().includes(search) ||
         log.action?.toLowerCase().includes(search) ||
         log.details?.toLowerCase().includes(search) ||
         log.entity_type?.toLowerCase().includes(search)
@@ -422,8 +423,8 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
                 <AnimatePresence>
                   {filteredLogs.map((log, index) => {
                     const colors = getActionColor(log.action)
-                    // FORCE PROFILE NAME - ignore user_name completely
-                    const displayName = log.profiles?.name || 'بەکارهێنەری نەناسراو'
+                    // FIXED: Use profiles.name first, then fall back to user_name from activity_logs, then show unknown
+                    const displayName = log.profiles?.name || log.user_name || 'بەکارهێنەری نەناسراو'
                     
                     return (
                       <motion.tr
@@ -463,7 +464,7 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
                           })()}
                         </td>
 
-                        {/* User - ONLY use profiles.name */}
+                        {/* User - FIXED: Use both profiles.name and user_name */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div 

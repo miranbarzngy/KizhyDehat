@@ -101,31 +101,47 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
       const fileName = `profile_${user.id}_${Date.now()}.${fileExt}`
 
-      // Upload to profile-images bucket
-      const { error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(fileName, file)
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError)
-        alert('هەڵە لە ئەپلۆدکردنی وێنە')
+      // Try profile-images bucket first, then fallback to existing buckets
+      const bucketNames = ['profile-images', 'shop-logos', 'product-images']
+      let uploadSuccess = false
+      let publicUrl = ''
+      
+      for (const bucketName of bucketNames) {
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from(bucketName)
+            .upload(fileName, file)
+          
+          if (uploadError) {
+            console.log(`Failed to upload to ${bucketName}:`, uploadError.message)
+            continue
+          }
+          
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(fileName)
+          
+          if (urlData?.publicUrl) {
+            publicUrl = urlData.publicUrl
+            uploadSuccess = true
+            break
+          }
+        } catch (bucketError) {
+          console.log(`Bucket ${bucketName} error:`, bucketError)
+          continue
+        }
+      }
+      
+      if (!uploadSuccess || !publicUrl) {
+        alert('هەڵە لە ئەپلۆدکردن')
         return
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(fileName)
-
-      if (!urlData?.publicUrl) {
-        alert('هەڵە لە وەرگرتنی URL')
-        return
-      }
-
-      // Update profile in database
+      // Update profile in database with the public URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ image: urlData.publicUrl })
+        .update({ image: publicUrl })
         .eq('id', user.id)
 
       if (updateError) {

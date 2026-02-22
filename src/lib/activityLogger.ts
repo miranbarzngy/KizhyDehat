@@ -107,7 +107,17 @@ export const ActivityActions = {
   
   // Supplier payment actions
   ADD_SUPPLIER_PAYMENT: 'add_supplier_payment',
-  DELETE_SUPPLIER_PAYMENT: 'delete_supplier_payment'
+  DELETE_SUPPLIER_PAYMENT: 'delete_supplier_payment',
+  
+  // Category actions
+  ADD_CATEGORY: 'add_category',
+  UPDATE_CATEGORY: 'update_category',
+  DELETE_CATEGORY: 'delete_category',
+  
+  // Unit actions
+  ADD_UNIT: 'add_unit',
+  UPDATE_UNIT: 'update_unit',
+  DELETE_UNIT: 'delete_unit'
 } as const
 
 // Entity types
@@ -119,7 +129,9 @@ export const EntityTypes = {
   USER: 'user',
   EXPENSE: 'expense',
   CUSTOMER_PAYMENT: 'customer_payment',
-  SUPPLIER_PAYMENT: 'supplier_payment'
+  SUPPLIER_PAYMENT: 'supplier_payment',
+  CATEGORY: 'category',
+  UNIT: 'unit'
 } as const
 
 // Kurdish action labels
@@ -167,14 +179,24 @@ export const ActionLabels: Record<string, string> = {
   add_customer_payment: 'زیادکردنی پارەدانی کڕیار',
   delete_customer_payment: 'سڕینەوەی پارەدانی کڕیار',
   add_supplier_payment: 'زیادکردنی پارەدانی دابینکار',
-  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکار'
+  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکار',
+  
+  // Categories
+  add_category: 'زیادکردنی پۆل',
+  update_category: 'دەستکاریکردنی پۆل',
+  delete_category: 'سڕینەوەی پۆل',
+  
+  // Units
+  add_unit: 'زیادکردنی یەکە',
+  update_unit: 'دەستکاریکردنی یەکە',
+  delete_unit: 'سڕینەوەی یەکە'
 }
 
 // Get color for action type
 export function getActionColor(action: string): string {
-  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user']
-  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role']
-  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment']
+  const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
+  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
+  const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'delete_category', 'delete_unit']
   const cancelActions = ['cancel_sale', 'refund_sale', 'deactivate_user']
   
   if (addActions.includes(action)) return 'green'

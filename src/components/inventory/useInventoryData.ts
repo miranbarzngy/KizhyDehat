@@ -416,17 +416,49 @@ export function useInventoryData(): UseInventoryDataReturn {
   const handleDeleteCategory = useCallback(async (category: Category) => {
     if (!supabase) return
     const { error } = await supabase.from('categories').delete().eq('id', category.id)
-    if (!error) fetchCategories()
+    if (!error) {
+      // Log the activity
+      await logActivity(
+        null,
+        null,
+        ActivityActions.DELETE_CATEGORY,
+        `پۆلی ${category.name} سڕایەوە`,
+        EntityTypes.CATEGORY,
+        category.id
+      )
+      fetchCategories()
+    }
   }, [fetchCategories])
 
   const saveCategory = useCallback(async () => {
     if (!supabase) return
     if (editingCategory) {
       const { error } = await supabase.from('categories').update({ name: newCategoryName.trim() }).eq('id', editingCategory.id)
-      if (!error) fetchCategories()
+      if (!error) {
+        // Log the activity
+        await logActivity(
+          null,
+          null,
+          ActivityActions.UPDATE_CATEGORY,
+          `پۆل دەستکاری کرا بۆ: ${newCategoryName.trim()}`,
+          EntityTypes.CATEGORY,
+          editingCategory.id
+        )
+        fetchCategories()
+      }
     } else {
       const { error } = await supabase.from('categories').insert([{ name: newCategoryName.trim() }])
-      if (!error) fetchCategories()
+      if (!error) {
+        // Log the activity
+        await logActivity(
+          null,
+          null,
+          ActivityActions.ADD_CATEGORY,
+          `پۆلی نوێ زیادکرا: ${newCategoryName.trim()}`,
+          EntityTypes.CATEGORY
+        )
+        fetchCategories()
+      }
     }
     setShowCategoryModal(false)
     setNewCategoryName('')
@@ -450,17 +482,49 @@ export function useInventoryData(): UseInventoryDataReturn {
   const handleDeleteUnit = useCallback(async (unit: Unit) => {
     if (!supabase) return
     const { error } = await supabase.from('units').delete().eq('id', unit.id)
-    if (!error) fetchUnits()
+    if (!error) {
+      // Log the activity
+      await logActivity(
+        null,
+        null,
+        ActivityActions.DELETE_UNIT,
+        `یەکەی ${unit.name} سڕایەوە`,
+        EntityTypes.UNIT,
+        unit.id
+      )
+      fetchUnits()
+    }
   }, [fetchUnits])
 
   const saveUnit = useCallback(async () => {
     if (!supabase) return
     if (editingUnit) {
       const { error } = await supabase.from('units').update({ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }).eq('id', editingUnit.id)
-      if (!error) fetchUnits()
+      if (!error) {
+        // Log the activity
+        await logActivity(
+          null,
+          null,
+          ActivityActions.UPDATE_UNIT,
+          `یەکە دەستکاری کرا بۆ: ${newUnitName.trim()}`,
+          EntityTypes.UNIT,
+          editingUnit.id
+        )
+        fetchUnits()
+      }
     } else {
       const { error } = await supabase.from('units').insert([{ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }])
-      if (!error) fetchUnits()
+      if (!error) {
+        // Log the activity
+        await logActivity(
+          null,
+          null,
+          ActivityActions.ADD_UNIT,
+          `یەکەی نوێ زیادکرا: ${newUnitName.trim()}`,
+          EntityTypes.UNIT
+        )
+        fetchUnits()
+      }
     }
     setShowUnitModal(false)
     setNewUnitName('')

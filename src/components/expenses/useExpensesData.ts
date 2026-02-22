@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Expense, DateFilters, ExpenseFormData, ExpenseTab } from './types';
+import { logActivity } from '@/lib/activityLogger';
 
 interface UseExpensesDataReturn {
   expenses: Expense[];
@@ -141,15 +142,32 @@ export function useExpensesData(): UseExpensesDataReturn {
     if (!formData.name || formData.amount <= 0) { alert('تکایە ناو و بڕ پڕبکەرەوە'); return; }
     if (!supabase) { alert('Supabase not configured'); return; }
     try {
-      const { error } = await supabase.from('expenses').insert({
+      const { data, error } = await supabase.from('expenses').insert({
         description: formData.name,
         name: formData.name,
         amount: formData.amount,
         image: formData.image,
         note: formData.note,
         date: new Date().toISOString().split('T')[0]
-      });
+      }).select().single();
       if (error) throw error;
+      
+      // Log the activity
+      if (data) {
+        try {
+          await logActivity(
+            null,
+            null,
+            'add_expense',
+            `زیادکردنی خەرجی: ${formData.name} بە بڕی ${formData.amount.toLocaleString()} دینار`,
+            'expense',
+            data.id
+          );
+        } catch (logError) {
+          console.error('Error logging expense add:', logError);
+        }
+      }
+      
       setFormData(DEFAULT_FORM_DATA);
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchExpenses();
@@ -168,6 +186,21 @@ export function useExpensesData(): UseExpensesDataReturn {
         note: formData.note
       }).eq('id', editingExpense.id);
       if (error) throw error;
+      
+      // Log the activity
+      try {
+        await logActivity(
+          null,
+          null,
+          'update_expense',
+          `دەستکاریکردنی خەرجی: ${formData.name}`,
+          'expense',
+          editingExpense.id
+        );
+      } catch (logError) {
+        console.error('Error logging expense update:', logError);
+      }
+      
       setEditingExpense(null);
       setFormData(DEFAULT_FORM_DATA);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -178,8 +211,28 @@ export function useExpensesData(): UseExpensesDataReturn {
   const deleteExpense = useCallback(async (id: string) => {
     if (!supabase) { alert('Supabase not configured'); return; }
     try {
+      // First get the expense data before deleting
+      const { data: expenseData } = await supabase.from('expenses').select('name').eq('id', id).single();
+      
       const { error } = await supabase.from('expenses').delete().eq('id', id);
       if (error) throw error;
+      
+      // Log the activity
+      if (expenseData) {
+        try {
+          await logActivity(
+            null,
+            null,
+            'delete_expense',
+            `سڕینەوەی خەرجی: ${expenseData.name}`,
+            'expense',
+            id
+          );
+        } catch (logError) {
+          console.error('Error logging expense delete:', logError);
+        }
+      }
+      
       setShowDeleteConfirm(null);
       fetchExpenses();
     } catch (error) { console.error('Error deleting expense:', error); alert('هەڵە'); }

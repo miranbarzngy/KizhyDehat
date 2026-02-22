@@ -270,6 +270,45 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
             purchase_date: formData.added_date, 
             reference_id: referenceId
           })
+          
+          // Handle supplier debt sync
+          if (formData.is_not_fully_paid && formData.remain_amount > 0) {
+            const debtAmount = Number(formData.remain_amount)
+            
+            // Get current supplier's total_debt
+            const { data: currentSupplier } = await supabase
+              .from('suppliers')
+              .select('total_debt')
+              .eq('id', formData.supplier_id)
+              .single()
+            
+            const newDebt = (currentSupplier?.total_debt || 0) + debtAmount
+            
+            // Update supplier's total_debt
+            await supabase
+              .from('suppliers')
+              .update({ total_debt: newDebt })
+              .eq('id', formData.supplier_id)
+            
+            // Insert supplier_payment record (negative amount = debt added)
+            await supabase.from('supplier_payments').insert({
+              supplier_id: formData.supplier_id,
+              amount: -debtAmount,
+              date: new Date().toISOString(),
+              note: `قەرزی کاڵای نوێ: ${formData.name}`
+            })
+            
+            // Log the supplier payment activity
+            console.log('[Activity] Logging ADD_SUPPLIER_PAYMENT for debt:', formData.name)
+            await logActivity(
+              null,
+              null,
+              ActivityActions.ADD_SUPPLIER_PAYMENT,
+              `زیادکردنی قەرزی دابینکار بە بڕی ${debtAmount.toLocaleString()} IQD بۆ کاڵای ${formData.name}`,
+              EntityTypes.SUPPLIER_PAYMENT,
+              null
+            )
+          }
         }
       }
       localStorage.removeItem('zombie_submission')
@@ -351,7 +390,7 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
               <div>
                 <label className="block text-sm mb-2 flex items-center gap-2" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}>
                   <FaBalanceScale className="text-sm" style={{ color: 'var(--theme-accent)' }} />
-                  دابینکەر *
+                  دابینکار *
                 </label>
                 <div className="relative" ref={supplierDropdownRef}>
                   {/* Search Input */}

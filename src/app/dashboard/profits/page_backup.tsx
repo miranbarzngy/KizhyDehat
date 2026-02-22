@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import InvoiceTemplate from '@/components/InvoiceTemplate'
 import { Eye, TrendingUp, TrendingDown, DollarSign, Wallet, Percent, CreditCard, Calendar, BarChart3, PieChart } from 'lucide-react'
@@ -199,7 +199,7 @@ export default function ProfitsPage() {
       
       const invoiceData = {
         invoiceNumber: purchaseData.id.slice(0, 8).toUpperCase(),
-        customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر',
+        customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکار',
         customerPhone: purchaseData.supplier_phone || '',
         sellerName: '',
         date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'),
@@ -214,7 +214,7 @@ export default function ProfitsPage() {
         shopAddress: invoiceSettings?.shop_address || '',
         shopLogo: invoiceSettings?.shop_logo || '',
         qrCodeUrl: invoiceSettings?.qr_code_url || '',
-        thankYouNote: 'کڕین لە دابینکەر • ' + (invoiceSettings?.thank_you_note || 'سوپاس بۆ هاوکارییەکانتان!')
+        thankYouNote: 'کڕین لە دابینکار • ' + (invoiceSettings?.thank_you_note || 'سوپاس بۆ هاوکارییەکانتان!')
       }
       
       setSelectedInvoiceData(invoiceData)

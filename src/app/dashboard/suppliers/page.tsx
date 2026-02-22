@@ -187,7 +187,7 @@ export default function SuppliersPage() {
             null,
             null,
             'update_supplier',
-            `دەستکاریکردنی زانیارییەکانی دابینکەر: ${data.name}`,
+            `دەستکاریکردنی زانیارییەکانی دابینکار: ${data.name}`,
             'supplier',
             editingSupplier.id
           )
@@ -199,7 +199,7 @@ export default function SuppliersPage() {
         await fetchSuppliers()
         setEditingSupplier(null)
         setShowAddModal(false)
-        showSuccess('دابینکەرەکە نوێکرایەوە')
+        showSuccess('دابینکارەکە نوێکرایەوە')
       } else {
         const { error } = await supabase.from('suppliers').insert({
           name: data.name,
@@ -219,14 +219,14 @@ export default function SuppliersPage() {
 
         await fetchSuppliers()
         setShowAddModal(false)
-        showSuccess('دابینکەرەکە زیادکرا')
+        showSuccess('دابینکارەکە زیادکرا')
         
         // Log the activity
         await logActivity(
           null,
           null,
           ActivityActions.ADD_SUPPLIER,
-          `دابینکەری ${data.name} زیادکرا`,
+          `دابینکاری ${data.name} زیادکرا`,
           EntityTypes.SUPPLIER
         )
       }
@@ -241,7 +241,7 @@ export default function SuppliersPage() {
   const confirmDeleteSupplier = (supplier: Supplier) => {
     setPendingDeleteSupplier(supplier)
     setConfirmModalConfig({
-      title: 'سڕینەوەی دابینکەر',
+      title: 'سڕینەوەی دابینکار',
       message: `دڵنیایت لە سڕینەوەی "${supplier.name}"؟`,
       onConfirm: () => executeDeleteSupplier(supplier)
     })
@@ -291,13 +291,13 @@ export default function SuppliersPage() {
       }
 
       if (hasProducts) {
-        showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە چونکە بەرهەمەکانی لە لیستی کاڵاکاندایە')
+        showError('ناتوانرێت ئەم دابینکارە بسڕدرێتەوە چونکە بەرهەمەکانی لە لیستی کاڵاکاندایە')
         setShowConfirmModal(false)
         return
       }
 
       if (hasTransactions || hasPayments) {
-        showError('ناتوانرێت ئەم دابینکەرە بسڕدرێتەوە چونکە مێژووی پارەدانەکانی هەیە')
+        showError('ناتوانرێت ئەم دابینکارە بسڕدرێتەوە چونکە مێژووی پارەدانەکانی هەیە')
         setShowConfirmModal(false)
         return
       }
@@ -312,14 +312,14 @@ export default function SuppliersPage() {
       }
 
       await fetchSuppliers()
-      showSuccess('دابینکەرەکە سڕایەوە')
+      showSuccess('دابینکارەکە سڕایەوە')
 
       // Log the activity
       await logActivity(
         null,
         null,
         ActivityActions.DELETE_SUPPLIER,
-        `دابینکەر ${supplier.name} سڕایەوە`,
+        `دابینکار ${supplier.name} سڕایەوە`,
         EntityTypes.SUPPLIER,
         supplier.id
       )
@@ -640,13 +640,13 @@ export default function SuppliersPage() {
   return (
     <div className="p-6 pl-0 md:pl-6">
       <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>
-        بەڕێوەبردنی دابینکەران
+        بەڕێوەبردنی دابینکاران
       </h1>
 
       <div className="rounded-3xl p-6 shadow-lg border" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>
-            لیستی دابینکەران
+            لیستی دابینکاران
           </h2>
           <div className="flex items-center space-x-2">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors`} style={{ backgroundColor: viewMode === 'grid' ? 'var(--theme-accent)' : 'var(--theme-muted)', color: viewMode === 'grid' ? '#ffffff' : 'var(--theme-secondary)' }}>
@@ -683,7 +683,7 @@ export default function SuppliersPage() {
                 <FaPlus size={32} style={{ color: 'var(--theme-accent)' }} />
               </div>
               <span className="text-lg font-semibold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>
-                زیادکردنی دابینکەر
+                زیادکردنی دابینکار
               </span>
             </motion.div>
             
@@ -700,7 +700,7 @@ export default function SuppliersPage() {
               <div className="col-span-full p-12 rounded-2xl shadow-lg text-center" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)', borderWidth: '1px' }}>
                 <div className="text-6xl mb-4">🏢</div>
                 <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.2rem', color: 'var(--theme-secondary)' }}>
-                  هیچ دابینکەر نەدۆزرایەوە
+                  هیچ دابینکار نەدۆزرایەوە
                 </p>
               </div>
             )}
@@ -753,7 +753,7 @@ export default function SuppliersPage() {
                 <div>
                   <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>
                     <FaBox className="text-indigo-400" />
-                    لیستی کاڵاکانی دابینکەر
+                    لیستی کاڵاکانی دابینکار
                   </h3>
                   <p className="text-sm mt-1" style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)' }}>
                     {selectedSupplier.name}
@@ -843,7 +843,7 @@ export default function SuppliersPage() {
                   <div className="text-center py-12">
                     <div className="text-6xl mb-4">📦</div>
                     <p style={{ fontFamily: 'var(--font-uni-salar)', fontSize: '1.1rem', color: 'rgba(255, 255, 255, 0.6)' }}>
-                      هیچ کاڵایەک بۆ ئەم دابینکەرە تۆمار نەکراوە
+                      هیچ کاڵایەک بۆ ئەم دابینکارە تۆمار نەکراوە
                     </p>
                   </div>
                 )}

@@ -168,7 +168,7 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
             className="text-2xl font-bold mb-6 text-center"
             style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
           >
-            {isEdit ? 'دەستکاریکردن' : 'زیادکردنی دابینکەر'}
+            {isEdit ? 'دەستکاریکردن' : 'زیادکردنی دابینکار'}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -191,7 +191,7 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="ناوی دابینکەر"
+                  placeholder="ناوی دابینکار"
                   className="w-full px-4 py-3 pr-10 rounded-xl border transition-all focus:ring-2 outline-none"
                   style={{
                     backgroundColor: 'var(--theme-muted)',
@@ -307,7 +307,7 @@ export default function SupplierForm({ isOpen, onClose, onSave, isEdit = false, 
               className="block text-sm font-medium mb-2"
               style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
             >
-              وێنەی دابینکەر
+              وێنەی دابینکار
             </label>
             <input 
               type="file" 

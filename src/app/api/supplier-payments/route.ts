@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         null,
         null,
         'add_supplier_payment',
-        `پارەدانی ${parseFloat(amount).toLocaleString()} دینار بۆ دابینکەر: ${supplierName}`,
+        `پارەدانی ${parseFloat(amount).toLocaleString()} دینار بۆ دابینکار: ${supplierName}`,
         'supplier_payment',
         data.id,
         supabase
@@ -182,7 +182,7 @@ export async function DELETE(request: Request) {
         null,
         null,
         'delete_supplier_payment',
-        `سڕینەوەی پارەدانی ${paymentAmount.toLocaleString()} دینار بۆ دابینکەر: ${supplierName}`,
+        `سڕینەوەی پارەدانی ${paymentAmount.toLocaleString()} دینار بۆ دابینکار: ${supplierName}`,
         'supplier_payment',
         id,
         supabase

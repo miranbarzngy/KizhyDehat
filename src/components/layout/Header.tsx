@@ -22,7 +22,7 @@ const menuItems = [
   { name: 'فرۆشتن', href: '/dashboard/sales', icon: '💰', permission: 'sales' },
   { name: 'کۆگا', href: '/dashboard/inventory', icon: '📦', permission: 'inventory' },
   { name: 'کڕیاران', href: '/dashboard/customers', icon: '👥', permission: 'customers' },
-  { name: 'دابینکەران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
+  { name: 'دابینکاران', href: '/dashboard/suppliers', icon: '🏭', permission: 'suppliers' },
   { name: 'پسوڵەکان', href: '/dashboard/invoices', icon: '🧾', permission: 'sales' },
   { name: 'خەرجییەکان', href: '/dashboard/expenses', icon: '💸', permission: 'expenses' },
   { name: 'قازانج', href: '/dashboard/profits', icon: '📈', permission: 'profits' },

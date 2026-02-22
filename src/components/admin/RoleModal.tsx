@@ -22,7 +22,7 @@ const permissionList = [
   { key: 'sales', name: 'فرۆشتن', icon: '💰' },
   { key: 'inventory', name: 'کۆگا', icon: '📦' },
   { key: 'customers', name: 'کڕیاران', icon: '👥' },
-  { key: 'suppliers', name: 'دابینکەران', icon: '🏭' },
+  { key: 'suppliers', name: 'دابینکاران', icon: '🏭' },
   { key: 'expenses', name: 'خەرجییەکان', icon: '💸' },
   { key: 'profits', name: 'قازانج', icon: '📈' },
   { key: 'help', name: 'یارمەتی', icon: '❓' },

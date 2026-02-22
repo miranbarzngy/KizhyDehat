@@ -53,7 +53,7 @@ export default function ProfitsPage() {
       if (error) throw error
       const invoiceData = { 
         invoiceNumber: 0, 
-        customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکەر', 
+        customerName: purchaseData.supplier_name || purchaseData.item_name || 'دابینکار',
         customerPhone: purchaseData.supplier_phone || '', 
         sellerName: '', 
         date: new Date(purchaseData.purchase_date).toLocaleDateString('ku'), 

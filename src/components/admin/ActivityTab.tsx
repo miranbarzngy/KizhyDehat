@@ -36,9 +36,9 @@ const ActionLabels: Record<string, string> = {
   add_customer: 'زیادکردنی کڕیار',
   update_customer: 'دەستکاریکردنی کڕیار',
   delete_customer: 'سڕینەوەی کڕیار',
-  add_supplier: 'زیادکردنی دابینکەر',
-  update_supplier: 'دەستکاریکردنی دابینکەر',
-  delete_supplier: 'سڕینەوەی دابینکەر',
+  add_supplier: 'زیادکردنی دابینکار',
+  update_supplier: 'دەستکاریکردنی دابینکار',
+  delete_supplier: 'سڕینەوەی دابینکار',
   add_user: 'زیادکردنی بەکارهێنەر',
   update_user: 'دەستکاریکردنی بەکارهێنەر',
   delete_user: 'سڕینەوەی بەکارهێنەر',
@@ -50,8 +50,8 @@ const ActionLabels: Record<string, string> = {
   delete_expense: 'سڕینەوەی خەرجی',
   add_customer_payment: 'زیادکردنی پارەدانی کڕیار',
   delete_customer_payment: 'سڕینەوەی پارەدانی کڕیار',
-  add_supplier_payment: 'زیادکردنی پارەدانی دابینکەر',
-  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکەر'
+  add_supplier_payment: 'زیادکردنی پارەدانی دابینکار',
+  delete_supplier_payment: 'سڕینەوەی پارەدانی دابینکار'
 }
 
 function getActionColor(action: string): { bg: string; text: string; border: string } {

@@ -39,6 +39,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 })
     }
 
+    // Recalculate supplier's total debt after adding payment
+    // Debt = (Sum of transactions) - (Sum of payments)
+    const { data: transactions } = await supabase
+      .from('supplier_transactions')
+      .select('debt_amount')
+      .eq('supplier_id', supplier_id)
+
+    const { data: payments } = await supabase
+      .from('supplier_payments')
+      .select('amount')
+      .eq('supplier_id', supplier_id)
+
+    const totalDebtFromTransactions = (transactions || []).reduce((sum, tx) => sum + (tx.debt_amount || 0), 0)
+    const totalPaidFromPayments = (payments || []).reduce((sum, pay) => sum + (pay.amount || 0), 0)
+    const newDebt = Math.max(0, totalDebtFromTransactions - totalPaidFromPayments)
+
+    // Update supplier's total_debt
+    await supabase
+      .from('suppliers')
+      .update({ total_debt: newDebt })
+      .eq('id', supplier_id)
+
     // Log the activity
     try {
       const { data: supplierData } = await supabase
@@ -63,7 +85,7 @@ export async function POST(request: Request) {
     }
 
     console.log('Insert success:', data)
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data, newDebt })
     
   } catch (err: any) {
     console.error('Catch error:', err)
@@ -129,7 +151,29 @@ export async function PUT(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, data })
+    // Recalculate supplier's total debt after update
+    // Debt = (Sum of transactions) - (Sum of payments)
+    const { data: transactions } = await supabase
+      .from('supplier_transactions')
+      .select('debt_amount')
+      .eq('supplier_id', supplier_id)
+
+    const { data: payments } = await supabase
+      .from('supplier_payments')
+      .select('amount')
+      .eq('supplier_id', supplier_id)
+
+    const totalDebtFromTransactions = (transactions || []).reduce((sum, tx) => sum + (tx.debt_amount || 0), 0)
+    const totalPaidFromPayments = (payments || []).reduce((sum, pay) => sum + (pay.amount || 0), 0)
+    const newDebt = Math.max(0, totalDebtFromTransactions - totalPaidFromPayments)
+
+    // Update supplier's total_debt
+    await supabase
+      .from('suppliers')
+      .update({ total_debt: newDebt })
+      .eq('id', supplier_id)
+
+    return NextResponse.json({ success: true, data, newDebt })
   } catch (error: any) {
     console.error('Error updating payment:', error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
@@ -168,6 +212,28 @@ export async function DELETE(request: Request) {
 
     if (error) throw error
 
+    // Recalculate supplier's total debt after deletion
+    // Debt = (Sum of transactions) - (Sum of payments)
+    const { data: transactions } = await supabase
+      .from('supplier_transactions')
+      .select('debt_amount')
+      .eq('supplier_id', supplierId)
+
+    const { data: remainingPayments } = await supabase
+      .from('supplier_payments')
+      .select('amount')
+      .eq('supplier_id', supplierId)
+
+    const totalDebtFromTransactions = (transactions || []).reduce((sum, tx) => sum + (tx.debt_amount || 0), 0)
+    const totalPaidFromPayments = (remainingPayments || []).reduce((sum, pay) => sum + (pay.amount || 0), 0)
+    const newDebt = Math.max(0, totalDebtFromTransactions - totalPaidFromPayments)
+
+    // Update supplier's total_debt
+    await supabase
+      .from('suppliers')
+      .update({ total_debt: newDebt })
+      .eq('id', supplierId)
+
     // Log the delete activity
     try {
       const { data: supplierData } = await supabase
@@ -191,7 +257,7 @@ export async function DELETE(request: Request) {
       console.error('Error logging delete activity:', logError)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, newDebt })
   } catch (error: any) {
     console.error('Error deleting payment:', error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })

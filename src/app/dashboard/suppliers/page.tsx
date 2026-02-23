@@ -904,14 +904,53 @@ export default function SuppliersPage() {
                 </form>
               </div>
 
+              {/* Purchase Debts Section - from supplier_transactions */}
               <div>
-                <h4 className="text-lg font-semibold mb-4" style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>لیستی پارەدانەکان</h4>
+                <h4 className="text-lg font-semibold mb-4" style={{ color: '#fca5a5', fontFamily: 'var(--font-uni-salar)' }}>قەرزی کڕین (مێژوو)</h4>
+                {loadingTransactions ? (
+                  <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div></div>
+                ) : transactions.length > 0 ? (
+                  <div className="space-y-2">
+                    {transactions.map((tx) => (
+                      <div key={tx.id} className="flex items-center justify-between p-3 mb-2 rounded-xl" style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)' }}>
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="text-center min-w-[80px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بەروار</div>
+                            <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{new Date(tx.date).toLocaleDateString('en-US')}</div>
+                          </div>
+                          <div className="text-center min-w-[100px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>کاڵا</div>
+                            <div style={{ color: '#fca5a5', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>{tx.item_name}</div>
+                          </div>
+                          <div className="text-center min-w-[80px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>کۆی نرخ</div>
+                            <div style={{ color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}>{toEnglishDigits(tx.total_price?.toLocaleString('en-US') || '0')} د.ع</div>
+                          </div>
+                          <div className="text-center min-w-[80px]">
+                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>قەرز</div>
+                            <div style={{ color: '#fca5a5', fontFamily: 'var(--font-uni-salar)', fontWeight: 'bold' }}>{toEnglishDigits(tx.debt_amount?.toLocaleString('en-US') || '0')} د.ع</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <div className="text-4xl mb-2">📦</div>
+                    <p style={{ fontFamily: 'var(--font-uni-salar)', color: 'rgba(255, 255, 255, 0.5)' }}>هیچ قەرزێکی کڕین نییە</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Cash Payments Section - from supplier_payments */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4" style={{ color: '#86efac', fontFamily: 'var(--font-uni-salar)' }}>پارەدانی نەقد (مێژوو)</h4>
                 {loadingPayments ? (
                   <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div></div>
                 ) : payments.length > 0 ? (
                   <div className="space-y-2">
                     {payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-3 mb-2 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <div key={payment.id} className="flex items-center justify-between p-3 mb-2 rounded-xl" style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
                         <div className="flex items-center gap-4">
                           <div className="text-center min-w-[80px]">
                             <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontFamily: 'var(--font-uni-salar)', fontSize: '0.75rem' }}>بەروار</div>

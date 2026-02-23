@@ -271,9 +271,11 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
             reference_id: referenceId
           })
           
-          // Handle supplier debt sync
+          // Handle supplier debt sync - store in supplier_transactions
           if (formData.is_not_fully_paid && formData.remain_amount > 0) {
             const debtAmount = Number(formData.remain_amount)
+            const totalPrice = Number(formData.price_of_bought)
+            const amountPaid = totalPrice - debtAmount
             
             // Get current supplier's total_debt
             const { data: currentSupplier } = await supabase
@@ -290,21 +292,25 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
               .update({ total_debt: newDebt })
               .eq('id', formData.supplier_id)
             
-            // Insert supplier_payment record (negative amount = debt added)
-            await supabase.from('supplier_payments').insert({
+            // Insert supplier_transaction record (NEW PRODUCT DEBT)
+            // This is a purchase debt, NOT a payment - should go to supplier_transactions
+            await supabase.from('supplier_transactions').insert({
               supplier_id: formData.supplier_id,
-              amount: -debtAmount,
-              date: new Date().toISOString(),
-              note: `قەرزی کاڵای نوێ: ${formData.name}`
+              item_name: formData.name,
+              total_price: totalPrice,
+              amount_paid: amountPaid,
+              debt_amount: debtAmount,
+              date: formData.added_date || new Date().toISOString(),
+              reference_id: referenceId
             })
             
-            // Log the supplier payment activity
-            console.log('[Activity] Logging ADD_SUPPLIER_PAYMENT for debt:', formData.name)
+            // Log the supplier transaction activity (purchase debt)
+            console.log('[Activity] Logging ADD_SUPPLIER_TRANSACTION for debt:', formData.name)
             await logActivity(
               null,
               null,
               ActivityActions.ADD_SUPPLIER_PAYMENT,
-              `زیادکردنی قەرزی دابینکار بە بڕی ${debtAmount.toLocaleString()} IQD بۆ کاڵای ${formData.name}`,
+              `قەرزی کڕینی کاڵا بە بڕی ${debtAmount.toLocaleString()} IQD بۆ کاڵای ${formData.name}`,
               EntityTypes.SUPPLIER_PAYMENT,
               null
             )

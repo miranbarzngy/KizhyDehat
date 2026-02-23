@@ -14,11 +14,14 @@ export interface ProfitItem {
   profit: number
   date: string
   time?: string
+  customer_name?: string
+  customer_phone?: string
 }
 
 export interface SaleItem {
   id: string
   customer_name?: string
+  customer_phone?: string
   total: number
   payment_method: string
   date: string

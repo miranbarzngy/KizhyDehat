@@ -34,6 +34,7 @@ export default function ProfitsPage() {
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [loading, setLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Prevent hydration mismatch
   useEffect(() => {
@@ -190,7 +191,7 @@ export default function ProfitsPage() {
   const fetchSalesData = async (dateFromParam?: string, dateToParam?: string) => {
     if (!supabase) { setCashSales([]); setOnlineSales([]); setPayLaterSales([]); return }
     try {
-      let query = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name), sale_items(quantity, price, total, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
+      let query = supabase.from('sales').select('id, total, payment_method, date, created_at, customers!left(name, phone1), sale_items(quantity, price, total, products!inner(name))').eq('status', 'completed').order('date', { ascending: false })
       
       if (dateFromParam) {
         query = query.gte('date', dateFromParam)
@@ -220,9 +221,13 @@ export default function ProfitsPage() {
             }
           }
           
+          // For cash sales with no customer, show "کڕیاری گشتی" (General Customer)
+          const customerName = sale.customers?.name || (sale.payment_method === 'cash' ? 'کڕیاری گشتی' : 'نەناسراو')
+          
           return { 
             id: sale.id, 
-            customer_name: sale.customers?.name || 'نەناسراو', 
+            customer_name: customerName,
+            customer_phone: sale.customers?.phone1 || '', 
             total: sale.total, 
             payment_method: sale.payment_method, 
             date: saleDate, 
@@ -244,7 +249,7 @@ export default function ProfitsPage() {
   const fetchProfitsData = async (dateFromParam?: string, dateToParam?: string) => {
     if (!supabase) { setProfits([]); setTotalProfit(0); return }
     try {
-      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, created_at, discount_amount, subtotal, status, invoice_number), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
+      let query = supabase.from('sale_items').select('id, quantity, price, cost_price, item_id, sales!inner(id, date, created_at, discount_amount, subtotal, status, invoice_number, customers!inner(name, phone1)), products:item_id(name, cost_per_unit)').eq('sales.status', 'completed')
       
       if (dateFromParam) {
         query = query.gte('sales.date', dateFromParam)
@@ -289,12 +294,24 @@ export default function ProfitsPage() {
               }
             }
           }
+          // Get customer info from sales
+          let customer_name = ''
+          let customer_phone = ''
+          if (item.sales) {
+            const s = Array.isArray(item.sales) ? item.sales[0] : item.sales
+            if (s && s.customers) {
+              const cust = Array.isArray(s.customers) ? s.customers[0] : s.customers
+              customer_name = cust?.name || ''
+              customer_phone = cust?.phone1 || ''
+            }
+          }
+          
           const itemTotal = (item.price || 0) * (item.quantity || 0)
           const discountRatio = subtotal > 0 ? itemTotal / subtotal : 0
           const itemDiscount = discount_amount * discountRatio
           const net_price = itemTotal - itemDiscount
           const profit = net_price - (effectiveCostPrice * (item.quantity || 0))
-          return { id: item.id, invoice_number: (Array.isArray(item.sales) ? item.sales[0]?.invoice_number : item.sales?.invoice_number) || sale_id?.slice(0, 8).toUpperCase() || '', sale_id, item_name, quantity: item.quantity || 0, price: item.price || 0, cost_price: effectiveCostPrice, discount_amount, item_discount: itemDiscount, net_price, profit, date, time }
+          return { id: item.id, invoice_number: (Array.isArray(item.sales) ? item.sales[0]?.invoice_number : item.sales?.invoice_number) || sale_id?.slice(0, 8).toUpperCase() || '', sale_id, item_name, quantity: item.quantity || 0, price: item.price || 0, cost_price: effectiveCostPrice, discount_amount, item_discount: itemDiscount, net_price, profit, date, time, customer_name, customer_phone }
         })
         const sortedProfitData = profitData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setProfits(sortedProfitData)
@@ -518,8 +535,8 @@ export default function ProfitsPage() {
               )}
             </motion.div>
           )}
-          {activeTab === 'sales' && <SalesTab cashSales={cashSales} onlineSales={onlineSales} payLaterSales={payLaterSales} onViewInvoice={handleViewInvoice} />}
-          {activeTab === 'profits' && <ProfitsTab profits={profits} totalProfit={totalProfit} onViewInvoice={handleViewInvoice} />}
+          {activeTab === 'sales' && <SalesTab cashSales={cashSales} onlineSales={onlineSales} payLaterSales={payLaterSales} searchQuery={searchQuery} onSearchChange={setSearchQuery} onViewInvoice={handleViewInvoice} />}
+          {activeTab === 'profits' && <ProfitsTab profits={profits} totalProfit={totalProfit} searchQuery={searchQuery} onSearchChange={setSearchQuery} onViewInvoice={handleViewInvoice} />}
           {activeTab === 'expenses' && <ExpensesTab purchaseExpenses={purchaseExpenses} generalExpenses={generalExpenses} onViewPurchaseInvoice={handleViewPurchaseInvoice} />}
         </div>
       </div>

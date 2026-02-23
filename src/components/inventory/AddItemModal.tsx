@@ -189,7 +189,7 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
   const canProceed = () => {
     if (currentStep === 1) return formData.supplier_id && formData.price_of_bought > 0
     if (currentStep === 2) return formData.quantity > 0 && formData.unit
-    if (currentStep === 3) return formData.name?.trim() && formData.category
+    if (currentStep === 3) return formData.name?.trim() && formData.category && formData.added_date
     return true
   }
 
@@ -710,7 +710,7 @@ export default function AddItemModal({ showStockEntry, setShowStockEntry, curren
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}>بەرواری کڕین</label>
+                  <label className="block text-sm mb-1" style={{ fontFamily: 'var(--font-uni-salar)', color: 'var(--theme-foreground)' }}>بەرواری کڕین *</label>
                   <input 
                     type="date" 
                     value={formData.added_date || ''} 

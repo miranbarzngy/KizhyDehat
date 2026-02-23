@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { FaShieldAlt, FaTimes } from 'react-icons/fa'
+import { useState } from 'react'
+import { FaShieldAlt, FaTimes, FaExclamationCircle } from 'react-icons/fa'
 
 interface Role {
   id: string
@@ -43,6 +44,25 @@ export default function RoleModal({
   onTogglePermission,
   onSubmit,
 }: RoleModalProps) {
+  const [nameError, setNameError] = useState(false)
+
+  const handleSubmit = () => {
+    // Validate role name is required
+    if (!newRoleName.trim()) {
+      setNameError(true)
+      return
+    }
+    setNameError(false)
+    onSubmit()
+  }
+
+  const handleNameChange = (value: string) => {
+    onSetName(value)
+    if (nameError && value.trim()) {
+      setNameError(false)
+    }
+  }
+
   if (!showCreateRole) return null
 
   return (
@@ -62,63 +82,73 @@ export default function RoleModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="relative w-[90%] max-w-lg max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/20"
+        className="relative w-[90%] max-w-lg max-h-[90vh] flex flex-col bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/20"
         style={{ fontFamily: 'var(--font-uni-salar)' }}
       >
         {/* Header */}
         <div 
-          className="sticky top-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-b border-gray-100 rounded-t-[2.5rem] z-10"
+          className="flex-shrink-0 bg-white/80 backdrop-blur-xl px-4 md:px-8 py-4 md:py-6 border-b border-gray-100 rounded-t-[2.5rem] z-10"
           style={{ background: 'var(--theme-card-bg)' }}
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold" style={{ color: 'var(--theme-foreground)' }}>
+              <h3 className="text-xl md:text-2xl font-bold" style={{ color: 'var(--theme-foreground)' }}>
                 {editingRole ? 'نوێکردنەوەی ڕۆڵ' : 'زیادکردنی ڕۆڵ'}
               </h3>
-              <p className="text-sm mt-1" style={{ color: 'var(--theme-secondary)' }}>
+              <p className="text-xs md:text-sm mt-1" style={{ color: 'var(--theme-secondary)' }}>
                 {editingRole ? 'مۆڵەتەکانی ڕۆڵەکە بگۆڕە' : 'ڕۆڵێکی نوێ دروست بکە'}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300"
+              className="w-8 md:w-10 h-8 md:h-10 flex items-center justify-center rounded-full transition-all duration-300"
               style={{ 
                 background: 'var(--theme-muted)',
                 color: 'var(--theme-secondary)'
               }}
             >
-              <FaTimes />
+              <FaTimes className="w-3 md:w-4" />
             </button>
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="p-8 space-y-6">
+        {/* Form Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-6 custom-scrollbar">
           {/* Role Name */}
           <div className="relative">
             <label 
               className="block text-sm font-medium mb-2 pr-1" 
               style={{ color: 'var(--theme-foreground)' }}
             >
-              ناوی ڕۆڵ
+              ناوی ڕۆڵ <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <FaShieldAlt 
                 className="absolute right-4 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--theme-secondary)' }}
+                style={{ color: nameError ? '#ef4444' : 'var(--theme-secondary)' }}
               />
               <input
                 type="text"
                 placeholder="ناوی ڕۆڵ"
                 value={newRoleName}
-                onChange={(e) => onSetName(e.target.value)}
-                className="w-full pl-4 pr-12 py-3.5 rounded-2xl border-0 shadow-inner focus:ring-2 transition-all duration-300"
+                onChange={(e) => handleNameChange(e.target.value)}
+                className={`w-full pl-4 pr-12 py-3.5 rounded-2xl border-0 shadow-inner focus:ring-2 transition-all duration-300 ${nameError ? 'ring-2 ring-red-500' : ''}`}
                 style={{ 
                   background: 'var(--theme-muted)',
                   color: 'var(--theme-foreground)',
                   '--tw-ring-color': 'var(--theme-accent)'
                 } as React.CSSProperties}
               />
+              {nameError && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute -bottom-6 right-0 flex items-center gap-1 text-xs text-red-500"
+                >
+                  <FaExclamationCircle className="w-3 h-3" />
+                  <span>تکایە ناوی ڕۆڵ بنووسە</span>
+                </motion.div>
+              )}
             </div>
           </div>
 
@@ -131,7 +161,7 @@ export default function RoleModal({
               مۆڵەتەکان
             </label>
             <div 
-              className="space-y-2 max-h-64 overflow-y-auto rounded-2xl p-2"
+              className="space-y-2 rounded-2xl p-2"
               style={{ background: 'var(--theme-muted)' }}
             >
               {permissionList.map((perm) => (
@@ -179,15 +209,15 @@ export default function RoleModal({
 
         {/* Footer Buttons */}
         <div 
-          className="sticky bottom-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-t border-gray-100 rounded-b-[2.5rem]"
+          className="flex-shrink-0 bg-white/80 backdrop-blur-xl px-4 md:px-8 py-3 md:py-6 border-t border-gray-100 rounded-b-[2.5rem]"
           style={{ background: 'var(--theme-card-bg)' }}
         >
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end gap-2 md:gap-4">
             <motion.button
               onClick={onClose}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-3 rounded-2xl border-2 font-medium transition-all duration-300"
+              className="px-4 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl border-2 text-sm md:text-base font-medium transition-all duration-300"
               style={{ 
                 borderColor: 'var(--theme-border)',
                 color: 'var(--theme-secondary)',
@@ -197,10 +227,10 @@ export default function RoleModal({
               پاشگەزبوونەوە
             </motion.button>
             <motion.button
-              onClick={onSubmit}
+              onClick={handleSubmit}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-3 rounded-2xl font-bold shadow-lg transition-all duration-300"
+              className="px-4 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl text-sm md:text-base font-bold shadow-lg transition-all duration-300"
               style={{ 
                 background: 'var(--theme-accent)',
                 color: 'white'

@@ -101,31 +101,31 @@ export default function UserModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="relative w-[90%] max-w-2xl max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/20"
+        className="relative w-[90%] max-w-2xl max-h-[90vh] flex flex-col bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/20"
         style={{ fontFamily: 'var(--font-uni-salar)' }}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-b border-gray-100 rounded-t-[2.5rem]">
+        <div className="flex-shrink-0 bg-white/80 backdrop-blur-xl px-4 md:px-8 py-4 md:py-6 border-b border-gray-100 rounded-t-[2.5rem]">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h3 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {editingUser ? 'نوێکردنەوەی بەکارهێنەر' : 'زیادکردنی بەکارهێنەر'}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs md:text-sm text-gray-500 mt-1">
                 {editingUser ? 'زانیارەکانی بەکارهێنەرەکە بگۆڕە' : 'بەکارهێنەرێکی نوێ زیاد بکە'}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 hover:text-red-500 transition-all duration-300"
+              className="w-8 md:w-10 h-8 md:h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-100 hover:text-red-500 transition-all duration-300"
             >
-              <FaTimes className="text-gray-400 hover:text-red-500" />
+              <FaTimes className="w-3 md:w-4 text-gray-400 hover:text-red-500" />
             </button>
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="p-8 space-y-6">
+        {/* Form Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-6 custom-scrollbar">
           {/* Avatar Upload - Circular */}
           <div className="flex justify-center mb-6">
             <div className="relative">
@@ -305,13 +305,13 @@ export default function UserModal({
         </div>
 
         {/* Footer Buttons */}
-        <div className="sticky bottom-0 bg-white/80 backdrop-blur-xl px-8 py-6 border-t border-gray-100 rounded-b-[2.5rem]">
-          <div className="flex justify-end gap-4">
+        <div className="flex-shrink-0 bg-white/80 backdrop-blur-xl px-4 md:px-8 py-3 md:py-6 border-t border-gray-100 rounded-b-[2.5rem]">
+          <div className="flex justify-end gap-2 md:gap-4">
             <motion.button
               onClick={onClose}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-medium hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-all duration-300"
+              className="px-4 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl border-2 border-gray-200 text-sm md:text-base text-gray-600 font-medium hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-all duration-300"
               style={{ fontFamily: 'var(--font-uni-salar)' }}
             >
               پاشگەزبوونەوە
@@ -321,7 +321,7 @@ export default function UserModal({
               disabled={isSubmitting}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="relative px-8 py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold shadow-xl shadow-purple-500/30 hover:shadow-purple-500/40 transition-all duration-500 overflow-hidden disabled:opacity-70"
+              className="relative px-4 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-sm md:text-base text-white font-bold shadow-xl shadow-purple-500/30 hover:shadow-purple-500/40 transition-all duration-500 overflow-hidden disabled:opacity-70"
               style={{ fontFamily: 'var(--font-uni-salar)' }}
             >
               <span className="relative z-10 flex items-center gap-2">

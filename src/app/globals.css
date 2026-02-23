@@ -149,6 +149,123 @@ body {
   scrollbar-width: none;
 }
 
+/* ============================================
+   GLOBAL CUSTOM SCROLLBAR STYLING
+   Dark Glass-morphism Theme Compatible
+   ============================================ */
+
+/* Custom Scrollbar - Applied via custom-scrollbar class */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+/* Global scrollbar for all themes - uses CSS variables */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+}
+
+/* Dark theme specific scrollbar adjustments */
+[data-theme='dark'] ::-webkit-scrollbar-thumb,
+html.theme-dark ::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.5);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover,
+html.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 165, 250, 0.7);
+}
+
+[data-theme='dark'] *,
+html.theme-dark * {
+  scrollbar-color: rgba(96, 165, 250, 0.5) transparent;
+}
+
+/* Purple theme scrollbar adjustments */
+[data-theme='purple'] ::-webkit-scrollbar-thumb,
+html.theme-purple ::-webkit-scrollbar-thumb {
+  background: rgba(192, 132, 252, 0.5);
+}
+
+[data-theme='purple'] ::-webkit-scrollbar-thumb:hover,
+html.theme-purple ::-webkit-scrollbar-thumb:hover {
+  background: rgba(192, 132, 252, 0.7);
+}
+
+[data-theme='purple'] *,
+html.theme-purple * {
+  scrollbar-color: rgba(192, 132, 252, 0.5) transparent;
+}
+
+/* Colorful theme scrollbar adjustments */
+[data-theme='colorful'] ::-webkit-scrollbar-thumb,
+html.theme-colorful ::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 107, 0.5);
+}
+
+[data-theme='colorful'] ::-webkit-scrollbar-thumb:hover,
+html.theme-colorful ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 107, 0.7);
+}
+
+[data-theme='colorful'] *,
+html.theme-colorful * {
+  scrollbar-color: rgba(255, 107, 107, 0.5) transparent;
+}
+
+/* White theme scrollbar adjustments */
+[data-theme='white'] ::-webkit-scrollbar-thumb,
+html.theme-white ::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+[data-theme='white'] ::-webkit-scrollbar-thumb:hover,
+html.theme-white ::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6);
+}
+
+[data-theme='white'] *,
+html.theme-white * {
+  scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+}
+
 /* Theme classes on html - THE SOURCE OF TRUTH */
 html.theme-white,
 body.theme-white {

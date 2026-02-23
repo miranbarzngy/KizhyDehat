@@ -444,6 +444,12 @@ export function useInventoryData(): UseInventoryDataReturn {
   const executeDeleteCategory = useCallback(async () => {
     if (!categoryToDelete || !supabase) return
     
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete.id)
     if (!error) {
       // Log the activity
@@ -453,7 +459,7 @@ export function useInventoryData(): UseInventoryDataReturn {
         ActivityActions.DELETE_CATEGORY,
         `پۆلی ${categoryToDelete.name} سڕایەوە`,
         EntityTypes.CATEGORY,
-        categoryToDelete.id
+        isValidUUID(categoryToDelete.id) ? categoryToDelete.id : undefined
       )
       fetchCategories()
     }
@@ -462,6 +468,12 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [categoryToDelete, fetchCategories, user, profile])
 
   const handleDeleteCategory = useCallback(async (category: Category) => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     if (!supabase) return
     const { error } = await supabase.from('categories').delete().eq('id', category.id)
     if (!error) {
@@ -472,13 +484,19 @@ export function useInventoryData(): UseInventoryDataReturn {
         ActivityActions.DELETE_CATEGORY,
         `پۆلی ${category.name} سڕایەوە`,
         EntityTypes.CATEGORY,
-        category.id
+        isValidUUID(category.id) ? category.id : undefined
       )
       fetchCategories()
     }
   }, [fetchCategories])
 
   const saveCategory = useCallback(async () => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     if (!supabase) return
     if (editingCategory) {
       const { error } = await supabase.from('categories').update({ name: newCategoryName.trim() }).eq('id', editingCategory.id)
@@ -490,7 +508,7 @@ export function useInventoryData(): UseInventoryDataReturn {
           ActivityActions.UPDATE_CATEGORY,
           `پۆل دەستکاری کرا بۆ: ${newCategoryName.trim()}`,
           EntityTypes.CATEGORY,
-          editingCategory.id
+          isValidUUID(editingCategory.id) ? editingCategory.id : undefined
         )
         fetchCategories()
       }
@@ -542,13 +560,19 @@ export function useInventoryData(): UseInventoryDataReturn {
       // Log the activity - ensure user is logged
       console.log('Logging DELETE_UNIT activity:', { userId: user?.id, profileName: profile?.name })
       try {
+        // Check if entity_id is a valid UUID before passing it
+        const isValidUUID = (id: any) => {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+          return id && uuidRegex.test(String(id))
+        }
+        
         await logActivity(
           user?.id || null,
           profile?.name || 'سیستەم',
           ActivityActions.DELETE_UNIT,
           `یەکەی ${unitToDelete.name} سڕایەوە`,
           EntityTypes.UNIT,
-          unitToDelete.id
+          isValidUUID(unitToDelete.id) ? unitToDelete.id : undefined
         )
       } catch (logError) {
         console.error('Failed to log DELETE_UNIT activity:', logError)
@@ -562,6 +586,12 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [unitToDelete, fetchUnits, user, profile])
 
   const handleDeleteUnit = useCallback(async (unit: Unit) => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     if (!supabase) return
     const { error } = await supabase.from('units').delete().eq('id', unit.id)
     if (!error) {
@@ -572,13 +602,19 @@ export function useInventoryData(): UseInventoryDataReturn {
         ActivityActions.DELETE_UNIT,
         `یەکەی ${unit.name} سڕایەوە`,
         EntityTypes.UNIT,
-        unit.id
+        isValidUUID(unit.id) ? unit.id : undefined
       )
       fetchUnits()
     }
   }, [fetchUnits])
 
   const saveUnit = useCallback(async () => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     if (!supabase) return
     if (editingUnit) {
       const { error } = await supabase.from('units').update({ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }).eq('id', editingUnit.id)
@@ -592,7 +628,7 @@ export function useInventoryData(): UseInventoryDataReturn {
             ActivityActions.UPDATE_UNIT,
             `یەکە دەستکاری کرا بۆ: ${newUnitName.trim()}`,
             EntityTypes.UNIT,
-            editingUnit.id
+            isValidUUID(editingUnit.id) ? editingUnit.id : undefined
           )
         } catch (logError) {
           console.error('Failed to log UPDATE_UNIT activity:', logError)

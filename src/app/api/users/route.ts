@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Create Supabase client with service role key for admin operations
 const supabaseAdmin = createClient(
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!email || !password || !roleId) {
       return NextResponse.json(
-        { error: 'Email, password, and role are required' },
+        { error: 'ئیمەیڵ و وشەی نهێنی و ڕۆڵ پێویستە بە دروستی پڕبکرێتەوە' },
         { status: 400 }
       )
     }

@@ -267,19 +267,25 @@ export function useAdminData(): UseAdminDataReturn {
   }, [newRoleName, permissions, fetchRoles]);
 
   const handleUpdateRole = useCallback(async () => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     if (!editingRole || !supabase) return { success: false, error: "هیچ ڕۆڵێک دیارنەکراوە" };
     try {
       const { error } = await supabase.from("roles").update({ name: newRoleName, permissions }).eq("id", editingRole.id);
       if (error) throw error;
       
-      // Log activity for updating role
+      // Log activity for updating role - only pass UUID entity_id
       await logActivity(
         null, 
         null, 
         'update_role', 
         `دەستکاریکردنی ڕۆڵ: ${newRoleName}`, 
         'role', 
-        editingRole.id
+        isValidUUID(editingRole.id) ? editingRole.id : undefined
       );
       
       setShowCreateRole(false); setEditingRole(null); resetRoleForm(); fetchRoles(); 
@@ -291,22 +297,27 @@ export function useAdminData(): UseAdminDataReturn {
   }, [editingRole, newRoleName, permissions, fetchRoles]);
 
   const handleDeleteRole = useCallback(async (roleId: string, roleName: string) => {
+    // Helper to check if ID is a valid UUID
+    const isValidUUID = (id: any) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      return id && uuidRegex.test(String(id))
+    }
+    
     const usersWithRole = users.filter((u) => u.role_id === roleId);
     if (usersWithRole.length > 0) { return { success: false, error: "ناتوانرێت سڕدرێتەوە - بەکارهێنەر بەکاردەهێنێت" }; }
-    if (!confirm(`سڕینەوەی "${roleName}"?`)) return { success: false, error: "" };
     if (!supabase) return { success: false, error: "هیچ پەیوەندییەک نییە" };
     try {
       const { error } = await supabase.from("roles").delete().eq("id", roleId);
       if (error) throw error;
       
-      // Log activity for deleting role
+      // Log activity for deleting role - only pass UUID entity_id
       await logActivity(
         null, 
         null, 
         'delete_role', 
         `سڕینەوەی ڕۆڵ: ${roleName}`, 
         'role', 
-        roleId
+        isValidUUID(roleId) ? roleId : undefined
       );
       
       fetchRoles(); 

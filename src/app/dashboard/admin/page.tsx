@@ -40,6 +40,7 @@ export default function AdminPage() {
     onConfirm: () => {}
   })
   const [pendingDeleteUser, setPendingDeleteUser] = useState<{userId: string, userName: string} | null>(null)
+  const [pendingDeleteRole, setPendingDeleteRole] = useState<{roleId: string, roleName: string} | null>(null)
 
   // Wrapper function for delete user with confirmation modal
   const handleDeleteUserWithConfirm = async (userId: string, userName: string) => {
@@ -57,6 +58,27 @@ export default function AdminPage() {
         }
         setShowConfirmModal(false)
         setPendingDeleteUser(null)
+      }
+    })
+    setShowConfirmModal(true)
+  }
+
+  // Wrapper function for delete role with confirmation modal
+  const handleDeleteRoleWithConfirm = async (roleId: string, roleName: string) => {
+    setPendingDeleteRole({ roleId, roleName })
+    setConfirmModalConfig({
+      title: 'سڕینەوەی ڕۆڵ',
+      message: `دڵنیایت لە سڕینەوەی "${roleName}"؟`,
+      type: 'danger',
+      onConfirm: async () => {
+        const result = await handleDeleteRole(roleId, roleName)
+        if (result.success) {
+          showSuccess(result.message || 'سڕدرایەوە')
+        } else if (result.error) {
+          showError(result.error)
+        }
+        setShowConfirmModal(false)
+        setPendingDeleteRole(null)
       }
     })
     setShowConfirmModal(true)
@@ -97,16 +119,6 @@ export default function AdminPage() {
     const result = await handleUpdateRole()
     if (result.success) {
       showSuccess(result.message || 'ڕۆڵ نوێکرایەوە')
-    } else if (result.error) {
-      showError(result.error)
-    }
-  }
-
-  // Wrapper for delete role
-  const handleDeleteRoleWrapper = async (roleId: string, roleName: string) => {
-    const result = await handleDeleteRole(roleId, roleName)
-    if (result.success) {
-      showSuccess(result.message || 'سڕدرایەوە')
     } else if (result.error) {
       showError(result.error)
     }
@@ -217,7 +229,7 @@ export default function AdminPage() {
                   roles={roles} 
                   onCreateRole={() => setShowCreateRole(true)} 
                   onEditRole={handleEditRole} 
-                  onDeleteRole={handleDeleteRoleWrapper} 
+                  onDeleteRole={handleDeleteRoleWithConfirm} 
                 />
               </motion.div>
             )}

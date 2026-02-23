@@ -105,9 +105,9 @@ export default function BackupTab() {
     }
 
     try {
-      // Open Google OAuth popup
+      // Open Google OAuth popup with token response
       const scope = 'https://www.googleapis.com/auth/drive.file';
-      const redirectUri = `${window.location.origin}/api/google-auth`;
+      const redirectUri = window.location.origin; // Use current origin for redirect
       
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       authUrl.searchParams.set('client_id', googleClientId);
@@ -115,8 +115,9 @@ export default function BackupTab() {
       authUrl.searchParams.set('response_type', 'token');
       authUrl.searchParams.set('scope', scope);
       authUrl.searchParams.set('include_granted_scopes', 'true');
+      authUrl.searchParams.set('state', 'google_drive_auth');
       
-      // Open popup
+      // Open popup centered on screen
       const width = 500;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -124,42 +125,64 @@ export default function BackupTab() {
       
       const popup = window.open(
         authUrl.toString(),
-        'Google Sign In',
+        'Connect Google Drive',
         `width=${width},height=${height},left=${left},top=${top}`
       );
 
-      // Listen for the token from popup
+      if (!popup) {
+        showError('Please allow popups to connect to Google Drive');
+        return;
+      }
+
+      // Listen for the token - check popup URL periodically
       const checkToken = setInterval(() => {
         try {
-          if (popup?.closed) {
+          if (popup.closed) {
             clearInterval(checkToken);
             return;
           }
           
-          // Try to get the URL from popup
-          const popupUrl = popup?.location?.href;
-          if (popupUrl && popupUrl.includes('access_token=')) {
+          // Get the URL from popup
+          const popupUrl = popup.location.href;
+          
+          // Check if we've been redirected back with token
+          if (popupUrl.includes('access_token=')) {
             const urlParams = new URL(popupUrl).hash.substring(1).split('&');
             const tokenParam = urlParams.find(p => p.startsWith('access_token='));
+            const expiresInParam = urlParams.find(p => p.startsWith('expires_in='));
             
             if (tokenParam) {
               const token = tokenParam.split('=')[1];
+              const expiresIn = expiresInParam ? parseInt(expiresInParam.split('=')[1]) : 3600;
+              
+              // Save token with expiry
               saveGoogleToken(token);
               setAccessToken(token);
               setIsGoogleConnected(true);
+              
               popup.close();
               clearInterval(checkToken);
               showSuccess('Successfully connected to Google Drive!');
             }
           }
+          
+          // Check if redirected with error
+          if (popupUrl.includes('error=')) {
+            popup.close();
+            clearInterval(checkToken);
+            showError('Failed to connect to Google Drive');
+          }
         } catch (e) {
-          // Cross-origin error - popup is on different domain, this is expected
+          // Cross-origin error - popup is on Google domain, this is expected
         }
       }, 500);
 
       // Timeout after 5 minutes
       setTimeout(() => {
         clearInterval(checkToken);
+        if (popup && !popup.closed) {
+          popup.close();
+        }
       }, 5 * 60 * 1000);
     } catch (error) {
       console.error('Error signing in with Google:', error);

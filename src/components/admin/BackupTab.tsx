@@ -415,10 +415,10 @@ export default function BackupTab() {
     }
   }, [isInitializing, autoBackupEnabled, isGoogleConnected, accessToken]);
 
-  // Format date for display
+  // Format date for display (Kurdish)
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-IQ', {
+    return date.toLocaleDateString('ckb-IQ', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -541,13 +541,7 @@ export default function BackupTab() {
             </div>
           </div>
           
-          <p 
-            className="mb-4 text-sm"
-            style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-          >
-            {TABLES.length} خشتە لەخۆدەگرێت: products, sales, customers, suppliers, expenses, وە...
-          </p>
-          
+         
           <div className="space-y-2">
             <button
               onClick={() => handleBackup(false)}

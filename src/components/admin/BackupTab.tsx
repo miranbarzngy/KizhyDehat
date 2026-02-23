@@ -1,9 +1,21 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
-import { FaDownload, FaUpload, FaGoogleDrive, FaCheck, FaTimes, FaClock, FaSpinner, FaExclamationTriangle } from 'react-icons/fa';
+import { FaDownload, FaUpload, FaGoogleDrive, FaCheck, FaTimes, FaClock, FaSpinner, FaExclamationTriangle, FaLink, FaUnlink } from 'react-icons/fa';
+import { 
+  uploadBackupToDrive, 
+  isGoogleDriveConfigured,
+  saveGoogleToken,
+  getGoogleToken,
+  clearGoogleToken,
+  isAutoBackupEnabled,
+  setAutoBackupEnabled,
+  getLastBackupDate,
+  setLastBackupDate as saveLastBackupDate,
+  isNewDay
+} from '@/lib/googleDrive';
 
 // List of all tables to backup
 const TABLES = [
@@ -40,9 +52,128 @@ export default function BackupTab() {
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
   const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
-  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupEnabled, setAutoBackupEnabledState] = useState(false);
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Initialize Google OAuth - this needs to be called with client ID
+  useEffect(() => {
+    const initGoogle = async () => {
+      // Check if Google Drive is configured
+      const isConfigured = isGoogleDriveConfigured();
+      if (!isConfigured) {
+        setIsInitializing(false);
+        return;
+      }
+
+      // Get client ID from env
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (clientId) {
+        setGoogleClientId(clientId);
+        
+        // Check if we have a valid token
+        const token = getGoogleToken();
+        if (token) {
+          setAccessToken(token);
+          setIsGoogleConnected(true);
+        }
+      }
+      setIsInitializing(false);
+    };
+
+    initGoogle();
+
+    // Load saved states
+    const savedLastBackup = getLastBackupDate();
+    if (savedLastBackup) {
+      setLastBackupDate(savedLastBackup);
+    }
+    
+    const savedAutoBackup = isAutoBackupEnabled();
+    setAutoBackupEnabledState(savedAutoBackup);
+  }, []);
+
+  // Handle Google sign in
+  const handleGoogleSignIn = useCallback(async () => {
+    if (!googleClientId) {
+      showError('Google Client ID not configured');
+      return;
+    }
+
+    try {
+      // Open Google OAuth popup
+      const scope = 'https://www.googleapis.com/auth/drive.file';
+      const redirectUri = `${window.location.origin}/api/google-auth`;
+      
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', googleClientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'token');
+      authUrl.searchParams.set('scope', scope);
+      authUrl.searchParams.set('include_granted_scopes', 'true');
+      
+      // Open popup
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      const popup = window.open(
+        authUrl.toString(),
+        'Google Sign In',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      // Listen for the token from popup
+      const checkToken = setInterval(() => {
+        try {
+          if (popup?.closed) {
+            clearInterval(checkToken);
+            return;
+          }
+          
+          // Try to get the URL from popup
+          const popupUrl = popup?.location?.href;
+          if (popupUrl && popupUrl.includes('access_token=')) {
+            const urlParams = new URL(popupUrl).hash.substring(1).split('&');
+            const tokenParam = urlParams.find(p => p.startsWith('access_token='));
+            
+            if (tokenParam) {
+              const token = tokenParam.split('=')[1];
+              saveGoogleToken(token);
+              setAccessToken(token);
+              setIsGoogleConnected(true);
+              popup.close();
+              clearInterval(checkToken);
+              showSuccess('Successfully connected to Google Drive!');
+            }
+          }
+        } catch (e) {
+          // Cross-origin error - popup is on different domain, this is expected
+        }
+      }, 500);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkToken);
+      }, 5 * 60 * 1000);
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+      showError('Failed to connect to Google Drive');
+    }
+  }, [googleClientId, showSuccess, showError]);
+
+  // Handle Google sign out
+  const handleGoogleSignOut = useCallback(() => {
+    clearGoogleToken();
+    setAccessToken(null);
+    setIsGoogleConnected(false);
+    showSuccess('Disconnected from Google Drive');
+  }, [showSuccess]);
 
   // Fetch all data from all tables
   const fetchAllData = async (): Promise<BackupData> => {
@@ -81,8 +212,29 @@ export default function BackupTab() {
     };
   };
 
+  // Upload backup to Google Drive
+  const uploadToGoogleDrive = async (backupData: BackupData) => {
+    if (!accessToken) {
+      showError('Not connected to Google Drive');
+      return false;
+    }
+
+    const result = await uploadBackupToDrive(backupData, accessToken);
+    
+    if (result.success) {
+      const now = new Date().toISOString();
+      saveLastBackupDate(now);
+      setLastBackupDate(now);
+      showSuccess('Backup uploaded to Google Drive successfully!');
+      return true;
+    } else {
+      showError(`Failed to upload backup: ${result.error}`);
+      return false;
+    }
+  };
+
   // Handle manual backup - download JSON file
-  const handleBackup = async () => {
+  const handleBackup = async (uploadToDrive: boolean = false) => {
     setLoading(true);
     setProgress(0);
     setProgressMessage('Starting backup...');
@@ -90,25 +242,30 @@ export default function BackupTab() {
     try {
       const backupData = await fetchAllData();
       
-      // Create and download JSON file
-      const jsonString = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `kizhydehat-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // If Google Drive upload requested
+      if (uploadToDrive && accessToken) {
+        await uploadToGoogleDrive(backupData);
+      } else {
+        // Download as JSON file
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `kizhydehat-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-      // Save last backup date to localStorage
-      const now = new Date().toISOString();
-      localStorage.setItem('lastBackupDate', now);
-      setLastBackupDate(now);
+        // Save last backup date to localStorage
+        const now = new Date().toISOString();
+        saveLastBackupDate(now);
+        setLastBackupDate(now);
 
-      showSuccess('Backup completed successfully!');
+        showSuccess('Backup completed successfully!');
+      }
     } catch (error) {
       console.error('Backup error:', error);
       showError('Failed to create backup');
@@ -202,13 +359,38 @@ export default function BackupTab() {
   // Toggle auto backup to Google Drive
   const handleToggleAutoBackup = () => {
     if (!autoBackupEnabled) {
-      // Enable - would need Google Drive API setup
-      showSuccess('Daily auto-backup enabled! (Note: Google Drive integration requires setup)');
+      // Check if Google is connected first
+      if (!isGoogleConnected || !accessToken) {
+        showError('Please connect to Google Drive first');
+        return;
+      }
+      setAutoBackupEnabled(true);
+      setAutoBackupEnabledState(true);
+      showSuccess('Daily auto-backup enabled!');
     } else {
+      setAutoBackupEnabled(false);
+      setAutoBackupEnabledState(false);
       showSuccess('Daily auto-backup disabled');
     }
-    setAutoBackupEnabled(!autoBackupEnabled);
   };
+
+  // Check for auto-backup on mount (for admin login)
+  useEffect(() => {
+    const checkAutoBackup = async () => {
+      if (autoBackupEnabled && isGoogleConnected && accessToken) {
+        const lastBackup = getLastBackupDate();
+        if (isNewDay(lastBackup)) {
+          console.log('New day detected, running auto-backup...');
+          await handleBackup(true);
+        }
+      }
+    };
+
+    // Only run after initialization
+    if (!isInitializing) {
+      checkAutoBackup();
+    }
+  }, [isInitializing, autoBackupEnabled, isGoogleConnected, accessToken]);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -221,6 +403,15 @@ export default function BackupTab() {
       minute: '2-digit'
     });
   };
+
+  // Loading state while initializing
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <FaSpinner className="animate-spin text-3xl" style={{ color: 'var(--theme-accent)' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -334,19 +525,37 @@ export default function BackupTab() {
             {TABLES.length} خشتە لەخۆدەگرێت: products, sales, customers, suppliers, expenses, وە...
           </p>
           
-          <button
-            onClick={handleBackup}
-            disabled={loading}
-            className="w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{
-              backgroundColor: 'var(--theme-accent)',
-              color: 'white',
-              fontFamily: 'var(--font-uni-salar)'
-            }}
-          >
-            {loading ? <FaSpinner className="animate-spin" /> : <FaDownload />}
-            داگرتنی پشتگیری
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleBackup(false)}
+              disabled={loading}
+              className="w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              style={{
+                backgroundColor: 'var(--theme-accent)',
+                color: 'white',
+                fontFamily: 'var(--font-uni-salar)'
+              }}
+            >
+              {loading ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+              داگرتنی پشتگیری
+            </button>
+            
+            {isGoogleConnected && (
+              <button
+                onClick={() => handleBackup(true)}
+                disabled={loading}
+                className="w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                style={{
+                  backgroundColor: '#1DB954',
+                  color: 'white',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
+                {loading ? <FaSpinner className="animate-spin" /> : <FaGoogleDrive />}
+                پشتگیریکردن بۆ Google Drive
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Restore Card */}
@@ -484,9 +693,10 @@ export default function BackupTab() {
           
           <button
             onClick={handleToggleAutoBackup}
+            disabled={!isGoogleConnected}
             className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
               autoBackupEnabled ? 'bg-green-500' : 'bg-gray-300'
-            }`}
+            } ${!isGoogleConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div 
               className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 flex items-center justify-center ${
@@ -498,12 +708,66 @@ export default function BackupTab() {
           </button>
         </div>
         
-        <p 
-          className="mt-4 text-sm"
-          style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
-        >
-          تێبینی: بۆ چالاککردنی ئەم تایبەتمەندییە پێویستی بە ئامادەکارییەکی زیاترە بۆ بەستنەوەی Google Drive API.
-        </p>
+        {/* Google Connection Status */}
+        <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--theme-card-border)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {isGoogleConnected ? (
+                <>
+                  <FaCheck className="text-green-500" />
+                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    بەستراوە بە Google Drive
+                  </span>
+                </>
+              ) : (
+                <>
+                  <FaTimes className="text-red-500" />
+                  <span style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                    نەبەستراوە
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {isGoogleConnected ? (
+              <button
+                onClick={handleGoogleSignOut}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm"
+                style={{
+                  backgroundColor: 'var(--theme-muted)',
+                  color: 'var(--theme-foreground)',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
+                <FaUnlink />
+                پەیوەندی ببڕە
+              </button>
+            ) : (
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={!googleClientId}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm disabled:opacity-50"
+                style={{
+                  backgroundColor: '#1DB954',
+                  color: 'white',
+                  fontFamily: 'var(--font-uni-salar)'
+                }}
+              >
+                <FaLink />
+                پەیوەندی بکە
+              </button>
+            )}
+          </div>
+          
+          {!googleClientId && (
+            <p 
+              className="mt-2 text-sm"
+              style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+            >
+              تێبینی: پێویستە NEXT_PUBLIC_GOOGLE_CLIENT_ID لە .env.local دابنێیت بۆ چالاککردنی ئەم تایبەتمەندییە.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Tables List */}

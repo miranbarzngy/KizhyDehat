@@ -1,21 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { getSupabase } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
-import { FaDownload, FaUpload, FaGoogleDrive, FaCheck, FaTimes, FaClock, FaSpinner, FaExclamationTriangle, FaLink, FaUnlink } from 'react-icons/fa';
-import { 
-  uploadBackupToDrive, 
-  isGoogleDriveConfigured,
-  saveGoogleToken,
-  getGoogleToken,
+import {
   clearGoogleToken,
-  isAutoBackupEnabled,
-  setAutoBackupEnabled,
+  getGoogleToken,
   getLastBackupDate,
+  isAutoBackupEnabled,
+  isGoogleDriveConfigured,
+  isNewDay,
+  saveGoogleToken,
   setLastBackupDate as saveLastBackupDate,
-  isNewDay
+  setAutoBackupEnabled,
+  uploadBackupToDrive
 } from '@/lib/googleDrive';
+import { getSupabase } from '@/lib/supabase';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FaCheck, FaClock, FaDownload, FaExclamationTriangle, FaGoogleDrive, FaLink, FaSpinner, FaTimes, FaUnlink, FaUpload } from 'react-icons/fa';
 
 // List of all tables to backup
 const TABLES = [
@@ -575,7 +575,7 @@ export default function BackupTab() {
                 }}
               >
                 {loading ? <FaSpinner className="animate-spin" /> : <FaGoogleDrive />}
-                پشتگیریکردن بۆ Google Drive
+                داگرتنی  فایلی پشتگیری بۆ Google Drive
               </button>
             )}
           </div>
@@ -793,36 +793,6 @@ export default function BackupTab() {
         </div>
       </div>
 
-      {/* Tables List */}
-      <div 
-        className="p-6 rounded-2xl"
-        style={{ 
-          backgroundColor: 'var(--theme-card-bg)',
-          border: '1px solid var(--theme-card-border)'
-        }}
-      >
-        <h3 
-          className="text-lg font-bold mb-4"
-          style={{ fontFamily: 'var(--font-uni-salar)' }}
-        >
-          خشتەکان ({TABLES.length})
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {TABLES.map((table) => (
-            <span
-              key={table}
-              className="px-3 py-1 rounded-full text-sm"
-              style={{
-                backgroundColor: 'var(--theme-muted)',
-                color: 'var(--theme-secondary)',
-                fontFamily: 'var(--font-uni-salar)'
-              }}
-            >
-              {table}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

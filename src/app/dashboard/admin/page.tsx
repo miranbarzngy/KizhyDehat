@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { FaShieldAlt, FaUsers, FaHistory } from "react-icons/fa";
+import { FaShieldAlt, FaUsers, FaHistory, FaDatabase } from "react-icons/fa";
 import ConfirmModal from "@/components/ConfirmModal";
 import StatCards from "@/components/admin/StatCards";
 import UserTab from "@/components/admin/UserTab";
 import RoleTab from "@/components/admin/RoleTab";
 import ActivityTab from "@/components/admin/ActivityTab";
+import BackupTab from "@/components/admin/BackupTab";
 import UserModal from "@/components/admin/UserModal";
 import RoleModal from "@/components/admin/RoleModal";
 import PermissionGuard from "@/components/PermissionGuard";
@@ -185,6 +186,17 @@ export default function AdminPage() {
             >
               <FaHistory /> چاودێری سیستم
             </button>
+            <button 
+              onClick={() => setActiveTab("backup")} 
+              className="flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+              style={{ 
+                fontFamily: 'var(--font-uni-salar)',
+                background: activeTab === "backup" ? 'var(--theme-accent)' : 'transparent',
+                color: activeTab === "backup" ? '#ffffff' : 'var(--theme-secondary)'
+              }}
+            >
+              <FaDatabase /> پشتگیری
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -212,6 +224,11 @@ export default function AdminPage() {
             {activeTab === "activity" && (
               <motion.div key="activity" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <ActivityTab />
+              </motion.div>
+            )}
+            {activeTab === "backup" && (
+              <motion.div key="backup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                <BackupTab />
               </motion.div>
             )}
           </AnimatePresence>

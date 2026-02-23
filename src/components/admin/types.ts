@@ -44,7 +44,7 @@ export interface RoleFormData {
   permissions: Record<string, boolean>;
 }
 
-export type AdminTab = "users" | "roles" | "settings" | "activity";
+export type AdminTab = "users" | "roles" | "settings" | "activity" | "backup";
 
 export interface Permission {
   key: string;
@@ -63,4 +63,5 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
   { key: 'profits', label: 'Profits', icon: '📈' },
   { key: 'help', label: 'Help', icon: '❓' },
   { key: 'admin', label: 'Admin', icon: '⚙️' },
+  { key: 'backup', label: 'Backup', icon: '💾' },
 ];

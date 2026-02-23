@@ -17,7 +17,31 @@ import { getSupabase } from '@/lib/supabase';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FaCheck, FaClock, FaDownload, FaExclamationTriangle, FaGoogleDrive, FaLink, FaSpinner, FaTimes, FaUnlink, FaUpload } from 'react-icons/fa';
 
-// List of all tables to backup
+// Tables ordered by dependencies (child tables first to avoid FK errors)
+// Delete order: child tables -> parent tables
+const TABLES_DELETE_ORDER = [
+  'sale_items',        // depends on sales
+  'customer_payments', // depends on customers
+  'supplier_payments', // depends on suppliers
+  'supplier_transactions', // depends on suppliers
+  'supplier_debts',    // depends on suppliers
+  'purchase_expenses', // depends on supplier_purchases
+  'supplier_purchases',// depends on suppliers
+  'sales',             // depends on customers, products
+  'products',          // independent
+  'customers',         // independent
+  'suppliers',         // independent
+  'categories',        // independent
+  'units',             // independent
+  'profiles',          // independent
+  'roles',             // independent
+  'expenses',          // independent
+  'activity_logs',     // independent
+  'shop_settings',     // independent
+  'invoice_settings'   // independent
+];
+
+// List of all tables to backup (same order as delete for consistency)
 const TABLES = [
   'products',
   'sales',
@@ -299,6 +323,22 @@ export default function BackupTab() {
     }
   };
 
+  // Helper function to delete all records from a table
+  const deleteAllFromTable = async (supabase: any, tableName: string): Promise<boolean> => {
+    // Try to delete all rows - use a condition that matches everything
+    const { error } = await supabase.from(tableName).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) {
+      console.warn(`Error deleting from ${tableName}:`, error.message);
+      // Table might be empty, try with a different approach
+      if (error.code === 'PGRST116') {
+        // PGRST116 = "Could not find a row to delete" - table is already empty, that's ok
+        return true;
+      }
+      return false;
+    }
+    return true;
+  };
+
   // Handle restore from JSON file
   const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -321,42 +361,67 @@ export default function BackupTab() {
       const supabase = getSupabase();
       if (!supabase) throw new Error('Supabase not configured');
 
-      const totalTables = TABLES.length;
-      let restoredCount = 0;
+      // PHASE 1: Force reset all tables using RPC function (TRUNCATE with CASCADE)
+      setProgressMessage('سڕینەوەی هەموو داتاکان...');
+      setProgress(10);
+      
+      try {
+        // Call the RPC function to truncate all tables at once
+        const { error: resetError } = await supabase.rpc('force_reset_inventory');
+        
+        if (resetError) {
+          console.warn('RPC reset error, falling back to manual delete:', resetError);
+          // Fallback: Use the old delete method if RPC fails
+          for (let i = 0; i < TABLES_DELETE_ORDER.length; i++) {
+            const tableName = TABLES_DELETE_ORDER[i];
+            setProgress(Math.round(((i + 0.5) / TABLES_DELETE_ORDER.length) * 40));
+            setProgressMessage(`سڕینەوەی ${tableName}...`);
+            try {
+              await deleteAllFromTable(supabase, tableName);
+            } catch (err) {
+              console.warn(`Exception deleting ${tableName}:`, err);
+            }
+          }
+        } else {
+          console.log('Successfully reset all tables via RPC');
+        }
+      } catch (err) {
+        console.warn('Exception during RPC reset:', err);
+      }
+      
+      setProgress(40);
+      setProgressMessage('هەموو داتاکان سڕانەوە!');
 
-      // Restore each table - delete existing and insert new
+      // PHASE 2: Insert new data from backup (in same order as delete for consistency)
+      setProgressMessage('تێخستنی داتاکانی پشتگیری...');
+      
+      let restoredCount = 0;
+      const totalInsertTables = TABLES.length;
+      
       for (let i = 0; i < TABLES.length; i++) {
         const tableName = TABLES[i];
         const tableData = backupData.tables[tableName] || [];
         
-        setProgress(Math.round(((i + 0.5) / totalTables) * 100));
-        setProgressMessage(`Restoring ${tableName}... (${tableData.length} records)`);
+        setProgress(40 + Math.round(((i + 0.5) / totalInsertTables) * 50)); // 40-90% for insert
+        setProgressMessage(`تێخستنی ${tableName}... (${tableData.length} records)`);
 
         try {
-          // Delete existing data first
+          // Insert new data only if there's data in the backup
           if (tableData.length > 0) {
-            const { error: deleteError } = await supabase.from(tableName).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            if (deleteError) {
-              console.warn(`Error deleting ${tableName}:`, deleteError.message);
-            }
-            
-            // Insert new data
-            if (tableData.length > 0) {
-              const { error: insertError } = await supabase.from(tableName).insert(tableData);
-              if (insertError) {
-                console.warn(`Error inserting ${tableName}:`, insertError.message);
-              }
+            const { error: insertError } = await supabase.from(tableName).insert(tableData);
+            if (insertError) {
+              console.warn(`Error inserting ${tableName}:`, insertError.message);
             }
           }
           restoredCount++;
         } catch (err) {
-          console.warn(`Exception restoring ${tableName}:`, err);
+          console.warn(`Exception inserting ${tableName}:`, err);
         }
       }
 
       setProgress(100);
-      setProgressMessage('Restore complete!');
-      showSuccess(`Restore completed! ${restoredCount} tables restored.`);
+      setProgressMessage('ریفرێشکردنی سیستم...');
+      showSuccess(`گەڕاندنەوە بە سەرکەوتوویی تەواو بوو! ${restoredCount} خشتە گەڕێنراوەوە.`);
       setShowConfirmRestore(false);
       
       // Reset file input
@@ -364,10 +429,18 @@ export default function BackupTab() {
         fileInputRef.current.value = '';
       }
 
-      // Reload page after a short delay
+      // Clear any cached data in localStorage that might cause issues
+      if (typeof window !== 'undefined') {
+        // Clear submission queue if any
+        localStorage.removeItem('posup_pending_submission');
+        localStorage.removeItem('submission_in_progress');
+        localStorage.removeItem('zombie_submission');
+      }
+
+      // Reload page after a short delay to show the Kurdish refresh message
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 2000);
 
     } catch (error) {
       console.error('Restore error:', error);

@@ -415,16 +415,25 @@ export default function BackupTab() {
     }
   }, [isInitializing, autoBackupEnabled, isGoogleConnected, accessToken]);
 
-  // Format date for display (Kurdish)
+  // Format date for display (Kurdish/Sorani)
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ckb-IQ', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    
+    // Kurdish month names (Sorani)
+    const kurdishMonths = [
+      'کانونی دووەم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حوزەیران',
+      'تەمموز', 'ئاب', 'ئەیلوول', 'تشرینی یەکەم', 'تشرینی دووەم', 'کانونی یەکەم'
+    ];
+    
+    const kurdishDays = ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'هەینی', 'شەممە'];
+    
+    const day = date.getDate();
+    const month = kurdishMonths[date.getMonth()];
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${day} ${month} ${year} - کاتژمێر ${hours}:${minutes}`;
   };
 
   // Loading state while initializing

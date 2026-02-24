@@ -94,17 +94,24 @@ export async function logActivity(
     if (autoFetchUser && (!finalUserId || !finalUserName)) {
       try {
         const { data: { user } } = await client.auth.getUser()
+        console.log('[ActivityLog] Auto-fetching user, user object:', user?.email)
+        
         if (user) {
           // Only set userId if not already provided
           if (!finalUserId) {
             finalUserId = user.id
+            console.log('[ActivityLog] Set userId:', finalUserId)
           }
           
           // Only set userName if not already provided
           if (!finalUserName) {
-            // Check if super admin - use Kurdish name
-            if (isSuperAdminEmail(user.email)) {
+            // Check if super admin - use Kurdish name FIRST before checking profile
+            const userEmail = user.email
+            console.log('[ActivityLog] Checking super admin for email:', userEmail, 'isSuperAdmin:', isSuperAdminEmail(userEmail))
+            
+            if (isSuperAdminEmail(userEmail)) {
               finalUserName = SUPER_ADMIN_NAME
+              console.log('[ActivityLog] Set super admin name:', SUPER_ADMIN_NAME)
             } else {
               // Try to get profile name for regular users
               const { data: profile } = await client
@@ -113,8 +120,11 @@ export async function logActivity(
                 .eq('id', user.id)
                 .single()
               finalUserName = profile?.name || null
+              console.log('[ActivityLog] Got profile name:', finalUserName)
             }
           }
+        } else {
+          console.log('[ActivityLog] No user found')
         }
       } catch (authError) {
         console.warn('Could not get current user:', authError)

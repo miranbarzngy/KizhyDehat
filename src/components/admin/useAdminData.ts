@@ -1,5 +1,6 @@
-import { logActivity, SUPER_ADMIN_NAME } from '@/lib/activityLogger';
+import { logActivity, SUPER_ADMIN_NAME, isSuperAdminEmail } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCallback, useState } from 'react';
 import { AdminTab, Role, ShopSettings, User } from './types';
 
@@ -78,6 +79,9 @@ const DEMO_SETTINGS: ShopSettings = {
 };
 
 export function useAdminData(): UseAdminDataReturn {
+  // Use AuthContext to get current user - this has proper super admin detection
+  const { user: authUser, profile: authProfile } = useAuth()
+  
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
@@ -138,37 +142,19 @@ export function useAdminData(): UseAdminDataReturn {
   }, []);
 
   // Helper function to get current user info for activity logging
-  const getCurrentUserInfo = useCallback(async () => {
-    if (!supabase) return { userId: null, userName: null };
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { userId: null, userName: null };
-      
-      // Check if super admin
-      if (user.email?.toLowerCase() === 'superadmin@clickgroup.com') {
-        return {
-          userId: user.id,
-          userName: SUPER_ADMIN_NAME
-        };
-      }
-      
-      // Try to get profile name
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', user.id)
-        .single();
-      
+  // Uses the profile from AuthContext (which already has correct super admin detection)
+  const getCurrentUserInfo = useCallback(() => {
+    // Use authUser and authProfile from AuthContext - these already have super admin detection
+    if (authUser) {
+      // Check if super admin - use profile name if available (which includes SUPER_ADMIN_NAME for super admin)
+      const userName = authProfile?.name || (authUser.email ? authUser.email.split('@')[0] : null);
       return {
-        userId: user.id,
-        userName: profile?.name || user.email?.split('@')[0] || null
+        userId: authUser.id,
+        userName: userName
       };
-    } catch (error) {
-      console.warn('Could not get current user info:', error);
-      return { userId: null, userName: null };
     }
-  }, []);
+    return { userId: null, userName: null };
+  }, [authUser, authProfile]);
 
   const handleCreateUser = useCallback(async () => {
     try {

@@ -108,12 +108,12 @@ export function InvoiceTemplate68mm({ data }: { data: any }) {
         )}
         <div style={{ fontSize: '11px', fontWeight: 'bold', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</div>
         {data?.shopAddress && (
-          <div style={{ fontSize: '7px', color: '#666', marginTop: '1mm', ...kurdishStyle }}>
+          <div style={{ fontSize: '7px', color: '#000000', marginTop: '1mm', fontWeight: 'bold', ...kurdishStyle }}>
             <FaMapMarkerAlt style={{ fontSize: '6px', marginLeft: '1mm' }} />{data.shopAddress}
           </div>
         )}
         {data?.shopPhone && (
-          <div style={{ fontSize: '7px', color: '#666', ...kurdishNumberStyle }}>
+          <div style={{ fontSize: '7px', color: '#000000', fontWeight: 'bold', ...kurdishNumberStyle }}>
             <FaPhone style={{ fontSize: '6px', marginLeft: '1mm' }} />{toKurdishDigits(data.shopPhone)}
           </div>
         )}
@@ -181,10 +181,10 @@ export function InvoiceTemplate68mm({ data }: { data: any }) {
         </div>
       )}
       
-      <div style={{ textAlign: 'center', fontSize: '7px', color: '#666', marginTop: '2mm', ...kurdishStyle }}>
+      <div style={{ textAlign: 'center', fontSize: '7px', color: '#000000', fontWeight: 'bold', marginTop: '2mm', ...kurdishStyle }}>
         {data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}
       </div>
-      <div style={{ textAlign: 'center', fontSize: '6px', color: '#999', marginTop: '1mm', ...kurdishStyle }}>
+      <div style={{ textAlign: 'center', fontSize: '6px', color: '#000000', fontWeight: 'bold', marginTop: '1mm', ...kurdishStyle }}>
         Click Group - 07701466787
       </div>
     </div>
@@ -239,7 +239,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>کڕیار</div>
               <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', wordBreak: 'break-word', ...kurdishStyle }}>{data?.customerName || 'نەناسراو'}</div>
               {data?.customerPhone && (
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', marginTop: '2px', direction: 'ltr' }}>
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontWeight: 'bold', fontSize: '12px', marginTop: '2px', direction: 'ltr' }}>
                   {toKurdishDigits(data.customerPhone)}
                 </div>
               )}
@@ -255,13 +255,13 @@ export function InvoiceTemplate({ data }: { data: any }) {
             )}
             <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
             {data?.shopAddress && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', ...kurdishStyle }}>
-                <FaMapMarkerAlt style={{ color: '#6b7280' }} /><span>{data.shopAddress}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#000000', fontWeight: 'bold', ...kurdishStyle }}>
+                <FaMapMarkerAlt style={{ color: '#000000' }} /><span>{data.shopAddress}</span>
               </div>
             )}
             {data?.shopPhone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6b7280', ...kurdishNumberStyle }}>
-                <FaPhone style={{ color: '#6b7280' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#000000', fontWeight: 'bold', ...kurdishNumberStyle }}>
+                <FaPhone style={{ color: '#000000' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
               </div>
             )}
           </div>
@@ -272,7 +272,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>بەروار</div>
               <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data?.date) || '-'}</div>
               {data?.time && (
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontWeight: 'bold', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
               )}
             </div>
             <div style={{ textAlign: 'center' }}>
@@ -299,10 +299,10 @@ export function InvoiceTemplate({ data }: { data: any }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e5e7eb', fontSize: '12px', backgroundColor: '#ffffff', ...kurdishStyle }}>
           <thead>
             <tr style={{ background: '#f9fafb' }}>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', fontWeight: '600', color: '#374151', ...kurdishStyle }}>ناوی کاڵا</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>یەکە</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>بڕ</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>نرخ</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>ناوی کاڵا</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>یەکە</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>بڕ</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>نرخ</th>
             </tr>
           </thead>
           <tbody>
@@ -426,43 +426,43 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: 72mm auto; margin: 0; }
     body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0; padding: 2mm; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
-    .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #eee; }
+    .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #999; }
     .header-col { display: flex; flex-direction: column; gap: 1mm; }
     .header-col.left { text-align: right; }
     .header-col.center { text-align: center; }
     .header-col.right { text-align: left; }
-    .header-label { font-size: 6px; color: #666; margin-bottom: 0.5mm; }
-    .header-value { font-size: 7px; color: #000; }
-    .shop-logo { width: 18mm; height: 18mm; margin: 0 auto 1mm; border-radius: 50%; overflow: hidden; border: 1px solid #ddd; }
+    .header-label { font-size: 6px; color: #000; font-weight: bold; margin-bottom: 0.5mm; }
+    .header-value { font-size: 7px; color: #000; font-weight: bold; }
+    .shop-logo { width: 18mm; height: 18mm; margin: 0 auto 1mm; border-radius: 50%; overflow: hidden; border: 1px solid #000; }
     .shop-logo img { width: 100%; height: 100%; object-fit: cover; }
-    .shop-name { font-size: 9px; font-weight: bold; margin-bottom: 1mm; }
-    .shop-info { font-size: 6px; color: #666; }
+    .shop-name { font-size: 9px; font-weight: bold; margin-bottom: 1mm; color: #000; }
+    .shop-info { font-size: 6px; color: #000; font-weight: bold; }
     .payment-section { text-align: center; margin: 2mm 0; padding: 1mm 0; }
-    .payment-label { font-size: 6px; color: #666; margin-bottom: 0.5mm; }
-    .payment-value { font-size: 8px; font-weight: bold; }
-    .divider { border-top: 1px dashed #eee; margin: 2mm 0; }
-    .items-header { display: flex; font-size: 6px; font-weight: bold; padding-bottom: 1mm; margin-bottom: 1mm; border-bottom: 1px solid #ddd; }
+    .payment-label { font-size: 6px; color: #000; font-weight: bold; margin-bottom: 0.5mm; }
+    .payment-value { font-size: 8px; font-weight: bold; color: #000; }
+    .divider { border-top: 1px dashed #000; margin: 2mm 0; }
+    .items-header { display: flex; font-size: 6px; font-weight: bold; padding-bottom: 1mm; margin-bottom: 1mm; border-bottom: 1px solid #000; color: #000; }
     .items-header .col-name { flex: 3; text-align: right; }
     .items-header .col-unit { flex: 1; text-align: center; }
     .items-header .col-qty { flex: 1; text-align: center; }
     .items-header .col-price { flex: 1.5; text-align: left; }
-    .item-row { display: flex; font-size: 7px; padding: 0.5mm 0; }
+    .item-row { display: flex; font-size: 7px; padding: 0.5mm 0; color: #000; }
     .item-row .col-name { flex: 3; text-align: right; word-break: break-word; }
     .item-row .col-unit { flex: 1; text-align: center; }
     .item-row .col-qty { flex: 1; text-align: center; }
     .item-row .col-price { flex: 1.5; text-align: left; font-weight: bold; }
     .totals-section { margin-top: 2mm; }
-    .total-row { display: flex; justify-content: space-between; font-size: 7px; margin-bottom: 1mm; }
+    .total-row { display: flex; justify-content: space-between; font-size: 7px; margin-bottom: 1mm; color: #000; }
     .total-row.subtotal { justify-content: flex-end; }
     .total-row.discount { color: #cc0000; justify-content: flex-end; }
     .total-row.grand-total { justify-content: flex-end; margin-top: 1mm; }
-    .grand-total-box { text-align: center; padding: 2mm; background: #f5f5f5; border-radius: 4px; margin-top: 2mm; }
-    .grand-total-box .label { font-size: 7px; margin-bottom: 1mm; }
-    .grand-total-box .value { font-size: 9px; font-weight: bold; }
+    .grand-total-box { text-align: center; padding: 2mm; background: #f5f5f5; border-radius: 4px; margin-top: 2mm; border: 1px solid #000; }
+    .grand-total-box .label { font-size: 7px; margin-bottom: 1mm; color: #000; font-weight: bold; }
+    .grand-total-box .value { font-size: 9px; font-weight: bold; color: #000; }
     .qr-section { text-align: center; margin-top: 3mm; }
     .qr-section img { width: 18mm; height: 18mm; object-fit: contain; }
-    .footer-thanks { text-align: center; font-size: 7px; margin-top: 3mm; color: #333; }
-    .footer-copyright { text-align: center; font-size: 5px; color: #999; margin-top: 2mm; }
+    .footer-thanks { text-align: center; font-size: 7px; margin-top: 3mm; color: #000; font-weight: bold; }
+    .footer-copyright { text-align: center; font-size: 5px; color: #000; font-weight: bold; margin-top: 2mm; }
     @media print { body { width: 68mm !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
@@ -525,7 +525,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   const getItemsHtmlNew = (data: any) => {
     const items = data?.sale_items || data?.invoice_items || data?.items || []
     if (!items || items.length === 0) {
-      return '<div style="text-align: center; font-size: 7px; color: #666; padding: 2mm;">داتا بوونی نییە</div>'
+      return '<div style="text-align: center; font-size: 7px; color: #000; font-weight: bold; padding: 2mm;">داتا بوونی نییە</div>'
     }
     
     return items.map((item: any) => {
@@ -534,7 +534,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       const unit = item?.unit || item?.product_unit || 'دانە'
       const total = toKurdishDigits(formatCurrency(item?.total || (item?.price || item?.unit_price || 0) * (item?.quantity || item?.qty || item?.amount || 0)))
       
-      return `<div class="item-row"><div class="col-name">${name}</div><div class="col-unit">${unit}</div><div class="col-qty">${qty}</div><div class="col-price">${total}</div></div>`
+      return `<div class="item-row" style="color: #000;"><div class="col-name" style="color: #000;">${name}</div><div class="col-unit" style="color: #000;">${unit}</div><div class="col-qty" style="color: #000;">${qty}</div><div class="col-price" style="color: #000; font-weight: bold;">${total}</div></div>`
     }).join('')
   }
 

@@ -351,7 +351,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
           {data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}
         </div>
         <div style={{ textAlign: 'center', fontSize: '9px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>
-          گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787
+          گەشەپێدانی سیستەم لە لایەن کلیک گروپ<br />07701466787
         </div>
       </div>
     </div>
@@ -429,9 +429,9 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0 3mm; padding: 2mm 5px; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
     .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #999; }
     .header-col { display: flex; flex-direction: column; gap: 1mm; }
-    .header-col.left { text-align: right; }
+    .header-col.left { text-align: right;padding-right: 7px; }
     .header-col.center { text-align: center; }
-    .header-col.right { text-align: left; }
+    .header-col.right { text-align: left;padding-left: 7px; }
     .header-label { font-size: 6px; color: #000; font-weight: bold; margin-bottom: 0.5mm; }
     .header-value { font-size: 7px; color: #000; font-weight: bold; }
     .shop-logo { width: 18mm; height: 18mm; margin: 0 auto 1mm; border-radius: 50%; overflow: hidden; border: 1px solid #000; }
@@ -443,27 +443,27 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     .payment-value { font-size: 8px; font-weight: bold; color: #000; }
     .divider { border-top: 1px dashed #000; margin: 2mm 0; }
     .items-header { display: flex; font-size: 6px; font-weight: bold; padding-bottom: 1mm; margin-bottom: 1mm; border-bottom: 1px solid #000; color: #000; }
-    .items-header .col-name { flex: 3; text-align: right; }
+    .items-header .col-name { flex: 3; text-align: right;padding-right: 7px; }
     .items-header .col-unit { flex: 1; text-align: center; }
     .items-header .col-qty { flex: 1; text-align: center; }
-    .items-header .col-price { flex: 1.5; text-align: left; }
+    .items-header .col-price { flex: 1.5; text-align: left;padding-left: 7px; }
     .item-row { display: flex; font-size: 7px; padding: 0.5mm 0; color: #000; }
-    .item-row .col-name { flex: 3; text-align: right; word-break: break-word; }
+    .item-row .col-name { flex: 3; text-align: right; word-break: break-word;padding-right: 7px; }
     .item-row .col-unit { flex: 1; text-align: center; }
     .item-row .col-qty { flex: 1; text-align: center; }
-    .item-row .col-price { flex: 1.5; text-align: left; font-weight: bold; }
+    .item-row .col-price { flex: 1.5; text-align: left; font-weight: bold;padding-left: 7px; }
     .totals-section { margin-top: 2mm; }
     .total-row { display: flex; justify-content: space-between; font-size: 7px; margin-bottom: 1mm; color: #000; }
-    .total-row.subtotal { justify-content: flex-end; }
-    .total-row.discount { color: #cc0000; justify-content: flex-end; }
-    .total-row.grand-total { justify-content: flex-end; margin-top: 1mm; }
-    .grand-total-box { text-align: center; padding: 2mm; background: #f5f5f5; border-radius: 4px; margin-top: 2mm; border: 1px solid #000; }
+    .total-row.subtotal { justify-content: flex-end; padding-right: 7px; padding-left: 7px; }
+    .total-row.discount { color: #cc0000; justify-content: flex-end;padding-right: 7px;}
+    .total-row.grand-total { justify-content: flex-end; margin-top: 1mm;padding-right: 7px; }
+    .grand-total-box { text-align: center; padding: 2mm;margin-top: 2mm; }
     .grand-total-box .label { font-size: 7px; margin-bottom: 1mm; color: #000; font-weight: bold; }
     .grand-total-box .value { font-size: 9px; font-weight: bold; color: #000; }
     .qr-section { text-align: center; margin-top: 3mm; }
     .qr-section img { width: 18mm; height: 18mm; object-fit: contain; }
     .footer-thanks { text-align: center; font-size: 7px; margin-top: 3mm; color: #000; font-weight: bold; }
-    .footer-copyright { text-align: center; font-size: 5px; color: #000; font-weight: bold; margin-top: 2mm; }
+    .footer-copyright { text-align: center; font-size: 9px; color: #000; font-weight:margin-top: 2mm; }
     @media print { body { width: 68mm !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
@@ -497,7 +497,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   </div>
   ${captureData.qrCodeUrl ? `<div class="qr-section"><img src="${captureData.qrCodeUrl}" alt="QR" /></div>` : ''}
   <div class="footer-thanks">${captureData.thankYouNote || 'سوپاس بۆ کڕینەکەتان! بە هیوای دووبارە بینین'}</div>
-  <div class="footer-copyright">گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
+  <div class="footer-copyright">گەشەپێدانی سیستەم لە لایەن کلیک گروپ<br />07701466787</div>
 </body>
 </html>`
     

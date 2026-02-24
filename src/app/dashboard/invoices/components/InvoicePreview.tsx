@@ -167,7 +167,7 @@ function InvoiceTemplate({ data }: { data: any }) {
           </div>
         )}
         <div style={{ textAlign: 'center', fontSize: '12px', color: '#000000', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>{data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}</div>
-        <div style={{ textAlign: 'center', fontSize: '9px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787</div>
+        <div style={{ textAlign: 'center', fontSize: '9px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>گەشەپێدانی سیستەم لە لایەن کلیک گروپ<br />07701466787</div>
       </div>
     </div>
   )

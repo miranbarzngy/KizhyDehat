@@ -426,7 +426,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     @font-face { font-family: 'UniSalar'; src: url('/fonts/UniSalar_F_007.otf') format('opentype'); }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: 72mm auto; margin: 0; }
-    body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0 3mm; padding: 2mm; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
+    body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0 3mm; padding: 2mm 5px; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
     .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #999; }
     .header-col { display: flex; flex-direction: column; gap: 1mm; }
     .header-col.left { text-align: right; }

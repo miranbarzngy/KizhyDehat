@@ -222,7 +222,8 @@ export function InvoiceTemplate({ data }: { data: any }) {
       width: '100%', 
       maxWidth: '700px', 
       padding: '24px',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      backgroundColor: '#ffffff'
     }}>
       {/* Header Section - 3 Columns */}
       <div style={{ marginBottom: '24px' }}>
@@ -253,15 +254,15 @@ export function InvoiceTemplate({ data }: { data: any }) {
                 <img src={data.shopLogo} alt={data.shopName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
+            <h1 style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
             {data?.shopAddress && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#000000', fontWeight: 'bold', ...kurdishStyle }}>
-                <FaMapMarkerAlt style={{ color: '#000000' }} /><span>{data.shopAddress}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', ...kurdishStyle }}>
+                <FaMapMarkerAlt style={{ color: '#9ca3af' }} /><span>{data.shopAddress}</span>
               </div>
             )}
             {data?.shopPhone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#000000', fontWeight: 'bold', ...kurdishNumberStyle }}>
-                <FaPhone style={{ color: '#000000' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', ...kurdishNumberStyle }}>
+                <FaPhone style={{ color: '#9ca3af' }} /><span>{toKurdishDigits(data.shopPhone)}</span>
               </div>
             )}
           </div>
@@ -287,7 +288,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
         {/* Payment Method */}
         <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '2px dashed #d1d5db', textAlign: 'center' }}>
           <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>شێوازی پارەدان</div>
-          <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '14px', ...kurdishStyle }}>{getPaymentStatus()}</div>
+          <div style={{ fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}>{getPaymentStatus()}</div>
         </div>
       </div>
 
@@ -299,18 +300,18 @@ export function InvoiceTemplate({ data }: { data: any }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e5e7eb', fontSize: '12px', backgroundColor: '#ffffff', ...kurdishStyle }}>
           <thead>
             <tr style={{ background: '#f9fafb' }}>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>ناوی کاڵا</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>یەکە</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>بڕ</th>
-              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#000000', ...kurdishStyle }}>نرخ</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', fontWeight: '600', color: '#374151', ...kurdishStyle }}>ناوی کاڵا</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>یەکە</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>بڕ</th>
+              <th style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', fontWeight: '600', color: '#374151', ...kurdishStyle }}>نرخ</th>
             </tr>
           </thead>
           <tbody>
             {items && items.length > 0 ? items.map((item: any, index: number) => (
               <tr key={`inv-item-${index}`} style={{ background: index % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
-                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', color: '#000000', ...kurdishStyle }}>{getItemName(item)}</td>
-                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', color: '#000000', ...kurdishStyle }}>{getItemUnit(item)}</td>
-                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', ...kurdishNumberStyle, fontWeight: '600', color: '#000000' }}>{getItemQty(item)}</td>
+                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'right', color: '#111827', ...kurdishStyle }}>{getItemName(item)}</td>
+                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', color: '#374151', ...kurdishStyle }}>{getItemUnit(item)}</td>
+                <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', ...kurdishNumberStyle, fontWeight: '600', color: '#111827' }}>{getItemQty(item)}</td>
                 <td style={{ border: '1px solid #e5e7eb', padding: '8px', textAlign: 'center', ...kurdishNumberStyle, fontWeight: '600', color: '#111827' }}>{getItemTotal(item)}</td>
               </tr>
             )) : (
@@ -330,13 +331,13 @@ export function InvoiceTemplate({ data }: { data: any }) {
       {/* Footer - Modern Design */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#374151', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.subtotal || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#374151', ...kurdishStyle }}><span>کۆی نرخ:</span><span style={kurdishNumberStyle}>{formatPrice(data?.subtotal || 0)}</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#dc2626', ...kurdishStyle }}><span>داشکاندن:</span><span style={{ ...kurdishNumberStyle, fontWeight: '600' }}>{formatPrice(data?.discount || 0)}</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}><span>کۆی گشتی:</span><span style={{ ...kurdishNumberStyle }}>{formatPrice(data?.total || 0)}</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827', fontSize: '16px', ...kurdishStyle }}><span>کۆی گشتی:</span><span style={kurdishNumberStyle}>{formatPrice(data?.total || 0)}</span></div>
         </div>
         
         {/* Grand Total Highlight - Modern */}
-        <div style={{ textAlign: 'center', padding: '16px'}}>
+        <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
           <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', ...kurdishStyle }}>کۆی گشتی: {formatPrice(data?.total || 0)}</div>
         </div>
         
@@ -349,7 +350,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
         <div style={{ textAlign: 'center', fontSize: '12px', color: '#000000', fontStyle: 'italic', borderTop: '1px solid #e5e7eb', paddingTop: '12px', ...kurdishStyle }}>
           {data?.thankYouNote || 'سوپاس بۆ کڕینەکەتان!'}
         </div>
-        <div style={{ textAlign: 'center', fontSize: '14px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>
+        <div style={{ textAlign: 'center', fontSize: '9px', color: '#000000', borderTop: '1px solid #e5e7eb', paddingTop: '8px', ...kurdishStyle }}>
           گەشەپێدانی سیستەم لە لایەن Click Group<br />07701466787
         </div>
       </div>

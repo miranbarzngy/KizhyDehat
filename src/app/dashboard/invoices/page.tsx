@@ -4,9 +4,8 @@ import ConfirmModal from '@/components/ConfirmModal'
 import { buildInvoiceData, InvoiceTemplate } from '@/components/GlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
+import { ActivityActions, EntityTypes, logActivity } from '@/lib/activityLogger'
 import { supabase } from '@/lib/supabase'
-import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
-import { useAuth } from '@/contexts/AuthContext'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
@@ -600,7 +599,7 @@ export default function InvoicesPage() {
                     <FaEye className="ml-2" style={{ color: 'var(--theme-accent)' }} />
                     <h3 className="text-xl font-bold" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>پیشاندانی  پسوڵە</h3>
                   </div>
-                  <div className="bg-white rounded-3xl shadow-2xl overflow-hidden" style={{ maxWidth: '400px', margin: '0 auto' }}>
+                  <div className="rounded-3xl shadow-2xl overflow-hidden" style={{ maxWidth: '400px', margin: '0 auto', backgroundColor: '#ffffff' }}>
                     <InvoiceTemplate data={previewInvoiceData} />
                   </div>
                 </div>

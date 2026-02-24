@@ -83,7 +83,7 @@ function InvoiceTemplate({ data }: { data: any }) {
                 <img src={data.shopLogo} alt={data.shopName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
+            <h1 style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', textAlign: 'center', ...kurdishStyle }}>{data?.shopName || 'فرۆشگا'}</h1>
             {data?.shopAddress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#6b7280', ...kurdishStyle }}>
                 <FaMapMarkerAlt style={{ color: '#9ca3af' }} /><span>{data.shopAddress}</span>
@@ -100,13 +100,13 @@ function InvoiceTemplate({ data }: { data: any }) {
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>بەروار</div>
               <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data?.date) || '-'}</div>
               {data?.time && (
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontWeight: 'bold', fontSize: '12px', direction: 'ltr', marginTop: '2px' }}>{data.time}</div>
               )}
             </div>
             {data?.customerPhone && (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>تەلەفۆن</div>
-                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#111827', fontSize: '14px', direction: 'ltr' }}>{toKurdishDigits(data.customerPhone)}</div>
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontWeight: 'bold', fontSize: '12px', direction: 'ltr' }}>{toKurdishDigits(data.customerPhone)}</div>
               </div>
             )}
             <div style={{ textAlign: 'center' }}>
@@ -226,7 +226,7 @@ export default function InvoicePreview({ saleData, invoice, invoiceRef }: Invoic
   const invoiceData = buildInvoiceDataLocal(saleData, invoice, invoiceSettings)
 
   return (
-    <div ref={invoiceRef}>
+    <div ref={invoiceRef} style={{ backgroundColor: '#ffffff' }}>
       <InvoiceTemplate data={invoiceData} />
     </div>
   )

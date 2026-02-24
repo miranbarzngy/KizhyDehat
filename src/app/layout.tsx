@@ -69,14 +69,14 @@ export async function generateMetadata(): Promise<Metadata> {
     const { createClient } = await import('@supabase/supabase-js')
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Fetch shop settings
-    const { data: shopSettings } = await supabase
-      .from('shop_settings')
-      .select('shopname, shop_logo')
-      .single()
+    // Fetch shop settings from invoice_settings table
+    const { data: invoiceSettings } = await supabase
+      .from('invoice_settings')
+      .select('shop_name, shop_logo')
+      .maybeSingle()
 
-    const shopName = shopSettings?.shopname || 'سیستمی فرۆشتن'
-    const shopLogo = shopSettings?.shop_logo
+    const shopName = invoiceSettings?.shop_name || 'سیستمی فرۆشتن'
+    const shopLogo = invoiceSettings?.shop_logo
 
     return {
       title: shopName,

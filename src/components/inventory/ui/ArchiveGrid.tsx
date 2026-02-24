@@ -102,7 +102,7 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
               
               <div className="flex justify-between items-center py-2 border-b border-gray-200/50 bg-gray-50/50 rounded-lg px-2">
                 <span className="text-sm text-gray-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  داهاتی خاوەنەکە:
+                  داهاتی ڕاستەقینە:
                 </span>
                 <span className="font-bold text-blue-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                   {netRevenue.toLocaleString()} IQD
@@ -111,7 +111,7 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
               
               <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                  قازانجی ڕاست:
+                  قازانجی ڕاستەقینە:
                 </span>
                 <span className={`font-bold ${realProfit > 0 ? 'text-green-600' : realProfit < 0 ? 'text-red-600' : 'text-yellow-600'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
                   {realProfit >= 0 ? realProfit.toLocaleString() : `(${Math.abs(realProfit).toLocaleString()})`} IQD
@@ -156,6 +156,7 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
                 </button>
               )}
             </div>
+            
           </div>
         )
       })}

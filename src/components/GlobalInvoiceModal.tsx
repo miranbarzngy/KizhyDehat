@@ -67,11 +67,11 @@ export function InvoiceTemplate68mm({ data }: { data: any }) {
   
   const getPaymentStatus = () => {
     switch (data?.paymentMethod) {
-      case 'cash': return 'نەختینە'
-      case 'fib': return 'ئۆنلاین (FIB)'
+      case 'cash': return 'کاش'
+      case 'fib': return 'ئۆنلاین'
       case 'debt': return 'قەرز'
       case 'purchase': return 'کڕین'
-      default: return 'نەپارەدراو'
+      default: return 'پارە نەدراوە'
     }
   }
 
@@ -337,7 +337,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
         </div>
         
         {/* Grand Total Highlight - Modern */}
-        <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+        <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f9fafb'}}>
           <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', ...kurdishStyle }}>کۆی گشتی: {formatPrice(data?.total || 0)}</div>
         </div>
         
@@ -426,7 +426,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     @font-face { font-family: 'UniSalar'; src: url('/fonts/UniSalar_F_007.otf') format('opentype'); }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: 72mm auto; margin: 0; }
-    body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0; padding: 2mm; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
+    body { font-family: 'UniSalar', 'Noto Naskh Arabic', sans-serif; direction: rtl; width: 68mm; margin: 0 3mm; padding: 2mm; font-size: 8px; line-height: 1.4; color: #000; background: #fff; font-weight: bold; }
     .header-section { display: flex; justify-content: space-between; margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #999; }
     .header-col { display: flex; flex-direction: column; gap: 1mm; }
     .header-col.left { text-align: right; }
@@ -515,11 +515,11 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
 
   const getPaymentStatus = (data: any) => {
     switch (data?.paymentMethod) {
-      case 'cash': return 'نەختینە'
-      case 'fib': return 'ئۆنلاین (FIB)'
+      case 'cash': return 'کاش'
+      case 'fib': return 'ئۆنلاین'
       case 'debt': return 'قەرز'
       case 'purchase': return 'کڕین'
-      default: return 'نەپارەدراو'
+      default: return 'پارە نەدراوە'
     }
   }
 
@@ -583,7 +583,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     <AnimatePresence>
       {isOpen && (
         <motion.div key={modalKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-3xl shadow-2xl max-w-[892px] w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">

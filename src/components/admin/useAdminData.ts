@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { logActivity, SUPER_ADMIN_NAME } from '@/lib/activityLogger';
 import { supabase } from '@/lib/supabase';
-import { User, Role, ShopSettings, AdminTab } from './types';
-import { logActivity } from '@/lib/activityLogger';
+import { useCallback, useState } from 'react';
+import { AdminTab, Role, ShopSettings, User } from './types';
 
 interface UseAdminDataReturn {
   users: User[];
@@ -137,6 +137,39 @@ export function useAdminData(): UseAdminDataReturn {
     } catch { }
   }, []);
 
+  // Helper function to get current user info for activity logging
+  const getCurrentUserInfo = useCallback(async () => {
+    if (!supabase) return { userId: null, userName: null };
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { userId: null, userName: null };
+      
+      // Check if super admin
+      if (user.email?.toLowerCase() === 'superadmin@clickgroup.com') {
+        return {
+          userId: user.id,
+          userName: SUPER_ADMIN_NAME
+        };
+      }
+      
+      // Try to get profile name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+      
+      return {
+        userId: user.id,
+        userName: profile?.name || user.email?.split('@')[0] || null
+      };
+    } catch (error) {
+      console.warn('Could not get current user info:', error);
+      return { userId: null, userName: null };
+    }
+  }, []);
+
   const handleCreateUser = useCallback(async () => {
     try {
       const response = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newUserName, image: newUserImage, phone: newUserPhone, location: newUserLocation, email: newUserEmail, password: newUserPassword, roleId: selectedRoleId, isActive: newUserIsActive }) });
@@ -145,11 +178,12 @@ export function useAdminData(): UseAdminDataReturn {
         return { success: false, error: data.error || "هەڵە" };
       }
       
-      // Log activity for adding user
+      // Log activity for adding user - get current user info
       const newUserId = data.user?.id || data.id;
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'add_user', 
         `زیادکردنی بەکارهێنەری نوێ: ${newUserName}`, 
         'user', 
@@ -162,7 +196,7 @@ export function useAdminData(): UseAdminDataReturn {
       console.error(error); 
       return { success: false, error: "هەڵە" };
     }
-  }, [newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers]);
+  }, [newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers, getCurrentUserInfo]);
 
   const handleUpdateUser = useCallback(async () => {
     if (!editingUser) return { success: false, error: "هیچ بەکارهێنەرێک دیارنەکراوە" };
@@ -190,10 +224,11 @@ export function useAdminData(): UseAdminDataReturn {
         return { success: false, error: data.error || "هەڵە لە نوێکردنەوە" };
       }
       
-      // Log activity for updating user
+      // Log activity for updating user - get current user info
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'update_user', 
         `دەستکاریکردنی زانیارییەکانی: ${newUserName}`, 
         'user', 
@@ -206,7 +241,7 @@ export function useAdminData(): UseAdminDataReturn {
       console.error(error); 
       return { success: false, error: "هەڵە" };
     }
-  }, [editingUser, newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers]);
+  }, [editingUser, newUserName, newUserImage, newUserPhone, newUserLocation, newUserEmail, newUserPassword, selectedRoleId, newUserIsActive, fetchUsers, getCurrentUserInfo]);
 
   const handleDeleteUser = useCallback(async (userId: string, userName: string) => {
     // Note: Confirmation is handled by ConfirmModal in the admin page
@@ -214,10 +249,11 @@ export function useAdminData(): UseAdminDataReturn {
       const response = await fetch("/api/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: userId }) });
       if (!response.ok) throw new Error("Failed");
       
-      // Log activity for deleting user
+      // Log activity for deleting user - get current user info
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'delete_user', 
         `سڕینەوەی بەکارهێنەر: ${userName}`, 
         'user', 
@@ -229,7 +265,7 @@ export function useAdminData(): UseAdminDataReturn {
     } catch { 
       return { success: false, error: "هەڵە" };
     }
-  }, [fetchUsers]);
+  }, [fetchUsers, getCurrentUserInfo]);
 
   const handleEditUser = useCallback((user: User) => {
     setEditingUser(user);
@@ -248,10 +284,11 @@ export function useAdminData(): UseAdminDataReturn {
       const { error } = await supabase.from("roles").insert({ name: newRoleName, permissions });
       if (error) throw error;
       
-      // Log activity for adding role
+      // Log activity for adding role - get current user info
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'add_role', 
         `زیادکردنی ڕۆڵی نوێ: ${newRoleName}`, 
         'role', 
@@ -264,7 +301,7 @@ export function useAdminData(): UseAdminDataReturn {
       console.error(error); 
       return { success: false, error: "هەڵە" };
     }
-  }, [newRoleName, permissions, fetchRoles]);
+  }, [newRoleName, permissions, fetchRoles, getCurrentUserInfo]);
 
   const handleUpdateRole = useCallback(async () => {
     // Helper to check if ID is a valid UUID
@@ -278,10 +315,11 @@ export function useAdminData(): UseAdminDataReturn {
       const { error } = await supabase.from("roles").update({ name: newRoleName, permissions }).eq("id", editingRole.id);
       if (error) throw error;
       
-      // Log activity for updating role - only pass UUID entity_id
+      // Log activity for updating role - get current user info
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'update_role', 
         `دەستکاریکردنی ڕۆڵ: ${newRoleName}`, 
         'role', 
@@ -294,7 +332,7 @@ export function useAdminData(): UseAdminDataReturn {
       console.error(error); 
       return { success: false, error: "هەڵە" };
     }
-  }, [editingRole, newRoleName, permissions, fetchRoles]);
+  }, [editingRole, newRoleName, permissions, fetchRoles, getCurrentUserInfo]);
 
   const handleDeleteRole = useCallback(async (roleId: string, roleName: string) => {
     // Helper to check if ID is a valid UUID
@@ -310,10 +348,11 @@ export function useAdminData(): UseAdminDataReturn {
       const { error } = await supabase.from("roles").delete().eq("id", roleId);
       if (error) throw error;
       
-      // Log activity for deleting role - only pass UUID entity_id
+      // Log activity for deleting role - get current user info
+      const currentUser = await getCurrentUserInfo();
       await logActivity(
-        null, 
-        null, 
+        currentUser.userId, 
+        currentUser.userName, 
         'delete_role', 
         `سڕینەوەی ڕۆڵ: ${roleName}`, 
         'role', 
@@ -326,7 +365,7 @@ export function useAdminData(): UseAdminDataReturn {
       console.error(error); 
       return { success: false, error: "هەڵە" };
     }
-  }, [users, fetchRoles]);
+  }, [users, fetchRoles, getCurrentUserInfo]);
 
   const handleEditRole = useCallback((role: Role) => {
     setEditingRole(role); setNewRoleName(role.name); setPermissions(role.permissions); setShowCreateRole(true);

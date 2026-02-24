@@ -1,6 +1,58 @@
 import { supabase } from './supabase'
 import { SupabaseClient } from '@supabase/supabase-js'
 
+// Super admin email constant - shared across the app
+export const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.com'
+export const SUPER_ADMIN_NAME = 'سوپەر ئادمین'
+
+/**
+ * Check if user email is super admin
+ */
+export function isSuperAdminEmail(email: string | undefined | null): boolean {
+  if (!email) return false
+  return email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()
+}
+
+/**
+ * Get current user info for activity logging
+ * Handles both regular users and super admin
+ */
+export async function getCurrentUserInfo(client: SupabaseClient<any, any> | null): Promise<{ userId: string | null; userName: string | null }> {
+  if (!client) {
+    return { userId: null, userName: null }
+  }
+
+  try {
+    const { data: { user } } = await client.auth.getUser()
+    if (!user) {
+      return { userId: null, userName: null }
+    }
+
+    // Check if super admin
+    if (isSuperAdminEmail(user.email)) {
+      return {
+        userId: user.id,
+        userName: SUPER_ADMIN_NAME
+      }
+    }
+
+    // Try to get profile name
+    const { data: profile } = await client
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single()
+
+    return {
+      userId: user.id,
+      userName: profile?.name || user.email?.split('@')[0] || null
+    }
+  } catch (error) {
+    console.warn('Could not get current user info:', error)
+    return { userId: null, userName: null }
+  }
+}
+
 /**
  * Logs an activity to the activity_logs table
  * Note: The database trigger will automatically populate user_name from profiles table
@@ -11,6 +63,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
  * @param entityType - The type of entity being affected (e.g., 'product', 'sale', 'customer', 'supplier', 'user')
  * @param entityId - The ID of the entity being affected (optional)
  * @param supabaseClient - Optional server-side Supabase client (for API routes)
+ * @param autoFetchUser - If true, will automatically fetch current user info (recommended)
  */
 export async function logActivity(
   userId: string | null,
@@ -19,7 +72,8 @@ export async function logActivity(
   details: string,
   entityType: string,
   entityId?: string,
-  supabaseClient?: SupabaseClient<any, any>
+  supabaseClient?: SupabaseClient<any, any>,
+  autoFetchUser: boolean = true
 ): Promise<void> {
   try {
     // Use provided client if available, otherwise fall back to default client
@@ -33,20 +87,47 @@ export async function logActivity(
 
     // If no userId provided, try to get current user
     let finalUserId = userId
-    if (!finalUserId) {
+    let finalUserName = userName
+
+    // FIXED: Only auto-fetch if explicitly requested AND userId/userName was not provided
+    // This ensures that when we pass user info explicitly, it doesn't get overwritten
+    if (autoFetchUser && (!finalUserId || !finalUserName)) {
       try {
         const { data: { user } } = await client.auth.getUser()
-        finalUserId = user?.id || null
+        if (user) {
+          // Only set userId if not already provided
+          if (!finalUserId) {
+            finalUserId = user.id
+          }
+          
+          // Only set userName if not already provided
+          if (!finalUserName) {
+            // Check if super admin - use Kurdish name
+            if (isSuperAdminEmail(user.email)) {
+              finalUserName = SUPER_ADMIN_NAME
+            } else {
+              // Try to get profile name for regular users
+              const { data: profile } = await client
+                .from('profiles')
+                .select('name')
+                .eq('id', user.id)
+                .single()
+              finalUserName = profile?.name || null
+            }
+          }
+        }
       } catch (authError) {
         console.warn('Could not get current user:', authError)
       }
     }
 
+    console.log('[Activity Log] Saving:', { finalUserId, finalUserName, action, details })
+
     // Include user_name directly since database trigger may not exist
     // This ensures activity logs always show the user name
     const { error } = await client.from('activity_logs').insert({
       user_id: finalUserId,
-      user_name: userName, // Include user_name to avoid "Unknown User" issue
+      user_name: finalUserName, // Include user_name to avoid "Unknown User" issue
       action,
       details,
       entity_type: entityType,

@@ -144,10 +144,10 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
     }
     
     try {
-      // Step 1: Fetch all activity logs
+      // Step 1: Fetch all activity logs - explicitly select user_name
       const { data: logsData, error: logsError } = await supabase
         .from('activity_logs')
-        .select('*')
+        .select('id, user_id, user_name, action, details, entity_type, entity_id, created_at')
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -162,6 +162,8 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
         setLoading(false)
         return
       }
+
+      console.log('[ActivityTab] Fetched logs:', logsData)
 
       // Step 2: Get unique user IDs
       const userIds = [...new Set(logsData.map(l => l.user_id).filter(Boolean) as string[])]
@@ -210,6 +212,8 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
           table: 'activity_logs'
         },
         (payload) => {
+          console.log('[ActivityTab] Real-time insert:', payload.new)
+          // Add new log with empty profiles since we don't have profile lookup for real-time
           setLogs(prev => [payload.new as ActivityLog, ...prev])
         }
       )
@@ -233,10 +237,10 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
       const search = searchTerm.toLowerCase()
       const matchesSearch = 
         log.profiles?.name?.toLowerCase().includes(search) ||
-        log.user_name?.toLowerCase().includes(search) ||
+        (log.user_name?.toLowerCase().includes(search) || '') ||
         log.action?.toLowerCase().includes(search) ||
-        log.details?.toLowerCase().includes(search) ||
-        log.entity_type?.toLowerCase().includes(search)
+        (log.details?.toLowerCase().includes(search) || '') ||
+        (log.entity_type?.toLowerCase().includes(search) || '')
       if (!matchesSearch) return false
     }
     
@@ -423,7 +427,7 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
                 <AnimatePresence>
                   {filteredLogs.map((log, index) => {
                     const colors = getActionColor(log.action)
-                    // FIXED: Use profiles.name first, then fall back to user_name from activity_logs, then show unknown
+                    // Use profiles.name first, then fall back to user_name from activity_logs, then show unknown
                     const displayName = log.profiles?.name || log.user_name || 'بەکارهێنەری نەناسراو'
                     
                     return (
@@ -464,7 +468,7 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
                           })()}
                         </td>
 
-                        {/* User - FIXED: Use both profiles.name and user_name */}
+                        {/* User */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div 

@@ -37,7 +37,7 @@ export default function PermissionGuard({ permission, children }: PermissionGuar
       
       // Check for admin access - support role ID, Kurdish, English role names, case-insensitive
       // Also check for SUPER ADMIN email
-      const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.comm'
+      const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.com'
       const userEmail = user?.email?.toLowerCase()
       const isSuperAdmin = userEmail === SUPER_ADMIN_EMAIL.toLowerCase()
       

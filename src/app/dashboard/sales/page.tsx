@@ -84,7 +84,7 @@ export default function SalesPage() {
 
   const fetchAllData = async () => {
     const invResult = await fetchWithRetry(async () => {
-      const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0)
+      const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
       if (error) throw error
       return data
     }, 3, 1000)
@@ -261,7 +261,7 @@ export default function SalesPage() {
       
       // Refresh inventory to show updated stock amounts
       const invResult = await fetchWithRetry(async () => {
-        const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0)
+        const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
         if (error) throw error
         return data
       }, 3, 1000)

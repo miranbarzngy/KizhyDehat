@@ -19,10 +19,11 @@ export async function POST() {
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     // SQL to create the approve_sale function
+    // FIXED: Inventory is NOT deducted here because it's already deducted when the sale is created on sales page
     const sql = `
--- Function to atomically approve a sale and decrement product quantities
--- This ensures that both the sale approval and quantity decrement happen together
--- If one fails, the other will rollback
+-- Function to approve a sale and update product stats
+-- Inventory is NOT deducted here because it's already deducted when the sale is created on sales page
+-- This prevents double deduction of inventory
 
 CREATE OR REPLACE FUNCTION approve_sale(p_sale_id UUID)
 RETURNS VOID
@@ -56,12 +57,8 @@ BEGIN
   -- Get the subtotal for calculating proportional discount
   SELECT COALESCE(subtotal, 0) INTO total_sale_amount FROM sales WHERE id = p_sale_id;
   
-  -- Loop through all items in the sale and decrement quantities
+  -- Loop through all items in the sale and update stats (inventory already deducted when sale was created)
   FOR sale_item IN SELECT * FROM sale_items WHERE sale_id = p_sale_id LOOP
-    -- Get current quantity
-    SELECT COALESCE(total_amount_bought, 0) INTO current_quantity 
-    FROM products WHERE id = sale_item.item_id;
-    
     item_quantity := sale_item.quantity;
     
     -- Calculate proportional discount for this item
@@ -71,16 +68,16 @@ BEGIN
       item_discount := 0;
     END IF;
     
-    -- Decrement the product quantity
+    -- Update product stats (inventory was already deducted when the sale was created on sales page)
+    -- Only update total_sold, total_revenue, total_profit, total_discounts
     UPDATE products 
-    SET total_amount_bought = total_amount_bought - item_quantity,
-        total_sold = COALESCE(total_sold, 0) + item_quantity,
+    SET total_sold = COALESCE(total_sold, 0) + item_quantity,
         total_revenue = COALESCE(total_revenue, 0) + sale_item.total,
         total_profit = COALESCE(total_profit, 0) + ((sale_item.price - COALESCE(sale_item.cost_price, 0)) * item_quantity),
         total_discounts = COALESCE(total_discounts, 0) + item_discount
     WHERE id = sale_item.item_id;
     
-    -- Check if product is now out of stock and archive it
+    -- Check if product is now out of stock and archive it (based on total_amount_bought which was already updated)
     UPDATE products
     SET is_archived = true
     WHERE id = sale_item.item_id AND total_amount_bought <= 0;

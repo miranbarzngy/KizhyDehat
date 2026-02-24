@@ -27,8 +27,11 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
         const totalRevenue = item.total_revenue || 0
         const totalDiscounts = item.total_discounts || 0
         const netRevenue = totalRevenue - totalDiscounts
-        const totalPurchasePrice = (item.cost_per_unit || 0) * (totalSold + (item.total_amount_bought || 0))
-        const realProfit = netRevenue - totalPurchasePrice
+        // New logic: Profit only from sold items = (Quantity Sold × Sale Price) - (Quantity Sold × Purchase Price) - Discounts
+        const costOfSoldItems = (item.cost_per_unit || 0) * totalSold
+        const realProfit = netRevenue - costOfSoldItems
+        // Total purchase price: original investment in the stock (cost per unit × amount originally bought)
+        const totalPurchasePrice = (item.cost_per_unit || 0) * (item.total_amount_bought + totalSold)
         const purchaseDate = item.added_date || item.created_at || '-'
         const soldOutDate = item.last_sale_date || item.updated_at || item.created_at || '-'
 
@@ -64,12 +67,21 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
             </h3>
             
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
-                <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50 bg-orange-50/50 rounded-lg px-2">
+                <span className="text-sm text-orange-700" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                   کۆی نرخی کڕین:
                 </span>
-                <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <span className="font-bold text-orange-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                   {totalPurchasePrice.toLocaleString()} IQD
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-gray-200/50">
+                <span className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  نرخی کڕین بۆ فرۆشراوەکان:
+                </span>
+                <span className="font-bold text-gray-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {costOfSoldItems.toLocaleString()} IQD
                 </span>
               </div>
               

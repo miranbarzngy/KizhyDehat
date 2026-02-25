@@ -131,6 +131,11 @@ export function InvoiceTemplate68mm({ data }: { data: any }) {
           <span>{data?.customerName || 'نەناسراو'}</span>
           {data?.customerPhone && <span style={{ ...kurdishNumberStyle, marginRight: '2mm' }}>- {toKurdishDigits(data.customerPhone)}</span>}
         </div>
+        {data?.customerLocation && (
+          <div style={{ fontSize: '7px', marginTop: '0.5mm', ...kurdishStyle }}>
+            <FaMapMarkerAlt style={{ fontSize: '6px', marginLeft: '1mm' }} />{data.customerLocation}
+          </div>
+        )}
         <div style={{ fontSize: '8px', ...kurdishStyle }}>
           {data.profiles?.name || data.seller_name || data.sold_by || data.sellerName || 'کارمەند'} - {getPaymentStatus()}
         </div>
@@ -242,6 +247,11 @@ export function InvoiceTemplate({ data }: { data: any }) {
               {data?.customerPhone && (
                 <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#000000', fontWeight: 'bold', fontSize: '12px', marginTop: '2px', direction: 'ltr' }}>
                   {toKurdishDigits(data.customerPhone)}
+                </div>
+              )}
+              {data?.customerLocation && (
+                <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", color: '#6b7280', fontSize: '11px', marginTop: '2px', ...kurdishStyle }}>
+                  <FaMapMarkerAlt style={{ fontSize: '10px', marginLeft: '2px' }} />{data.customerLocation}
                 </div>
               )}
             </div>
@@ -483,6 +493,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     <div class="header-col right">
       <div><div class="header-label">ژمارەی پسوڵە</div><div class="header-value" style="font-size: 9px;">${captureData.invoiceNumber && captureData.invoiceNumber > 0 ? '#' + toKurdishDigits(captureData.invoiceNumber) : 'پسوڵەی کاتی'}</div></div>
       <div><div class="header-label">کڕیار</div><div class="header-value">${captureData.customerName || 'نەناسراو'}</div></div>
+      ${captureData.customerLocation ? `<div><div class="header-label">ناونیشان</div><div class="header-value">${captureData.customerLocation}</div></div>` : ''}
     </div>
   </div>
   <div class="payment-section"><div class="payment-label">شێوازی پارەدان</div><div class="payment-value">${getPaymentStatus(captureData)}</div></div>
@@ -677,6 +688,7 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     invoiceNumber: invoice.invoice_number || 0,
     customerName: saleData?.customers?.name || saleData?.customer_name || 'نەناسراو',
     customerPhone: saleData?.customers?.phone1 || '',
+    customerLocation: saleData?.customers?.location || '',
     sellerName: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
     seller_name: saleData?.seller_name || saleData?.sold_by || saleData?.sellerName || 'کارمەند',
     date: new Date(invoice.date).toLocaleDateString('en-US'),

@@ -187,7 +187,7 @@ export default function SalesPage() {
         customer_id: selectedCustomer, total, payment_method: paymentMethod, user_id: user?.id,
         sold_by: userName, discount_amount: discount, subtotal: total + discount, items_count: cart.length,
         status: 'pending', created_at: new Date().toISOString()
-      }).select('id, total, payment_method, date').single()
+      }).select('id, total, payment_method, date, invoice_number').single()
       if (saleError) throw saleError
 
       // Log the sale activity
@@ -237,9 +237,9 @@ export default function SalesPage() {
         }
       }
 
-      // Create invoice data for global modal
+      // Create invoice data for global modal - use actual invoice number from database
       const invoiceData = {
-        invoiceNumber: 0,
+        invoiceNumber: saleData.invoice_number || 0,
         customerName: customerName || 'نەناسراو',
         customerPhone,
         sellerName: profileName,

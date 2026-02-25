@@ -1,4 +1,4 @@
--- Fix activity_logs entity_type constraint - handles all cases
+-- Fix activity_logs entity_type constraint - add invoice_settings
 -- Run this in Supabase SQL Editor
 
 -- First, let's see what entity_type values currently exist in the table
@@ -24,7 +24,7 @@ BEGIN
     END IF;
 END $$;
 
--- Create new constraint with expanded values including category and unit
+-- Create new constraint with expanded values including invoice_settings
 ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_entity_type_check 
 CHECK (entity_type IN (
   'product', 
@@ -36,7 +36,8 @@ CHECK (entity_type IN (
   'customer_payment', 
   'supplier_payment',
   'category',
-  'unit'
+  'unit',
+  'invoice_settings'
 ));
 
 -- Verify the constraint was added

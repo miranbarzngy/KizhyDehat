@@ -218,7 +218,10 @@ export const ActivityActions = {
   // Unit actions
   ADD_UNIT: 'add_unit',
   UPDATE_UNIT: 'update_unit',
-  DELETE_UNIT: 'delete_unit'
+  DELETE_UNIT: 'delete_unit',
+  
+  // Invoice Settings actions
+  UPDATE_INVOICE_SETTINGS: 'update_invoice_settings'
 } as const
 
 // Entity types
@@ -232,7 +235,8 @@ export const EntityTypes = {
   CUSTOMER_PAYMENT: 'customer_payment',
   SUPPLIER_PAYMENT: 'supplier_payment',
   CATEGORY: 'category',
-  UNIT: 'unit'
+  UNIT: 'unit',
+  INVOICE_SETTINGS: 'invoice_settings'
 } as const
 
 // Kurdish action labels
@@ -290,13 +294,16 @@ export const ActionLabels: Record<string, string> = {
   // Units
   add_unit: 'زیادکردنی یەکە',
   update_unit: 'دەستکاریکردنی یەکە',
-  delete_unit: 'سڕینەوەی یەکە'
+  delete_unit: 'سڕینەوەی یەکە',
+  
+  // Invoice Settings
+  update_invoice_settings: 'دەستکاریکردنی ڕێکخستنەکانی پسوڵە'
 }
 
 // Get color for action type
 export function getActionColor(action: string): string {
   const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
-  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
+  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit', 'update_invoice_settings']
   const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'delete_category', 'delete_unit']
   const cancelActions = ['cancel_sale', 'refund_sale', 'deactivate_user']
   

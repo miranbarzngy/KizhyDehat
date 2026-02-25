@@ -18,7 +18,7 @@ export async function POST() {
         -- Drop existing constraint if it exists
         ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_entity_type_check;
         
-        -- Create new constraint with 'role' included
+        -- Create new constraint with 'role' and 'invoice_settings' included
         ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_entity_type_check 
         CHECK (entity_type IN (
           'product', 
@@ -31,7 +31,8 @@ export async function POST() {
           'customer_payment', 
           'supplier_payment',
           'category',
-          'unit'
+          'unit',
+          'invoice_settings'
         ));
       `
     })
@@ -51,17 +52,17 @@ export async function POST() {
             '--- Drop existing constraint (if any)',
             'ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_entity_type_check;',
             '',
-            '--- Create new constraint with role included',
-            "ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_entity_type_check CHECK (entity_type IN ('product', 'sale', 'customer', 'supplier', 'user', 'role', 'expense', 'customer_payment', 'supplier_payment', 'category', 'unit'));",
+            '--- Create new constraint with role and invoice_settings included',
+            "ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_entity_type_check CHECK (entity_type IN ('product', 'sale', 'customer', 'supplier', 'user', 'role', 'expense', 'customer_payment', 'supplier_payment', 'category', 'unit', 'invoice_settings'));",
             '',
             '4. Execute the SQL',
-            '5. Try editing/deleting a role again - it should now appear in Activity Tab'
+            '5. Try editing invoice settings again - it should now appear in Activity Tab'
           ],
           sql: `
 -- Drop existing constraint (if any)
 ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS activity_logs_entity_type_check;
 
--- Create new constraint with role included
+-- Create new constraint with role and invoice_settings included
 ALTER TABLE activity_logs ADD CONSTRAINT activity_logs_entity_type_check 
 CHECK (entity_type IN (
   'product', 
@@ -74,7 +75,8 @@ CHECK (entity_type IN (
   'customer_payment', 
   'supplier_payment',
   'category',
-  'unit'
+  'unit',
+  'invoice_settings'
 ));
 `
         }, { status: 400 })

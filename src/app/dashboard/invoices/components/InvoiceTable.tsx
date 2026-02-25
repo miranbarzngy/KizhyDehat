@@ -72,7 +72,7 @@ export default function InvoiceTable({
                     invoice.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300' :
                     'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300'
                   }`} style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                    {invoice.status === 'completed' ? 'تەواوکراو' :
+                    {invoice.status === 'completed' ? 'فرۆشراو' :
                       invoice.status === 'refunded' ? '↩گەڕێندراوە' :
                       invoice.status === 'cancelled' ? 'هەڵوەشێنراوە' :
                       ' چاوەڕوانکراو'}

@@ -372,6 +372,17 @@ export default function InvoicesPage() {
       } else {
         await supabase.from('invoice_settings').insert(settingsData)
       }
+      
+      // Log the activity after successful save
+      await logActivity(
+        null, // userId - will be auto-fetched
+        null, // userName - will be auto-fetched (will use 'سوپەر ئادمین' for super admin)
+        ActivityActions.UPDATE_INVOICE_SETTINGS,
+        'دەستکاری ڕێکخستنەکانی پسوڵەی کرد',
+        EntityTypes.INVOICE_SETTINGS,
+        existing?.id?.toString()
+      )
+      
       showSuccess('ڕێکخستنەکان بە سەرکەوتوویی پاشەکەوتکران!')
     } catch (error) {
       console.error('Error saving settings:', error)

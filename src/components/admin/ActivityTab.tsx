@@ -60,12 +60,13 @@ const ActionLabels: Record<string, string> = {
   delete_category: 'سڕینەوەی پۆل',
   add_unit: 'زیادکردنی یەکە',
   update_unit: 'دەستکاریکردنی یەکە',
-  delete_unit: 'سڕینەوەی یەکە'
+  delete_unit: 'سڕینەوەی یەکە',
+  update_invoice_settings: 'دەستکاریکردنی ڕێکخستنەکانی پسوڵە'
 }
 
 function getActionColor(action: string): { bg: string; text: string; border: string } {
   const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
-  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
+  const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit', 'update_invoice_settings']
   const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'delete_category', 'delete_unit']
   const cancelActions = ['cancel_sale', 'refund_sale', 'deactivate_user']
   
@@ -249,7 +250,7 @@ export default function ActivityTab({ onRefresh }: ActivityTabProps) {
         const addActions = ['add_product', 'add_customer', 'add_supplier', 'add_user', 'add_role', 'add_expense', 'add_customer_payment', 'add_supplier_payment', 'create_sale', 'approve_sale', 'activate_user', 'add_category', 'add_unit']
         if (!addActions.includes(log.action)) return false
       } else if (actionFilter === 'update') {
-        const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit']
+        const updateActions = ['update_product', 'update_customer', 'update_supplier', 'update_user', 'update_role', 'update_expense', 'change_user_role', 'update_category', 'update_unit', 'update_invoice_settings']
         if (!updateActions.includes(log.action)) return false
       } else if (actionFilter === 'delete') {
         const deleteActions = ['delete_product', 'delete_customer', 'delete_supplier', 'delete_user', 'delete_role', 'delete_expense', 'delete_customer_payment', 'delete_supplier_payment', 'cancel_sale', 'refund_sale', 'deactivate_user', 'delete_category', 'delete_unit']

@@ -5,6 +5,9 @@ import { SupabaseClient } from '@supabase/supabase-js'
 export const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.com'
 export const SUPER_ADMIN_NAME = 'سوپەر ئادمین'
 
+// Kurdish system user name that should be replaced with actual user when possible
+const KURDISH_SYSTEM_NAME = 'سیستەم'
+
 /**
  * Check if user email is super admin
  */
@@ -89,9 +92,12 @@ export async function logActivity(
     let finalUserId = userId
     let finalUserName = userName
 
-    // FIXED: Only auto-fetch if explicitly requested AND userId/userName was not provided
-    // This ensures that when we pass user info explicitly, it doesn't get overwritten
-    if (autoFetchUser && (!finalUserId || !finalUserName)) {
+    // FIXED: Auto-fetch user info if:
+    // 1. autoFetchUser is true AND
+    // 2. Either userId or userName is not provided, OR userName is the Kurdish "System" placeholder
+    const shouldAutoFetch = autoFetchUser && (!finalUserId || !finalUserName || finalUserName === KURDISH_SYSTEM_NAME)
+    
+    if (shouldAutoFetch) {
       try {
         const { data: { user } } = await client.auth.getUser()
         console.log('[ActivityLog] Auto-fetching user, user object:', user?.email)
@@ -103,8 +109,8 @@ export async function logActivity(
             console.log('[ActivityLog] Set userId:', finalUserId)
           }
           
-          // Only set userName if not already provided
-          if (!finalUserName) {
+          // Only set userName if not already provided OR if it was the system placeholder
+          if (!finalUserName || finalUserName === KURDISH_SYSTEM_NAME) {
             // Check if super admin - use Kurdish name FIRST before checking profile
             const userEmail = user.email
             console.log('[ActivityLog] Checking super admin for email:', userEmail, 'isSuperAdmin:', isSuperAdminEmail(userEmail))

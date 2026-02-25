@@ -203,7 +203,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
   
   const getPaymentStatus = () => {
     switch (data?.paymentMethod) {
-      case 'cash': return 'نەختینە'
+      case 'cash': return 'کاش'
       case 'fib': return 'ئۆنلاین (FIB)'
       case 'debt': return 'قەرز'
       case 'purchase': return 'کڕین'
@@ -225,7 +225,7 @@ export function InvoiceTemplate({ data }: { data: any }) {
       fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", 
       direction: 'rtl', 
       width: '100%', 
-      maxWidth: '700px', 
+      maxWidth: '500px', 
       padding: '24px',
       boxSizing: 'border-box',
       backgroundColor: '#ffffff'
@@ -481,7 +481,6 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
   <div class="header-section">
     <div class="header-col left">
       <div><div class="header-label">بەروار</div><div class="header-value">${captureData.date || '-'} ${captureData.time || ''}</div></div>
-      ${captureData.customerPhone ? `<div><div class="header-label">تەلەفۆن</div><div class="header-value">${toKurdishDigits(captureData.customerPhone)}</div></div>` : ''}
       <div><div class="header-label">فرۆشیار</div><div class="header-value">${captureData.profiles?.name || captureData.seller_name || captureData.sold_by || captureData.sellerName || 'کارمەند'}</div></div>
     </div>
     <div class="header-col center">
@@ -493,6 +492,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     <div class="header-col right">
       <div><div class="header-label">ژمارەی پسوڵە</div><div class="header-value" style="font-size: 9px;">${captureData.invoiceNumber && captureData.invoiceNumber > 0 ? '#' + toKurdishDigits(captureData.invoiceNumber) : 'پسوڵەی کاتی'}</div></div>
       <div><div class="header-label">کڕیار</div><div class="header-value">${captureData.customerName || 'نەناسراو'}</div></div>
+      ${captureData.customerPhone ? `<div><div class="header-label">تەلەفۆن</div><div class="header-value">${toKurdishDigits(captureData.customerPhone)}</div></div>` : ''}
       ${captureData.customerLocation ? `<div><div class="header-label">ناونیشان</div><div class="header-value">${captureData.customerLocation}</div></div>` : ''}
     </div>
   </div>
@@ -594,7 +594,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
     <AnimatePresence>
       {isOpen && (
         <motion.div key={modalKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-3xl shadow-2xl max-w-[892px] w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="bg-white rounded-3xl shadow-2xl max-w-[600px] w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -611,7 +611,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
             </div>
             
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6" style={{ maxHeight: 'calc(95vh - 180px)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
-              <div className="invoice-preview-wrapper" style={{ width: '100%', maxWidth: '700px', backgroundColor: 'white' }}>
+              <div className="invoice-preview-wrapper" style={{ width: '100%', maxWidth: '500px', backgroundColor: 'white' }}>
                 <style jsx>{`
                   .invoice-preview-wrapper { zoom: 0.35; } 
                   @media (min-width: 480px) { .invoice-preview-wrapper { zoom: 0.4; } } 
@@ -653,7 +653,7 @@ export default function GlobalInvoiceModal({ isOpen, onClose, invoiceData, invoi
       
       <div ref={captureRef} id="invoice-capture-area" style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -9999, display: 'none', backgroundColor: 'white' }}>
         {captureData && (
-          <div style={{ fontFamily: "'Uni Salar', 'var(--font-uni-salar)', sans-serif", direction: 'rtl', width: '800px', minHeight: '1000px', backgroundColor: 'white', padding: '40px', boxSizing: 'border-box', lineHeight: '1.6', fontSize: '18px' }}>
+          <div style={{ fontFamily: "'Uni Salar', 'var(--font-uni-salar)', sans-serif", direction: 'rtl', width: '500px', minHeight: '600px', backgroundColor: 'white', padding: '20px', boxSizing: 'border-box', lineHeight: '1.4', fontSize: '14px' }}>
             <InvoiceTemplate data={captureData} />
           </div>
         )}

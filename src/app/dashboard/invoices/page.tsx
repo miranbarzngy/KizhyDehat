@@ -120,7 +120,7 @@ export default function InvoicesPage() {
       // Fetch customer data
       const { data: customerData } = sale.customer_id ? await supabase
         .from('customers')
-        .select('name, phone1')
+        .select('name, phone1, location')
         .eq('id', sale.customer_id)
         .single() : { data: null }
       
@@ -193,7 +193,7 @@ export default function InvoicesPage() {
     if (!supabase) return
     try {
       // Build query with optional date filters and search
-      let query = supabase.from('sales').select('*, customers(name, phone1)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+      let query = supabase.from('sales').select('*, customers(name, phone1, location)').eq('status', 'pending').order('created_at', { ascending: false }).limit(50)
       
       // Apply date filters if provided
       if (startDate) {
@@ -250,7 +250,7 @@ export default function InvoicesPage() {
     if (!supabase) return
     try {
       // Build query - show ALL sales regardless of status (completed, pending, refunded, cancelled)
-      let query = supabase.from('sales').select('*, customers(name, phone1)').order('created_at', { ascending: false })
+      let query = supabase.from('sales').select('*, customers(name, phone1, location)').order('created_at', { ascending: false })
       
       // Apply date filters if provided
       if (startDate) {

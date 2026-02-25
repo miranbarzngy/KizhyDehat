@@ -45,7 +45,7 @@ function InvoiceTemplate({ data }: { data: any }) {
   
   const getPaymentStatus = () => {
     switch (data?.paymentMethod) {
-      case 'cash': return 'نەختینە'
+      case 'cash': return 'کاش'
       case 'fib': return 'ئۆنلاین (FIB)'
       case 'debt': return 'قەرز'
       case 'purchase': return 'کڕین'

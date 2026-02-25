@@ -30,8 +30,9 @@ export default function ArchiveGrid({ archivedItems, searchTerm, restoreItem }: 
         // New logic: Profit only from sold items = (Quantity Sold × Sale Price) - (Quantity Sold × Purchase Price) - Discounts
         const costOfSoldItems = (item.cost_per_unit || 0) * totalSold
         const realProfit = netRevenue - costOfSoldItems
-        // Total purchase price: original investment in the stock (cost per unit × amount originally bought)
-        const totalPurchasePrice = (item.cost_per_unit || 0) * (item.total_amount_bought + totalSold)
+        // Total purchase price: use the stored total_purchase_price which contains the original purchase price
+        // This does NOT change when items are sold - it represents what was actually paid for the original stock
+        const totalPurchasePrice = item.total_purchase_price || 0
         const purchaseDate = item.added_date || item.created_at || '-'
         const soldOutDate = item.last_sale_date || item.updated_at || item.created_at || '-'
 

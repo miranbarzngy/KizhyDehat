@@ -183,7 +183,7 @@ export function useInventoryData(): UseInventoryDataReturn {
       // Select all needed columns including sales statistics
       let query = supabase
         .from('products')
-        .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, total_sold, total_revenue, total_profit, total_discounts, created_at')
+        .select('id, name, total_amount_bought, total_purchase_price, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, total_sold, total_revenue, total_profit, total_discounts, created_at')
         .or('is_archived.eq.true,total_amount_bought.lte.0')
         .limit(50)
       

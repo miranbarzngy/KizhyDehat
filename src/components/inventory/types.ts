@@ -2,6 +2,7 @@ export interface Product {
   id: string
   name: string
   total_amount_bought: number
+  total_purchase_price?: number
   unit: string
   cost_per_unit: number
   selling_price_per_unit: number

@@ -286,8 +286,8 @@ export default function SalesPage() {
 
 
   return (
-    <div className="h-full flex flex-col gap-4 lg:gap-6 lg:flex-row">
-      <div className="h-[70vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
+    <div className="h-full flex flex-col lg:flex-row gap-1 lg:gap-6">
+      <div className="h-[35vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="h-full flex flex-col">
           <div className="mb-3">
             <motion.h2 

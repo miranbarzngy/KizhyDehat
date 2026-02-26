@@ -50,7 +50,7 @@ export default function CartSidebar({
 
   return (
     <div 
-      className="h-[30vh] lg:h-full lg:w-96 backdrop-blur-xl border-t lg:border-t-0 lg:border-l shadow-2xl flex flex-col"
+      className="h-[45vh] md:h-[50vh] lg:h-full lg:w-96 backdrop-blur-xl border-t lg:border-t-0 lg:border-l shadow-2xl flex flex-col"
       style={{ 
         backgroundColor: 'var(--theme-card-bg)',
         borderColor: 'var(--theme-border)'
@@ -58,7 +58,7 @@ export default function CartSidebar({
     >
       {/* Cart Header */}
       <div 
-        className="p-3 border-b"
+        className="p-3 border-b flex-shrink-0"
         style={{ 
           borderColor: 'var(--theme-border)',
           backgroundColor: 'var(--theme-muted)'
@@ -86,16 +86,17 @@ export default function CartSidebar({
         </div>
       </div>
 
-      {/* Cart Items */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-60">
+      {/* Cart Items - Scrollable container with minimum height */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-[120px] lg:min-h-0 pb-32">
         <AnimatePresence>
           {cart.map((item) => (
-            <CartItem
-              key={item.id}
-              item={item}
-              onUpdateQuantity={onUpdateQuantity}
-              onRemove={onRemove}
-            />
+            <div key={item.id} className="pb-2">
+              <CartItem
+                item={item}
+                onUpdateQuantity={onUpdateQuantity}
+                onRemove={onRemove}
+              />
+            </div>
           ))}
         </AnimatePresence>
 
@@ -114,9 +115,9 @@ export default function CartSidebar({
         )}
       </div>
 
-      {/* Checkout Section */}
+      {/* Checkout Section - shrink-0 to prevent taking too much space */}
       <div 
-        className="backdrop-blur-xl border-t p-3 space-y-2"
+        className="backdrop-blur-xl border-t p-3 space-y-2 flex-shrink-0"
         style={{ 
           backgroundColor: 'var(--theme-muted)',
           borderColor: 'var(--theme-border)'

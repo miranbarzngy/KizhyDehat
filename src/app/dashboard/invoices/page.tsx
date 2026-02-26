@@ -64,6 +64,7 @@ export default function InvoicesPage() {
     onConfirm: () => {}
   })
   const [pendingSaleAction, setPendingSaleAction] = useState<{sale: any, action: string} | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Fetch seller name from profile using user_id
   const fetchSellerName = async (userId: string | null, soldBy: string | null): Promise<string> => {
@@ -712,10 +713,12 @@ export default function InvoicesPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
                                   onClick={() => {
+                                    if (isProcessing) return
                                     setConfirmModalConfig({
                                       title: 'دڵنیایی لە پەسەندکردن',
                                       message: 'ئایا دڵنیایت لە پەسەندکردنی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
-                                  onConfirm: async () => {
+                                      onConfirm: async () => {
+                                        setIsProcessing(true)
                                         try {
                                           const { error } = await supabase?.rpc('approve_sale', { p_sale_id: sale.id });
                                           if (error) throw error;
@@ -732,25 +735,40 @@ export default function InvoicesPage() {
                                           )
                                           
                                           await fetchPendingSales();
+                                          await fetchInvoices();
                                           showSuccess('وەسڵەکە بە سەرکەوتوویی پەسەند کرا')
                                         } catch (err: any) {
                                           console.error('Error approving sale:', err);
                                           showError('هەڵە لە پەسەندکردن: ' + (err.message || 'هەڵەی نەناسراو'))
+                                        } finally {
+                                          setIsProcessing(false)
+                                          setShowConfirmModal(false)
                                         }
-                                        setShowConfirmModal(false)
                                       }
                                     })
                                     setPendingSaleAction({ sale, action: 'approve' })
                                     setShowConfirmModal(true)
                                   }}
-                                  className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
+                                  disabled={isProcessing}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+                                    isProcessing 
+                                      ? 'bg-gray-300 cursor-not-allowed' 
+                                      : 'bg-green-500 hover:bg-green-600 text-white'
+                                  }`}
+                                  whileHover={{ scale: isProcessing ? 1 : 1.05 }}
+                                  whileTap={{ scale: isProcessing ? 1 : 0.95 }}
                                   title="تەواوکردن"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
+                                  {isProcessing ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
                                 </motion.button>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>تەواو</span>
                               </div>
@@ -759,10 +777,12 @@ export default function InvoicesPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
                                   onClick={() => {
+                                    if (isProcessing) return
                                     setConfirmModalConfig({
                                       title: 'دڵنیایی لە گەڕاندنەوە',
                                       message: 'ئایا دڵنیایت لە گەڕاندنەوەی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
                                       onConfirm: async () => {
+                                        setIsProcessing(true)
                                         try {
                                           await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
                                           await supabase?.from('sales').update({ status: 'refunded' }).eq('id', sale.id)
@@ -779,25 +799,40 @@ export default function InvoicesPage() {
                                           )
                                           
                                           await fetchPendingSales()
+                                          await fetchInvoices()
                                           showSuccess('فرۆشتنەکە بە سەرکەوتوویی گەڕێندرایەوە')
                                         } catch (err) {
                                           console.error('Error refunding sale:', err)
                                           showError('هەڵە لە گەڕاندنەوە')
+                                        } finally {
+                                          setIsProcessing(false)
+                                          setShowConfirmModal(false)
                                         }
-                                        setShowConfirmModal(false)
                                       }
                                     })
                                     setPendingSaleAction({ sale, action: 'refund' })
                                     setShowConfirmModal(true)
                                   }}
-                                  className="w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
+                                  disabled={isProcessing}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+                                    isProcessing 
+                                      ? 'bg-gray-300 cursor-not-allowed' 
+                                      : 'bg-orange-500 hover:bg-orange-600 text-white'
+                                  }`}
+                                  whileHover={{ scale: isProcessing ? 1 : 1.05 }}
+                                  whileTap={{ scale: isProcessing ? 1 : 0.95 }}
                                   title="گەڕاندنەوە"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                  </svg>
+                                  {isProcessing ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                  )}
                                 </motion.button>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>گەڕاندن</span>
                               </div>
@@ -806,10 +841,12 @@ export default function InvoicesPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <motion.button
                                   onClick={() => {
+                                    if (isProcessing) return
                                     setConfirmModalConfig({
                                       title: 'دڵنیایی لە هەڵوەشاندنەوە',
                                       message: 'ئایا دڵنیایت لە هەڵوەشاندنەوەی ئەم وەسڵە؟ ئەم کارە کاریگەری لەسەر بڕی کاڵاکان و قەرزی کڕیار دەبێت.',
                                       onConfirm: async () => {
+                                        setIsProcessing(true)
                                         try {
                                           await supabase?.rpc('revert_sale_stock', { p_sale_id: sale.id })
                                           await supabase?.from('sales').update({ status: 'cancelled' }).eq('id', sale.id)
@@ -826,25 +863,40 @@ export default function InvoicesPage() {
                                           )
                                           
                                           await fetchPendingSales()
+                                          await fetchInvoices()
                                           showSuccess('فرۆشتنەکە هەڵوەشێنرایەوە')
                                         } catch (err) {
                                           console.error('Error cancelling sale:', err)
                                           showError('هەڵە لە هەڵوەشاندنەوە')
+                                        } finally {
+                                          setIsProcessing(false)
+                                          setShowConfirmModal(false)
                                         }
-                                        setShowConfirmModal(false)
                                       }
                                     })
                                     setPendingSaleAction({ sale, action: 'cancel' })
                                     setShowConfirmModal(true)
                                   }}
-                                  className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
+                                  disabled={isProcessing}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+                                    isProcessing 
+                                      ? 'bg-gray-300 cursor-not-allowed' 
+                                      : 'bg-red-500 hover:bg-red-600 text-white'
+                                  }`}
+                                  whileHover={{ scale: isProcessing ? 1 : 1.05 }}
+                                  whileTap={{ scale: isProcessing ? 1 : 0.95 }}
                                   title="هەڵوەشاندنەوە"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
+                                  {isProcessing ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  )}
                                 </motion.button>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>هەڵوەش</span>
                               </div>

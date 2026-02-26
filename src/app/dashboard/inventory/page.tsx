@@ -322,7 +322,7 @@ export default function InventoryPage() {
               style={{ 
                 backgroundColor: 'var(--theme-card-bg)',
                 borderColor: 'var(--theme-card-border)'
-              }
+              }}
             >
               <div className="text-center">
                 <div 

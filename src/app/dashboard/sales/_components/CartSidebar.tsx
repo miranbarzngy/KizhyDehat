@@ -2,7 +2,10 @@
 
 import { formatCurrency } from '@/lib/numberUtils'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useState } from 'react'
 import CartItem from './CartItem'
+import { FaFacebook, FaWhatsapp } from 'react-icons/fa'
+import { Store, Globe } from 'lucide-react'
 
 interface CartItemType {
   id: string
@@ -33,15 +36,71 @@ interface CartSidebarProps {
   onCreateCustomer: () => void
 }
 
-// Order source options with Kurdish labels
+// Brand icon components with proper colors
+const InstagramIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="url(#instagram-gradient)">
+    <defs>
+      <linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#E4405F"/>
+        <stop offset="25%" stopColor="#F77737"/>
+        <stop offset="50%" stopColor="#FCAF45"/>
+        <stop offset="75%" stopColor="#E6683C"/>
+        <stop offset="100%" stopColor="#C13584"/>
+      </linearGradient>
+    </defs>
+    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+  </svg>
+)
+
+const TikTokIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+  </svg>
+)
+
+// Order source options with Kurdish labels and brand icons
 const ORDER_SOURCE_OPTIONS = [
-  { value: '', label: 'سەرچاوەی داواکاری' },
-  { value: 'Instagram', label: 'ئینستاگرام' },
-  { value: 'Facebook', label: 'فەیسبووک' },
-  { value: 'TikTok', label: 'تیکتۆک' },
-  { value: 'WhatsApp', label: 'وەتسئەپ' },
-  { value: 'In-Store', label: 'فرۆشگا' },
-  { value: 'Other', label: 'تر...' },
+  { 
+    value: 'Instagram', 
+    label: 'ئینستاگرام', 
+    icon: InstagramIcon,
+    iconClassName: 'w-7 h-7'
+  },
+  { 
+    value: 'Facebook', 
+    label: 'فەیسبووک', 
+    icon: FaFacebook,
+    iconClassName: 'w-7 h-7',
+    iconColor: '#1877F2'
+  },
+  { 
+    value: 'TikTok', 
+    label: 'تیکتۆک', 
+    icon: TikTokIcon,
+    iconClassName: 'w-7 h-7',
+    iconColor: '#000000'
+  },
+  { 
+    value: 'WhatsApp', 
+    label: 'وەتسئەپ', 
+    icon: FaWhatsapp,
+    iconClassName: 'w-7 h-7',
+    iconColor: '#25D366'
+  },
+  { 
+    value: 'In-Store', 
+    label: 'فرۆشگا', 
+    icon: Store,
+    iconClassName: 'w-7 h-7',
+    iconColor: '#6B7280'
+  },
+  { 
+    value: 'Other', 
+    label: 'تر', 
+    icon: Globe,
+    iconClassName: 'w-7 h-7',
+    iconColor: '#6B7280'
+  },
 ]
 
 export default function CartSidebar({
@@ -62,6 +121,18 @@ export default function CartSidebar({
   onCreateCustomer
 }: CartSidebarProps) {
   const total = cart.reduce((sum, item) => sum + item.total, 0) - discount
+  const [showOrderSourceModal, setShowOrderSourceModal] = useState(false)
+
+  // Get the current order source label and icon
+  const currentSource = ORDER_SOURCE_OPTIONS.find(opt => opt.value === orderSource)
+  const currentSourceLabel = currentSource ? currentSource.label : 'سەرچاوەی داواکاری'
+  const CurrentIcon = currentSource ? currentSource.icon : Globe
+
+  // Handle order source selection
+  const handleOrderSourceSelect = (source: string) => {
+    onOrderSourceChange(source)
+    setShowOrderSourceModal(false)
+  }
 
   return (
     <div 
@@ -166,31 +237,140 @@ export default function CartSidebar({
           </select>
         </motion.div>
 
-        {/* Order Source Selection */}
+        {/* Order Source Selection - Touch-friendly button */}
         <motion.div
           className="space-y-1"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
         >
-          <select
-            value={orderSource}
-            onChange={(e) => onOrderSourceChange(e.target.value)}
-            className="w-full px-2 py-1 rounded border shadow-sm focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all duration-300 text-xs"
+          <motion.button
+            onClick={() => setShowOrderSourceModal(true)}
+            className="w-full px-3 py-3 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between"
             style={{ 
               backgroundColor: 'var(--theme-card-bg)',
               borderColor: 'var(--theme-border)',
               color: 'var(--theme-foreground)',
               fontFamily: 'var(--font-uni-salar)'
             }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
           >
-            {ORDER_SOURCE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            <span className="flex items-center gap-2">
+              <CurrentIcon className={`${currentSource?.iconClassName || 'w-5 h-5'}`} style={{ color: currentSource?.iconColor }} />
+              <span className="text-sm">{currentSourceLabel}</span>
+            </span>
+            <span className="text-lg">▼</span>
+          </motion.button>
         </motion.div>
+
+        {/* Order Source Modal */}
+        <AnimatePresence>
+          {showOrderSourceModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 flex items-center justify-center p-4 z-[99999]"
+            >
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
+                onClick={() => setShowOrderSourceModal(false)}
+              />
+              
+              {/* Modal */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', duration: 0.5 }}
+                className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+                style={{
+                  background: 'var(--theme-card-bg)',
+                  border: '1px solid var(--theme-card-border)'
+                }}
+              >
+                {/* Header */}
+                <div 
+                  className="p-4 border-b text-center"
+                  style={{ borderColor: 'var(--theme-card-border)' }}
+                >
+                  <h3 
+                    className="text-lg font-bold"
+                    style={{ 
+                      color: 'var(--theme-foreground)',
+                      fontFamily: 'var(--font-uni-salar)' 
+                    }}
+                  >
+                    سەرچاوەی داواکاری هەڵبژێرە
+                  </h3>
+                </div>
+
+                {/* Options Grid */}
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {ORDER_SOURCE_OPTIONS.map((option) => {
+                      const isSelected = orderSource === option.value
+                      const IconComponent = option.icon
+                      return (
+                        <motion.button
+                          key={option.value}
+                          onClick={() => handleOrderSourceSelect(option.value)}
+                          className={`p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-2 relative ${
+                            isSelected 
+                              ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30' 
+                              : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          style={{ 
+                            backgroundColor: isSelected ? undefined : 'var(--theme-muted)',
+                          }}
+                        >
+                          <IconComponent className={option.iconClassName} style={{ color: option.iconColor }} />
+                          <span 
+                            className={`text-sm font-bold ${isSelected ? 'text-purple-600 dark:text-purple-400' : ''}`}
+                            style={{ 
+                              color: isSelected ? undefined : 'var(--theme-foreground)',
+                              fontFamily: 'var(--font-uni-salar)' 
+                            }}
+                          >
+                            {option.label}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute top-2 right-2 text-purple-500">✓</span>
+                          )}
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <div className="p-4 pt-0">
+                  <motion.button
+                    onClick={() => setShowOrderSourceModal(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-3 rounded-xl font-bold transition-all"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)',
+                      color: 'var(--theme-foreground)',
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  >
+                    داخستن
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Payment Method */}
         <div className="grid grid-cols-3 gap-1">

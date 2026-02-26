@@ -8,6 +8,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import ProductCard from './_components/ProductCard'
 import CartSidebar from './_components/CartSidebar'
 import CustomerSelector from './_components/CustomerSelector'
+import ProductImage from './_components/ProductImage'
 import UnitModal from './_components/UnitModal'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
@@ -483,10 +484,7 @@ export default function SalesPage() {
                       }}
                     >
                       <div className="flex-shrink-0 ml-2">
-                        <div 
-                          className="w-14 h-14 rounded-xl"
-                          style={{ backgroundColor: 'var(--theme-muted)' }}
-                        ></div>
+                        <ProductImage item={item} className="w-14 h-14" />
                       </div>
                       <div className="flex-1 text-right mr-3">
                         <h3 

@@ -444,7 +444,7 @@ export default function CustomersPage() {
       return
     }
     try {
-      const { data } = await supabase.from('customers').select('*').order('name')
+      const { data } = await supabase.from('customers').select('*').order('name', { ascending: true })
       setCustomers((data as Customer[]) || [])
     } catch (error) { console.error(error) }
     finally { setLoading(false) }

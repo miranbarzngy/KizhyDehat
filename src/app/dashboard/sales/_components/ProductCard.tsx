@@ -59,7 +59,7 @@ export default function ProductCard({ item, onAddToCart }: ProductCardProps) {
       </p>
 
       {/* Stock Level */}
-      <div className="flex items-center justify-center gap-1 mb-2">
+      <div className="flex items-center justify-center gap-1">
         <motion.div
           className={`w-2 h-2 rounded-full ${(item.total_amount_bought ?? 0) > 10 ? 'bg-green-500' : (item.total_amount_bought ?? 0) > 5 ? 'bg-yellow-500' : 'bg-red-500'}`}
           animate={{ scale: (item.total_amount_bought ?? 0) > 10 ? [1, 1.2, 1] : 1 }}
@@ -75,20 +75,6 @@ export default function ProductCard({ item, onAddToCart }: ProductCardProps) {
           {toEnglishDigits((item.total_amount_bought ?? 0).toString())} {item.unit}
         </p>
       </div>
-
-      {/* Category Badge */}
-      <motion.div
-        className="inline-block px-2 py-1 rounded-full text-xs font-medium mb-3 mx-auto border backdrop-blur-md"
-        style={{ 
-          background: 'var(--theme-muted)',
-          color: 'var(--theme-accent)',
-          borderColor: 'var(--theme-card-border)',
-          fontFamily: 'var(--font-uni-salar)' 
-        }}
-        whileHover={{ scale: 1.05 }}
-      >
-        {item.category}
-      </motion.div>
 
       {/* Add to Cart Button */}
       <motion.button

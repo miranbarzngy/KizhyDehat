@@ -455,12 +455,13 @@ export default function SalesPage() {
               </div>
             ) : (
               <>
-                <div className="lg:hidden space-y-2">
+                {/* Mobile view (< 768px) - List layout */}
+                <div className="md:hidden space-y-2">
                   {filteredInventory.map((item, index) => (
                     <motion.button 
                       key={item.id} 
                       onClick={() => addToCart(item)} 
-                      className="w-full h-16 backdrop-blur-xl rounded-lg shadow-md border flex items-center p-2"
+                      className="w-full h-20 backdrop-blur-xl rounded-lg shadow-md border flex items-center p-2"
                       initial={{ opacity: 0, x: -20 }} 
                       animate={{ opacity: 1, x: 0 }} 
                       transition={{ delay: index * 0.03 }} 
@@ -472,7 +473,7 @@ export default function SalesPage() {
                     >
                       <div className="flex-shrink-0 ml-2">
                         <div 
-                          className="w-12 h-12 rounded-xl"
+                          className="w-14 h-14 rounded-xl"
                           style={{ backgroundColor: 'var(--theme-muted)' }}
                         ></div>
                       </div>
@@ -487,16 +488,16 @@ export default function SalesPage() {
                           {item.name}
                         </h3>
                         <p 
-                          className="text-xs"
+                          className="text-xs mt-1"
                           style={{ 
                             color: 'var(--theme-secondary)',
-                            fontFamily: 'var(--font-uni-salar)' 
+                            fontFamily: 'Inter, sans-serif' 
                           }}
                         >
-                          {item.category}
+                          {item.total_amount_bought.toLocaleString()} {item.unit}
                         </p>
                       </div>
-                      <div className="flex-shrink-0 text-left">
+                      <div className="flex-shrink-0 text-left flex flex-col justify-center">
                         <p 
                           className="text-sm font-bold"
                           style={{ 
@@ -513,13 +514,15 @@ export default function SalesPage() {
                             fontFamily: 'Inter, sans-serif' 
                           }}
                         >
-                          IQD
+                          IQD/{item.unit}
                         </p>
                       </div>
                     </motion.button>
                   ))}
                 </div>
-                <div className="hidden lg:grid lg:grid-cols-4 gap-4">
+                
+                {/* Tablet/Desktop view (768px+) - Grid layout with ProductCard */}
+                <div className="hidden md:grid md:grid-cols-5 gap-2 lg:gap-4">
                   {filteredInventory.map((item) => (
                     <ProductCard key={item.id} item={item} onAddToCart={addToCart} />
                   ))}

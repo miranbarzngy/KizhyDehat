@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { calculateUnitPrice, convertUnits, safeStringToNumber } from '@/lib/numberUtils'
 import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import ProductCard from './_components/ProductCard'
 import CartSidebar from './_components/CartSidebar'
 import CustomerSelector from './_components/CustomerSelector'
@@ -12,6 +12,7 @@ import UnitModal from './_components/UnitModal'
 import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
+import LoadingTimeout from '@/components/common/LoadingTimeout'
 
 interface InventoryItem {
   id: string
@@ -67,6 +68,12 @@ export default function SalesPage() {
   const [completedSaleData, setCompletedSaleData] = useState<any>(null)
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  
+  // Timeout and error states
+  const [inventoryError, setInventoryError] = useState<string | null>(null)
+  const [customersError, setCustomersError] = useState<string | null>(null)
+  const [isRetrying, setIsRetrying] = useState(false)
+  const mountedRef = useRef(true)
 
   const getFilteredInventory = (): InventoryItem[] => selectedCategory === 'all' ? inventory : inventory.filter(i => i.category === selectedCategory)
   const getFilteredCustomers = (): Customer[] => {
@@ -76,39 +83,87 @@ export default function SalesPage() {
   }
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+  
   const fetchWithRetry = async <T,>(fetchFn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T | null> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try { return await fetchFn() } catch (err) { if (attempt < maxRetries) await wait(delayMs) }
+      try { 
+        if (!mountedRef.current) return null
+        return await fetchFn() 
+      } catch (err) { 
+        if (attempt < maxRetries && mountedRef.current) await wait(delayMs) 
+      }
     }
     return null
   }
 
   const fetchAllData = async () => {
-    const invResult = await fetchWithRetry(async () => {
+    setIsRetrying(true)
+    setInventoryError(null)
+    setCustomersError(null)
+    
+    // Fetch inventory with timeout
+    const invPromise = fetchWithRetry(async () => {
       const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
       if (error) throw error
       return data
     }, 3, 1000)
 
-    if (invResult) {
-      setInventory(invResult.map((item: any) => ({
-        ...item, category: item.category || 'ئەوانی تر', name: item.name,
-        total_amount_bought: item.total_amount_bought, selling_price_per_unit: item.selling_price_per_unit,
-        cost_per_unit: item.cost_per_unit
-      })))
-    }
-
-    const custResult = await fetchWithRetry(async () => {
+    // Fetch customers with timeout
+    const custPromise = fetchWithRetry(async () => {
       const { data, error } = await supabase.from('customers').select('id, name, phone1, phone2, total_debt, image')
       if (error) throw error
       return data
     }, 3, 1000)
-    if (custResult) setCustomers(custResult)
 
-    setLoading(false)
+    // Race against timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout')), 10000)
+    })
+
+    try {
+      const [invResult, custResult] = await Promise.race([
+        Promise.all([invPromise, custPromise]),
+        timeoutPromise
+      ]) as [any, any]
+
+      if (mountedRef.current) {
+        if (invResult) {
+          setInventory(invResult.map((item: any) => ({
+            ...item, category: item.category || 'ئەوانی تر', name: item.name,
+            total_amount_bought: item.total_amount_bought, selling_price_per_unit: item.selling_price_per_unit,
+            cost_per_unit: item.cost_per_unit
+          })))
+        } else {
+          setInventoryError('کات بەسەرچوو')
+        }
+
+        if (custResult) {
+          setCustomers(custResult)
+        } else {
+          setCustomersError('کات بەسەرچوو')
+        }
+
+        setLoading(false)
+        setIsRetrying(false)
+      }
+    } catch (error) {
+      if (mountedRef.current) {
+        setInventoryError('هەڵە لە ئامادەکردن')
+        setCustomersError('هەڵە لە ئامادەکردن')
+        setLoading(false)
+        setIsRetrying(false)
+      }
+    }
   }
 
+  const handleRetry = useCallback(() => {
+    setLoading(true)
+    setIsRetrying(true)
+    fetchAllData()
+  }, [])
+
   useEffect(() => { 
+    mountedRef.current = true
     fetchAllData()
     
     // Fetch categories from Supabase
@@ -120,17 +175,20 @@ export default function SalesPage() {
           .order('name', { ascending: true })
         
         if (error) throw error
-        setCategories(data || [])
+        if (mountedRef.current) setCategories(data || [])
       } catch (error) {
         console.error('Error fetching categories:', error)
       } finally {
-        setCategoriesLoading(false)
+        if (mountedRef.current) setCategoriesLoading(false)
       }
     }
     
     fetchCategories()
     
-    const handleClick = (e: MouseEvent) => { const t = e.target as Element; if (!t.closest('.customer-search-container')) setShowCustomerDropdown(false) }; document.addEventListener('mousedown', handleClick); return () => document.removeEventListener('mousedown', handleClick) 
+    const handleClick = (e: MouseEvent) => { const t = e.target as Element; if (!t.closest('.customer-search-container')) setShowCustomerDropdown(false) }; document.addEventListener('mousedown', handleClick); return () => { 
+      mountedRef.current = false
+      document.removeEventListener('mousedown', handleClick) 
+    }
   }, [])
 
   useEffect(() => {
@@ -141,7 +199,6 @@ export default function SalesPage() {
   }, [profile, user])
 
   const addToCart = (item: InventoryItem) => { 
-    // Safety check: prevent adding if not enough stock
     if (item.total_amount_bought <= 0) {
       showError('بڕی پێویست لە کۆگا نەماوە!')
       return
@@ -154,7 +211,6 @@ export default function SalesPage() {
     const quantity = safeStringToNumber(quantityInput)
     if (quantity <= 0) return
     
-    // Safety check: prevent adding more than available stock
     if (quantity > selectedItem.total_amount_bought) {
       showError('بڕی پێویست لە کۆگا نەماوە!')
       return
@@ -191,7 +247,6 @@ export default function SalesPage() {
       }).select('id, total, payment_method, date, invoice_number').single()
       if (saleError) throw saleError
 
-      // Log the sale activity
       const customerNameForLog = customers.find(c => c.id === selectedCustomer)?.name || 'نەناسراو'
       await logActivity(
         user?.id || null,
@@ -210,7 +265,6 @@ export default function SalesPage() {
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems)
       if (itemsError) throw itemsError
 
-      // Immediate stock decrement when sale is created (optimistic update)
       for (const item of cart) {
         const { error: decrementError } = await supabase
           .from('products')
@@ -225,7 +279,6 @@ export default function SalesPage() {
       const customerName = customers.find(c => c.id === selectedCustomer)?.name
       const customerPhone = customers.find(c => c.id === selectedCustomer)?.phone1
 
-      // Get the profile name from the profiles table
       let profileName = userName
       if (user?.id) {
         try {
@@ -238,7 +291,6 @@ export default function SalesPage() {
         }
       }
 
-      // Create invoice data for global modal - use actual invoice number from database
       const invoiceData = {
         invoiceNumber: saleData.invoice_number || 0,
         customerName: customerName || 'نەناسراو',
@@ -255,19 +307,17 @@ export default function SalesPage() {
         total
       }
 
-      // Open global modal instead of local state
       openModal(invoiceData, saleData.id, 'پسوڵەی فرۆشتن')
 
       setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false); setOrderSource('')
       
-      // Refresh inventory to show updated stock amounts
       const invResult = await fetchWithRetry(async () => {
         const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
         if (error) throw error
         return data
       }, 3, 1000)
 
-      if (invResult) {
+      if (invResult && mountedRef.current) {
         setInventory(invResult.map((item: any) => ({
           ...item, category: item.category || 'ئەوانی تر', name: item.name,
           total_amount_bought: item.total_amount_bought, selling_price_per_unit: item.selling_price_per_unit,
@@ -285,6 +335,19 @@ export default function SalesPage() {
     const cat = item.category || 'ئەوانی تر'; if (!acc[cat]) acc[cat] = []; acc[cat].push(item); return acc
   }, {} as { [key: string]: InventoryItem[] })).map(([name, items]) => ({ name, items }))
 
+  // Show loading timeout UI if loading
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <LoadingTimeout 
+          timeout={10000} 
+          onRetry={handleRetry}
+          message="ئامادەکردنی پەڕە..."
+          showRetryAfter={8}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="h-full flex flex-col lg:flex-row gap-1 lg:gap-6">
@@ -334,7 +397,6 @@ export default function SalesPage() {
                 </div>
               ) : (
                 <div className="grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-                  {/* All Categories Button */}
                   <motion.button
                     onClick={() => setSelectedCategory('all')}
                     whileTap={{ scale: 0.95 }}
@@ -353,7 +415,6 @@ export default function SalesPage() {
                     هەموو جۆرەکان
                   </motion.button>
                   
-                  {/* Dynamic Category Buttons */}
                   {categories.map((category) => (
                     <motion.button
                       key={category.id}
@@ -379,75 +440,92 @@ export default function SalesPage() {
             </motion.div>
           </div>
           <motion.div className="flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: 'none' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-            <div className="lg:hidden space-y-2">
-              {filteredInventory.map((item, index) => (
-                <motion.button 
-                  key={item.id} 
-                  onClick={() => addToCart(item)} 
-                  className="w-full h-16 backdrop-blur-xl rounded-lg shadow-md border flex items-center p-2"
-                  initial={{ opacity: 0, x: -20 }} 
-                  animate={{ opacity: 1, x: 0 }} 
-                  transition={{ delay: index * 0.03 }} 
-                  whileTap={{ scale: 0.98 }}
-                  style={{ 
-                    backgroundColor: 'var(--theme-card-bg)',
-                    borderColor: 'var(--theme-card-border)'
-                  }}
+            {inventoryError ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <p className="text-center mb-4" style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}>
+                  {inventoryError}
+                </p>
+                <button
+                  onClick={handleRetry}
+                  className="px-4 py-2 rounded-xl font-bold"
+                  style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
-                  <div className="flex-shrink-0 ml-2">
-                    <div 
-                      className="w-12 h-12 rounded-xl"
-                      style={{ backgroundColor: 'var(--theme-muted)' }}
-                    ></div>
-                  </div>
-                  <div className="flex-1 text-right mr-3">
-                    <h3 
-                      className="font-bold text-sm"
+                  هەوڵدانەوە
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="lg:hidden space-y-2">
+                  {filteredInventory.map((item, index) => (
+                    <motion.button 
+                      key={item.id} 
+                      onClick={() => addToCart(item)} 
+                      className="w-full h-16 backdrop-blur-xl rounded-lg shadow-md border flex items-center p-2"
+                      initial={{ opacity: 0, x: -20 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      transition={{ delay: index * 0.03 }} 
+                      whileTap={{ scale: 0.98 }}
                       style={{ 
-                        color: 'var(--theme-foreground)',
-                        fontFamily: 'var(--font-uni-salar)' 
+                        backgroundColor: 'var(--theme-card-bg)',
+                        borderColor: 'var(--theme-card-border)'
                       }}
                     >
-                      {item.name}
-                    </h3>
-                    <p 
-                      className="text-xs"
-                      style={{ 
-                        color: 'var(--theme-secondary)',
-                        fontFamily: 'var(--font-uni-salar)' 
-                      }}
-                    >
-                      {item.category}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 text-left">
-                    <p 
-                      className="text-sm font-bold"
-                      style={{ 
-                        color: 'var(--theme-accent)',
-                        fontFamily: 'Inter, sans-serif' 
-                      }}
-                    >
-                      {item.selling_price_per_unit.toLocaleString()}
-                    </p>
-                    <p 
-                      className="text-xs"
-                      style={{ 
-                        color: 'var(--theme-secondary)',
-                        fontFamily: 'Inter, sans-serif' 
-                      }}
-                    >
-                      IQD
-                    </p>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-            <div className="hidden lg:grid lg:grid-cols-4 gap-4">
-              {filteredInventory.map((item) => (
-                <ProductCard key={item.id} item={item} onAddToCart={addToCart} />
-              ))}
-            </div>
+                      <div className="flex-shrink-0 ml-2">
+                        <div 
+                          className="w-12 h-12 rounded-xl"
+                          style={{ backgroundColor: 'var(--theme-muted)' }}
+                        ></div>
+                      </div>
+                      <div className="flex-1 text-right mr-3">
+                        <h3 
+                          className="font-bold text-sm"
+                          style={{ 
+                            color: 'var(--theme-foreground)',
+                            fontFamily: 'var(--font-uni-salar)' 
+                          }}
+                        >
+                          {item.name}
+                        </h3>
+                        <p 
+                          className="text-xs"
+                          style={{ 
+                            color: 'var(--theme-secondary)',
+                            fontFamily: 'var(--font-uni-salar)' 
+                          }}
+                        >
+                          {item.category}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-left">
+                        <p 
+                          className="text-sm font-bold"
+                          style={{ 
+                            color: 'var(--theme-accent)',
+                            fontFamily: 'Inter, sans-serif' 
+                          }}
+                        >
+                          {item.selling_price_per_unit.toLocaleString()}
+                        </p>
+                        <p 
+                          className="text-xs"
+                          style={{ 
+                            color: 'var(--theme-secondary)',
+                            fontFamily: 'Inter, sans-serif' 
+                          }}
+                        >
+                          IQD
+                        </p>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+                <div className="hidden lg:grid lg:grid-cols-4 gap-4">
+                  {filteredInventory.map((item) => (
+                    <ProductCard key={item.id} item={item} onAddToCart={addToCart} />
+                  ))}
+                </div>
+              </>
+            )}
           </motion.div>
         </motion.div>
       </div>
@@ -469,7 +547,6 @@ export default function SalesPage() {
         onCreateCustomer={handleCreateCustomer} 
       />
       <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
-      {/* No local modal - GlobalInvoiceModal is handled by context in layout */}
     </div>
   )
 }

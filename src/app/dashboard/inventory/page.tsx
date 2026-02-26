@@ -11,6 +11,7 @@ import PermissionGuard from '@/components/PermissionGuard'
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 import { FaArchive, FaBox, FaCalculator, FaSearch, FaTags, FaTrash } from 'react-icons/fa'
+import LoadingTimeout from '@/components/common/LoadingTimeout'
 
 export default function InventoryPage() {
   const { pauseSync } = useSyncPause()
@@ -30,15 +31,16 @@ export default function InventoryPage() {
     handleAddUnit, handleEditUnit, confirmDeleteCategory, confirmDeleteUnit, executeDeleteCategory, executeDeleteUnit, saveUnit,
     showDeleteCategoryConfirm, categoryToDelete, showDeleteUnitConfirm, unitToDelete,
     setShowDeleteCategoryConfirm, setShowDeleteUnitConfirm,
-    filteredProducts
+    filteredProducts,
+    loading,
+    error,
+    retry
   } = useInventoryData()
   
-  // Handle archive filter
   const applyArchiveFilter = () => {
     fetchArchivedItems(archiveStartDate, archiveEndDate)
   }
   
-  // Clear archive filters
   const clearArchiveFilters = () => {
     setArchiveStartDate('')
     setArchiveEndDate('')
@@ -53,6 +55,50 @@ export default function InventoryPage() {
     { id: 'units', label: 'یەکەکان', icon: FaCalculator, color: 'purple' },
     { id: 'archive', label: 'ئەرشیڤ', icon: FaArchive, color: 'orange' }
   ]
+
+  // Show loading state with timeout
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <LoadingTimeout 
+          timeout={10000} 
+          onRetry={retry}
+          message="ئامادەکردنی پەڕە..."
+          showRetryAfter={8}
+        />
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center">
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 
+            className="text-xl font-bold mb-2"
+            style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}
+          >
+            هەڵە لە ئامادەکردن
+          </h2>
+          <p 
+            className="text-sm mb-4"
+            style={{ color: 'var(--theme-secondary)', fontFamily: 'var(--font-uni-salar)' }}
+          >
+            {error}
+          </p>
+        </div>
+        <button
+          onClick={retry}
+          className="px-6 py-3 rounded-xl font-bold"
+          style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
+        >
+          هەوڵدانەوە
+        </button>
+      </div>
+    )
+  }
 
   return (
     <PermissionGuard permission="inventory">
@@ -166,7 +212,6 @@ export default function InventoryPage() {
 
         {activeTab === 'archive' && (
           <>
-            {/* Date Filter UI for Archive */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
@@ -268,7 +313,6 @@ export default function InventoryPage() {
           onAddUnit={handleAddUnit}
         />
 
-        {/* Delete Modal */}
         {showDeleteConfirm && itemToDelete && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
             <motion.div 
@@ -278,7 +322,7 @@ export default function InventoryPage() {
               style={{ 
                 backgroundColor: 'var(--theme-card-bg)',
                 borderColor: 'var(--theme-card-border)'
-              }}
+              }
             >
               <div className="text-center">
                 <div 
@@ -371,7 +415,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Category Modal */}
         {showCategoryModal && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
             <motion.div 
@@ -433,7 +476,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Unit Modal */}
         {showUnitModal && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
             <motion.div 
@@ -496,7 +538,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Delete Category Confirmation Modal */}
         {showDeleteCategoryConfirm && categoryToDelete && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
             <motion.div 
@@ -579,7 +620,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Delete Unit Confirmation Modal */}
         {showDeleteUnitConfirm && unitToDelete && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}>
             <motion.div 

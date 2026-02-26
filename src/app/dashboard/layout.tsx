@@ -10,6 +10,7 @@ import Footer from '@/components/layout/Footer'
 import { useGlobalReSync } from '@/hooks/useGlobalReSync'
 import { GlobalInvoiceModalProvider, useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import GlobalInvoiceModal from '@/components/GlobalInvoiceModal'
+import OfflineIndicator from '@/components/common/OfflineIndicator'
 
 // Dynamic import for better code splitting
 const UserProfilePopup = dynamic(
@@ -31,6 +32,9 @@ function DashboardContent({ children, shopSettings }: { children: React.ReactNod
         fontFamily: 'var(--font-uni-salar)'
       }}
     >
+      {/* Offline Indicator */}
+      <OfflineIndicator position="top-right" />
+
       {/* Header */}
       <Header 
         shopSettings={shopSettings}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Product, Category, Unit } from './types'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
@@ -51,11 +51,12 @@ interface UseInventoryDataReturn {
   newUnitSymbol: string
   editingCategory: Category | null
   editingUnit: Unit | null
-  // Delete confirmation for categories and units
   showDeleteCategoryConfirm: boolean
   categoryToDelete: Category | null
   showDeleteUnitConfirm: boolean
   unitToDelete: Unit | null
+  loading: boolean
+  error: string | null
   setActiveTab: (tab: 'inventory' | 'categories' | 'units' | 'archive') => void
   setSearchTerm: (term: string) => void
   setSelectedCategory: (category: string) => void
@@ -101,7 +102,16 @@ interface UseInventoryDataReturn {
   handleDeleteUnit: (unit: Unit) => Promise<void>
   executeDeleteUnit: () => Promise<void>
   saveUnit: () => Promise<void>
+  showDeleteCategoryConfirm: boolean
+  categoryToDelete: Category | null
+  showDeleteUnitConfirm: boolean
+  unitToDelete: Unit | null
+  setShowDeleteCategoryConfirm: (show: boolean) => void
+  setCategoryToDelete: (category: Category | null) => void
+  setShowDeleteUnitConfirm: (show: boolean) => void
+  setUnitToDelete: (unit: Unit | null) => void
   filteredProducts: Product[]
+  retry: () => void
 }
 
 const DEFAULT_FORM_DATA: InventoryFormData = {
@@ -152,12 +162,33 @@ export function useInventoryData(): UseInventoryDataReturn {
   const [newUnitSymbol, setNewUnitSymbol] = useState('')
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
-  
-  // Delete confirmation states for categories and units
   const [showDeleteCategoryConfirm, setShowDeleteCategoryConfirm] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [showDeleteUnitConfirm, setShowDeleteUnitConfirm] = useState(false)
   const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const mountedRef = useRef(true)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+  const fetchWithTimeout = useCallback(async <T,>(fetchFn: () => Promise<T>, timeoutMs = 10000): Promise<T | null> => {
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      timeoutRef.current = setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+    })
+    
+    try {
+      const result = await Promise.race([fetchFn(), timeoutPromise])
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      return result
+    } catch (err) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      throw err
+    }
+  }, [])
 
   const fetchProducts = useCallback(async () => {
     if (!supabase) {
@@ -165,7 +196,6 @@ export function useInventoryData(): UseInventoryDataReturn {
       return
     }
     try {
-      // Optimized: Select only needed columns to reduce payload size (include reference_id for cascade delete)
       const { data, error } = await supabase
         .from('products')
         .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, reference_id')
@@ -174,26 +204,23 @@ export function useInventoryData(): UseInventoryDataReturn {
         .limit(100)
       if (error) { console.error('Error:', error); return }
       const validProducts = (data || []).filter((item: any) => (item.total_amount_bought || 0) > 0).map((item: any) => ({ ...item, is_archived: item.is_archived || false }))
-      setProducts(validProducts)
+      if (mountedRef.current) setProducts(validProducts)
     } catch (e) { console.error('Exception:', e) }
   }, [])
 
   const fetchArchivedItems = useCallback(async (startDate?: string, endDate?: string) => {
     if (!supabase) return
     try { 
-      // Select all needed columns including sales statistics
       let query = supabase
         .from('products')
         .select('id, name, total_amount_bought, total_purchase_price, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, total_sold, total_revenue, total_profit, total_discounts, created_at')
         .or('is_archived.eq.true,total_amount_bought.lte.0')
         .limit(50)
       
-      // Apply date filters if provided (filter by created_at which represents when the product was archived)
       if (startDate) {
         query = query.gte('created_at', startDate)
       }
       if (endDate) {
-        // Add one day to include the entire end date
         const endDateObj = new Date(endDate)
         endDateObj.setDate(endDateObj.getDate() + 1)
         query = query.lt('created_at', endDateObj.toISOString())
@@ -203,7 +230,6 @@ export function useInventoryData(): UseInventoryDataReturn {
       
       if (error) {
         console.error('Error fetching archived items:', error)
-        // Fallback: try with minimal columns
         let fallbackQuery = supabase
           .from('products')
           .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, added_date, supplier_id, is_archived')
@@ -211,29 +237,20 @@ export function useInventoryData(): UseInventoryDataReturn {
           .limit(50)
         
         const { data: fallbackData } = await fallbackQuery
-        setArchivedItems(fallbackData || [])
+        if (mountedRef.current) setArchivedItems(fallbackData || [])
       } else if (productsData && productsData.length > 0) {
-        // For each archived product, get the latest sale date from sale_items table
-        // by matching the product name
         const productNames = productsData.map(p => p.name)
         
-        // Get the latest sale item for each product name (simpler query without nested relationship)
         let saleItemsQuery = supabase
           .from('sale_items')
           .select('item_name, created_at')
           .in('item_name', productNames)
           .order('created_at', { ascending: false })
         
-        const { data: saleItemsData, error: saleItemsError } = await saleItemsQuery
+        const { data: saleItemsData } = await saleItemsQuery
         
-        if (saleItemsError) {
-          console.warn('Error fetching sale items dates (non-critical):', saleItemsError.message)
-        }
-        
-        // Create a map of product name to latest sale date
         const latestSaleDates: Record<string, string> = {}
         if (saleItemsData && saleItemsData.length > 0) {
-          // Get the most recent sale date for each product name
           for (const item of saleItemsData) {
             const saleDate = item.created_at
             if (saleDate && !latestSaleDates[item.item_name]) {
@@ -242,35 +259,33 @@ export function useInventoryData(): UseInventoryDataReturn {
           }
         }
         
-        // Map the products with their last sale date
         const mappedData = (productsData || []).map((item: any) => ({
           ...item,
-          // Use last sale date if available, otherwise fallback to created_at
           last_sale_date: latestSaleDates[item.name] || item.created_at
         }))
-        setArchivedItems(mappedData)
+        if (mountedRef.current) setArchivedItems(mappedData)
       } else {
-        setArchivedItems([])
+        if (mountedRef.current) setArchivedItems([])
       }
     } catch (e) { 
       console.error('Exception fetching archived items:', e) 
-      setArchivedItems([])
+      if (mountedRef.current) setArchivedItems([])
     }
   }, [])
 
   const fetchCategories = useCallback(async () => {
     if (!supabase) return
-    try { const { data } = await supabase.from('categories').select('*').order('name', { ascending: true }); setCategories(data || []) } catch {}
+    try { const { data } = await supabase.from('categories').select('*').order('name', { ascending: true }); if (mountedRef.current) setCategories(data || []) } catch {}
   }, [])
 
   const fetchUnits = useCallback(async () => {
     if (!supabase) return
-    try { const { data } = await supabase.from('units').select('*').order('name', { ascending: true }); setUnits(data || []) } catch {}
+    try { const { data } = await supabase.from('units').select('*').order('name', { ascending: true }); if (mountedRef.current) setUnits(data || []) } catch {}
   }, [])
 
   const fetchSuppliers = useCallback(async () => {
     if (!supabase) { setSuppliers([{ id: '1', name: 'کۆمپانیا', balance: 0 }]); return }
-    try { const { data } = await supabase.from('suppliers').select('*').order('name', { ascending: true }); setSuppliers(data || []) } catch {}
+    try { const { data } = await supabase.from('suppliers').select('*').order('name', { ascending: true }); if (mountedRef.current) setSuppliers(data || []) } catch {}
   }, [])
 
   const fetchSoldProductIds = useCallback(async () => {
@@ -280,7 +295,7 @@ export function useInventoryData(): UseInventoryDataReturn {
       if (saleItems && saleItems.length > 0) {
         const soldNames = [...new Set(saleItems.map(si => si.item_name))]
         const { data: productsWithSales } = await supabase.from('products').select('id').in('name', soldNames)
-        if (productsWithSales) { setSoldProductIds(new Set(productsWithSales.map(p => p.id))) }
+        if (productsWithSales && mountedRef.current) { setSoldProductIds(new Set(productsWithSales.map(p => p.id))) }
       }
     } catch (e) { console.error('Error:', e) }
   }, [])
@@ -335,38 +350,29 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
     setDeleteStatus('deleting')
     try {
-      // First, get the reference_id from the product if it exists
       const { data: productData } = await supabase.from('products').select('reference_id').eq('id', itemId).single()
       const referenceId = productData?.reference_id
 
-      // Delete from supplier_debts using reference_id or note fallback
       if (referenceId) {
         await supabase.from('supplier_debts').delete().eq('reference_id', referenceId)
       } else {
-        // Fallback: delete by note (product name)
         await supabase.from('supplier_debts').delete().eq('note', itemName.trim())
       }
 
-      // Delete from supplier_transactions using reference_id or item_name fallback
       if (referenceId) {
         await supabase.from('supplier_transactions').delete().eq('reference_id', referenceId)
       } else {
-        // Fallback: delete by item_name
         await supabase.from('supplier_transactions').delete().eq('item_name', itemName.trim())
       }
 
-      // Delete from purchase_expenses using reference_id or item_name fallback
       if (referenceId) {
         await supabase.from('purchase_expenses').delete().eq('reference_id', referenceId)
       } else {
-        // Fallback: delete by item_name
         await supabase.from('purchase_expenses').delete().eq('item_name', itemName.trim())
       }
 
-      // Finally delete the product itself
       await supabase.from('products').delete().eq('id', itemId)
       
-      // Log the activity
       await logActivity(
         null, 
         'سیستەم', 
@@ -391,7 +397,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (!supabase) return
     await supabase.from('products').update({ is_archived: true }).eq('id', item.id)
     
-    // Log the archive activity
     await logActivity(
       null,
       null,
@@ -409,7 +414,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (!supabase) return
     await supabase.from('products').update({ is_archived: false }).eq('id', item.id)
     
-    // Log the restore activity
     await logActivity(
       null,
       null,
@@ -435,17 +439,14 @@ export function useInventoryData(): UseInventoryDataReturn {
     setShowCategoryModal(true)
   }, [])
 
-  // Confirm delete category - shows confirmation dialog
   const confirmDeleteCategory = useCallback((category: Category) => {
     setCategoryToDelete(category)
     setShowDeleteCategoryConfirm(true)
   }, [])
 
-  // Execute delete category - performs the actual deletion
   const executeDeleteCategory = useCallback(async () => {
     if (!categoryToDelete || !supabase) return
     
-    // Helper to check if ID is a valid UUID
     const isValidUUID = (id: any) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       return id && uuidRegex.test(String(id))
@@ -453,7 +454,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     
     const { error } = await supabase.from('categories').delete().eq('id', categoryToDelete.id)
     if (!error) {
-      // Log the activity
       await logActivity(
         user?.id || null,
         profile?.name || null,
@@ -469,7 +469,6 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [categoryToDelete, fetchCategories, user, profile])
 
   const handleDeleteCategory = useCallback(async (category: Category) => {
-    // Helper to check if ID is a valid UUID
     const isValidUUID = (id: any) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       return id && uuidRegex.test(String(id))
@@ -478,7 +477,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (!supabase) return
     const { error } = await supabase.from('categories').delete().eq('id', category.id)
     if (!error) {
-      // Log the activity
       await logActivity(
         null,
         null,
@@ -492,7 +490,6 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [fetchCategories])
 
   const saveCategory = useCallback(async () => {
-    // Helper to check if ID is a valid UUID
     const isValidUUID = (id: any) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       return id && uuidRegex.test(String(id))
@@ -502,7 +499,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (editingCategory) {
       const { error } = await supabase.from('categories').update({ name: newCategoryName.trim() }).eq('id', editingCategory.id)
       if (!error) {
-        // Log the activity
         await logActivity(
           user?.id || null,
           profile?.name || null,
@@ -516,7 +512,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     } else {
       const { error } = await supabase.from('categories').insert([{ name: newCategoryName.trim() }])
       if (!error) {
-        // Log the activity
         await logActivity(
           user?.id || null,
           profile?.name || null,
@@ -546,22 +541,18 @@ export function useInventoryData(): UseInventoryDataReturn {
     setShowUnitModal(true)
   }, [])
 
-  // Confirm delete unit - shows confirmation dialog
   const confirmDeleteUnit = useCallback((unit: Unit) => {
     setUnitToDelete(unit)
     setShowDeleteUnitConfirm(true)
   }, [])
 
-  // Execute delete unit - performs the actual deletion
   const executeDeleteUnit = useCallback(async () => {
     if (!unitToDelete || !supabase) return
     
     const { error } = await supabase.from('units').delete().eq('id', unitToDelete.id)
     if (!error) {
-      // Log the activity - ensure user is logged
       console.log('Logging DELETE_UNIT activity:', { userId: user?.id, profileName: profile?.name })
       try {
-        // Check if entity_id is a valid UUID before passing it
         const isValidUUID = (id: any) => {
           const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
           return id && uuidRegex.test(String(id))
@@ -587,7 +578,6 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [unitToDelete, fetchUnits, user, profile])
 
   const handleDeleteUnit = useCallback(async (unit: Unit) => {
-    // Helper to check if ID is a valid UUID
     const isValidUUID = (id: any) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       return id && uuidRegex.test(String(id))
@@ -596,7 +586,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (!supabase) return
     const { error } = await supabase.from('units').delete().eq('id', unit.id)
     if (!error) {
-      // Log the activity
       await logActivity(
         null,
         null,
@@ -610,7 +599,6 @@ export function useInventoryData(): UseInventoryDataReturn {
   }, [fetchUnits])
 
   const saveUnit = useCallback(async () => {
-    // Helper to check if ID is a valid UUID
     const isValidUUID = (id: any) => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       return id && uuidRegex.test(String(id))
@@ -620,7 +608,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     if (editingUnit) {
       const { error } = await supabase.from('units').update({ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }).eq('id', editingUnit.id)
       if (!error) {
-        // Log the activity - ensure user is logged
         console.log('Logging UPDATE_UNIT activity:', { userId: user?.id, profileName: profile?.name })
         try {
           await logActivity(
@@ -641,7 +628,6 @@ export function useInventoryData(): UseInventoryDataReturn {
     } else {
       const { error } = await supabase.from('units').insert([{ name: newUnitName.trim(), symbol: newUnitSymbol.trim() }])
       if (!error) {
-        // Log the activity
         console.log('Logging ADD_UNIT activity:', { userId: user?.id, profileName: profile?.name })
         try {
           await logActivity(
@@ -671,7 +657,43 @@ export function useInventoryData(): UseInventoryDataReturn {
     return item.name?.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  // Real-time subscription for products - optimized with debounce and payload-aware updates
+  // Main fetch all function with timeout handling
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Fetch all data with timeout
+      const fetchPromise = Promise.all([
+        fetchProducts(),
+        fetchCategories(),
+        fetchUnits(),
+        fetchSuppliers(),
+        fetchSoldProductIds()
+      ])
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('کات بەسەرچوو - تکایە هەوڵبدەرەوە')), 10000)
+      })
+      
+      await Promise.race([fetchPromise, timeoutPromise])
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'هەڵە لە ئامادەکردن')
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false)
+      }
+    }
+  }, [fetchProducts, fetchCategories, fetchUnits, fetchSuppliers, fetchSoldProductIds])
+
+  // Retry function
+  const retry = useCallback(() => {
+    fetchAll()
+  }, [fetchAll])
+
+  // Real-time subscription for products
   useEffect(() => {
     if (!supabase) return
 
@@ -681,7 +703,6 @@ export function useInventoryData(): UseInventoryDataReturn {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         (payload) => {
-          // For INSERT/UPDATE, optimize by updating local state directly instead of refetching
           const eventType = payload.eventType
           const newRecord = payload.new
           const oldRecord = payload.old
@@ -702,7 +723,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
   }, [])
 
-  // Real-time subscription for categories - optimized
+  // Real-time subscription for categories
   useEffect(() => {
     if (!supabase) return
 
@@ -732,7 +753,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
   }, [])
 
-  // Real-time subscription for units - optimized
+  // Real-time subscription for units
   useEffect(() => {
     if (!supabase) return
 
@@ -762,7 +783,7 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
   }, [])
 
-  // Real-time subscription for suppliers - optimized
+  // Real-time subscription for suppliers
   useEffect(() => {
     if (!supabase) return
 
@@ -792,16 +813,24 @@ export function useInventoryData(): UseInventoryDataReturn {
     }
   }, [])
 
-  // Combined fetchAll function (defined after all fetch functions)
-  const fetchAll = useCallback(async () => {
-    await Promise.all([fetchProducts(), fetchCategories(), fetchUnits(), fetchSuppliers(), fetchSoldProductIds()])
-  }, [fetchProducts, fetchCategories, fetchUnits, fetchSuppliers, fetchSoldProductIds])
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    
+    return () => {
+      mountedRef.current = false
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   return {
     activeTab, products, categories, units, suppliers, archivedItems, searchTerm, selectedCategory, archiveStartDate, archiveEndDate, currentStep, showStockEntry, editingItem, formData, showDeleteConfirm, itemToDelete, deleteStatus, deleteMessage, soldProductIds, showCategoryModal, showUnitModal, newCategoryName, newUnitName, newUnitSymbol, editingCategory, editingUnit,
     showDeleteCategoryConfirm, categoryToDelete, showDeleteUnitConfirm, unitToDelete,
     setActiveTab, setSearchTerm, setSelectedCategory, setArchiveStartDate, setArchiveEndDate, setCurrentStep, setShowStockEntry, setFormData, setShowDeleteConfirm, setItemToDelete, setShowCategoryModal, setShowUnitModal, setNewCategoryName, setNewUnitName, setNewUnitSymbol, setEditingCategory, setEditingUnit,
     setShowDeleteCategoryConfirm, setCategoryToDelete, setShowDeleteUnitConfirm, setUnitToDelete,
-    fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers, openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem, handleAddCategory, handleEditCategory, confirmDeleteCategory, handleDeleteCategory, executeDeleteCategory, saveCategory, handleAddUnit, handleEditUnit, confirmDeleteUnit, handleDeleteUnit, executeDeleteUnit, saveUnit, filteredProducts
+    fetchAll, fetchProducts, fetchArchivedItems, fetchCategories, fetchUnits, fetchSuppliers, openAddItem, openEditItem, confirmDelete, executeDelete, archiveItem, restoreItem, handleAddCategory, handleEditCategory, confirmDeleteCategory, handleDeleteCategory, executeDeleteCategory, saveCategory, handleAddUnit, handleEditUnit, confirmDeleteUnit, handleDeleteUnit, executeDeleteUnit, saveUnit, filteredProducts,
+    loading, error, retry
   }
 }

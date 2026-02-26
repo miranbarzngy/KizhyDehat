@@ -185,8 +185,19 @@ export default function SalesPage() {
     
     fetchCategories()
     
+    // Real-time subscription for products
+    const productsChannel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        if (mountedRef.current) {
+          fetchAllData()
+        }
+      })
+      .subscribe()
+
     const handleClick = (e: MouseEvent) => { const t = e.target as Element; if (!t.closest('.customer-search-container')) setShowCustomerDropdown(false) }; document.addEventListener('mousedown', handleClick); return () => { 
       mountedRef.current = false
+      supabase.removeChannel(productsChannel)
       document.removeEventListener('mousedown', handleClick) 
     }
   }, [])

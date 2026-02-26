@@ -52,6 +52,19 @@ export default function InvoicesPage() {
   const [endDate, setEndDate] = useState<string>('')
   // Search query state
   const [searchQuery, setSearchQuery] = useState<string>('')
+  // Order source filter state
+  const [orderSourceFilter, setOrderSourceFilter] = useState<string>('')
+  
+  // Order source options
+  const orderSourceOptions = [
+    { value: '', label: 'هەموو سەرچاوەکان' },
+    { value: 'Instagram', label: 'ئینستاگرام' },
+    { value: 'Facebook', label: 'فەیسبووک' },
+    { value: 'TikTok', label: 'تیکتۆک' },
+    { value: 'WhatsApp', label: 'وەتسئەپ' },
+    { value: 'In-Store', label: 'فرۆشگا' },
+    { value: 'Other', label: 'ئەوانی تر' },
+  ]
   
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
@@ -207,6 +220,11 @@ export default function InvoicesPage() {
         query = query.lt('created_at', endDateObj.toISOString())
       }
       
+      // Apply order source filter if provided
+      if (orderSourceFilter) {
+        query = query.eq('order_source', orderSourceFilter)
+      }
+      
       // Apply search filter if provided - search by customer name (via customers relation) or invoice number
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase()
@@ -237,13 +255,8 @@ export default function InvoicesPage() {
       
       const { data: salesData } = await query
       
-      // For each sale, fetch the seller name using user_id and sold_by
-      const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
-        const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
-        return { ...sale, seller_name: sellerName || sale.sold_by || '', profiles: { name: sellerName || sale.sold_by || '' } }
-      }))
-      
-      setPendingSales(mappedData)
+      // Use sold_by directly without additional queries for better performance
+      setPendingSales(salesData || [])
     } catch { setPendingSales([]) }
   }
 
@@ -262,6 +275,11 @@ export default function InvoicesPage() {
         const endDateObj = new Date(endDate)
         endDateObj.setDate(endDateObj.getDate() + 1)
         query = query.lt('created_at', endDateObj.toISOString())
+      }
+      
+      // Apply order source filter if provided
+      if (orderSourceFilter) {
+        query = query.eq('order_source', orderSourceFilter)
       }
       
       // Apply search filter if provided - search by customer name or invoice number
@@ -294,18 +312,8 @@ export default function InvoicesPage() {
       
       const { data: salesData } = await query
       
-      // For each sale, fetch the seller name using user_id and sold_by
-      const mappedData = await Promise.all((salesData || []).map(async (sale: any) => {
-        const sellerName = await fetchSellerName(sale.user_id, sale.sold_by)
-        return { 
-          ...sale, 
-          seller_name: sellerName || sale.sold_by || '', 
-          profiles: { name: sellerName || sale.sold_by || '' },
-          customers: sale.customers || null
-        }
-      }))
-      
-      setInvoices(mappedData)
+      // Use sold_by directly without additional queries for better performance
+      setInvoices(salesData || [])
     } catch { setInvoices([]) }
   }
 
@@ -320,6 +328,7 @@ export default function InvoicesPage() {
     setStartDate('')
     setEndDate('')
     setSearchQuery('')
+    setOrderSourceFilter('')
     fetchPendingSales()
     fetchInvoices()
   }
@@ -446,7 +455,7 @@ export default function InvoicesPage() {
   }
 
   // Check if any filter is active
-  const hasActiveFilters = startDate || endDate || searchQuery
+  const hasActiveFilters = startDate || endDate || searchQuery || orderSourceFilter
 
   return (
     <div className="p-4 md:p-6 w-full">
@@ -462,31 +471,57 @@ export default function InvoicesPage() {
 
           {/* Filters UI */}
           <div className="mb-6 p-3 md:p-4 backdrop-blur-xl border shadow-sm rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--theme-card-bg)', borderColor: 'var(--theme-card-border)' }}>
-            {/* Search Bar */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>گەڕان</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-                  placeholder="گەڕان بەناوی کڕیار یان ژمارەی پسوڵە..."
-                  className="w-full px-3 md:px-4 py-2 md:py-3 pr-10 md:pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-base md:text-lg box-border"
+            {/* Search Bar and Order Source Filter Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>گەڕان</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+                    placeholder="گەڕان بەناوی کڕیار یان ژمارەی پسوڵە..."
+                    className="w-full px-3 md:px-4 py-2 md:py-3 pr-10 md:pr-12 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-base md:text-lg box-border"
+                    style={{ 
+                      backgroundColor: 'var(--theme-muted)', 
+                      borderColor: 'var(--theme-card-border)', 
+                      color: 'var(--theme-foreground)', 
+                      fontFamily: 'var(--font-uni-salar)'
+                    }}
+                  />
+                  <button
+                    onClick={applySearch}
+                    className="absolute left-1 md:left-2 top-1/2 transform -translate-y-1/2 p-1.5 md:p-2 rounded-lg transition-colors"
+                    style={{ color: 'var(--theme-accent)' }}
+                  >
+                    <FaSearch />
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>سەرچاوەی داواکاری</label>
+                <select
+                  value={orderSourceFilter}
+                  onChange={(e) => {
+                    setOrderSourceFilter(e.target.value)
+                    fetchPendingSales()
+                    fetchInvoices()
+                  }}
+                  className="w-full px-3 md:px-4 py-2 md:py-3 rounded-xl border shadow-sm focus:ring-2 outline-none transition-all text-base md:text-lg box-border"
                   style={{ 
                     backgroundColor: 'var(--theme-muted)', 
                     borderColor: 'var(--theme-card-border)', 
                     color: 'var(--theme-foreground)', 
                     fontFamily: 'var(--font-uni-salar)'
                   }}
-                />
-                <button
-                  onClick={applySearch}
-                  className="absolute left-1 md:left-2 top-1/2 transform -translate-y-1/2 p-1.5 md:p-2 rounded-lg transition-colors"
-                  style={{ color: 'var(--theme-accent)' }}
                 >
-                  <FaSearch />
-                </button>
+                  {orderSourceOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -527,21 +562,23 @@ export default function InvoicesPage() {
                   onClick={applyFilters}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 md:flex-none py-2 md:py-3 px-4 md:px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none py-1 lg:py-3 px-2 lg:px-3 rounded-lg lg:rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-1 lg:gap-3 text-base lg:text-2xl"
                   style={{ background: 'var(--theme-accent)', color: '#ffffff', fontFamily: 'var(--font-uni-salar)' }}
                 >
-                  <FaFilter />
-                  <span>فلتەر بکە</span>
+                  <FaFilter className="text-lg lg:text-3xl" />
+                  <span className="hidden lg:inline">فلتەر بکە</span>
+                  <span className="lg:hidden">فلتەر</span>
                 </motion.button>
                 <motion.button
                   onClick={clearFilters}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 md:flex-none py-2 md:py-3 px-4 md:px-6 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none py-1.5 lg:py-4.5 px-3 lg:px-3 rounded-lg lg:rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-1 lg:gap-3 text-base lg:text-2xl"
                   style={{ background: 'var(--theme-muted)', color: 'var(--theme-foreground)', borderColor: 'var(--theme-card-border)', border: '1px solid', fontFamily: 'var(--font-uni-salar)' }}
                 >
-                  <FaTimes />
-                  <span>پاککردنەوە</span>
+                  <FaTimes className="text-lg lg:text-3xl" />
+                  <span className="hidden lg:inline">پاککردنەوە</span>
+                  <span className="lg:hidden">پاک</span>
                 </motion.button>
               </div>
             </div>

@@ -164,7 +164,10 @@ export default function CustomersPage() {
           location: newCustomer.location,
           total_debt: 0
         }
-        setCustomers(prev => [...prev, mockCustomer])
+        setCustomers(prev => {
+          const updated = [...prev, mockCustomer]
+          return updated.sort((a, b) => a.name.localeCompare(b.name, 'ku'))
+        })
         setShowAddCustomer(false)
         setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
         setImagePreview(null)
@@ -192,7 +195,10 @@ export default function CustomersPage() {
       }
 
       if (data) {
-        setCustomers(prev => [...prev, data as Customer])
+        setCustomers(prev => {
+          const updated = [...prev, data as Customer]
+          return updated.sort((a, b) => a.name.localeCompare(b.name, 'ku'))
+        })
         setShowAddCustomer(false)
         setNewCustomer({ name: '', phone1: '', phone2: '', location: '', image: null, existingImage: '' })
         setImagePreview(null)

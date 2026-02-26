@@ -425,6 +425,44 @@ export default function CustomersPage() {
 
   useEffect(() => { fetchCustomers() }, [])
 
+  // Real-time subscription for customers
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('customers-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'customers' },
+        (payload) => {
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setCustomers(prev => {
+              // Check if already exists
+              if (prev.some(c => c.id === newRecord.id)) return prev
+              // Add new customer and sort by name
+              const updated = [...prev, newRecord]
+              return updated.sort((a, b) => a.name.localeCompare(b.name, 'ku'))
+            })
+          } else if (eventType === 'UPDATE') {
+            setCustomers(prev => prev.map(item => 
+              item.id === newRecord.id ? { ...item, ...newRecord } : item
+            ).sort((a, b) => a.name.localeCompare(b.name, 'ku')))
+          } else if (eventType === 'DELETE') {
+            setCustomers(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   useEffect(() => {
     if (selectedCustomer) {
       fetchPaymentHistory(selectedCustomer.id)

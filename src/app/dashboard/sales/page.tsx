@@ -103,7 +103,7 @@ export default function SalesPage() {
     
     // Fetch inventory with timeout
     const invPromise = fetchWithRetry(async () => {
-      const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
+      const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false').order('name', { ascending: true })
       if (error) throw error
       return data
     }, 3, 1000)
@@ -312,7 +312,7 @@ export default function SalesPage() {
       setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false); setOrderSource('')
       
       const invResult = await fetchWithRetry(async () => {
-        const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false')
+        const { data, error } = await supabase.from('products').select('*').gt('total_amount_bought', 0).or('is_archived.is.null,is_archived.eq.false').order('name', { ascending: true })
         if (error) throw error
         return data
       }, 3, 1000)

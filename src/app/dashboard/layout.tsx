@@ -25,7 +25,7 @@ function DashboardContent({ children, shopSettings }: { children: React.ReactNod
   
   return (
     <div 
-      className="min-h-screen transition-colors duration-300"
+      className="flex flex-col h-screen overflow-hidden"
       style={{ 
         background: 'var(--theme-background)',
         color: 'var(--theme-foreground)',
@@ -35,28 +35,26 @@ function DashboardContent({ children, shopSettings }: { children: React.ReactNod
       {/* Offline Indicator */}
       <OfflineIndicator position="top-right" />
 
-      {/* Header */}
+      {/* Header - Fixed at top */}
       <Header 
         shopSettings={shopSettings}
         onProfileClick={() => setShowSidebar(true)}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 min-h-screen w-full">
-        <main className="p-4 sm:p-6 lg:p-8 w-full">
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
-            </div>
-          }>
-            <div className="max-w-[2800px] mx-auto w-full">
-              {children}
-            </div>
-          </Suspense>
-        </main>
-      </div>
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8">
+        <Suspense fallback={
+          <div className="flex items-center justify-center p-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--theme-accent)' }}></div>
+          </div>
+        }>
+          <div className="max-w-[2800px] mx-auto w-full">
+            {children}
+          </div>
+        </Suspense>
+      </main>
 
-      {/* Footer */}
+      {/* Footer - Fixed at bottom */}
       <Footer />
 
       {/* Sidebar */}

@@ -5,7 +5,7 @@ import { Phone } from 'lucide-react'
 export default function Footer() {
   return (
     <footer 
-      className="relative overflow-hidden z-50"
+      className="relative overflow-hidden flex-shrink-0"
       style={{ 
         background: 'var(--theme-background)',
         fontFamily: 'var(--font-uni-salar)'

@@ -2,10 +2,10 @@
 
 import { formatCurrency } from '@/lib/numberUtils'
 import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronDown, Globe, Store } from 'lucide-react'
 import { useState } from 'react'
-import CartItem from './CartItem'
 import { FaFacebook, FaWhatsapp } from 'react-icons/fa'
-import { Store, Globe } from 'lucide-react'
+import CartItem from './CartItem'
 
 interface CartItemType {
   id: string
@@ -36,7 +36,7 @@ interface CartSidebarProps {
   onCreateCustomer: () => void
 }
 
-// Brand icon components with proper colors
+// Brand icon components with proper colors and larger sizes (32px+)
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="url(#instagram-gradient)">
     <defs>
@@ -58,47 +58,47 @@ const TikTokIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-// Order source options with Kurdish labels and brand icons
+// Order source options with Kurdish labels and larger brand icons (32px+)
 const ORDER_SOURCE_OPTIONS = [
   { 
     value: 'Instagram', 
     label: 'ئینستاگرام', 
     icon: InstagramIcon,
-    iconClassName: 'w-7 h-7'
+    iconClassName: 'w-8 h-8'
   },
   { 
     value: 'Facebook', 
     label: 'فەیسبووک', 
     icon: FaFacebook,
-    iconClassName: 'w-7 h-7',
+    iconClassName: 'w-8 h-8',
     iconColor: '#1877F2'
   },
   { 
     value: 'TikTok', 
     label: 'تیکتۆک', 
     icon: TikTokIcon,
-    iconClassName: 'w-7 h-7',
+    iconClassName: 'w-8 h-8',
     iconColor: '#000000'
   },
   { 
     value: 'WhatsApp', 
     label: 'وەتسئەپ', 
     icon: FaWhatsapp,
-    iconClassName: 'w-7 h-7',
+    iconClassName: 'w-8 h-8',
     iconColor: '#25D366'
   },
   { 
     value: 'In-Store', 
     label: 'فرۆشگا', 
     icon: Store,
-    iconClassName: 'w-7 h-7',
+    iconClassName: 'w-8 h-8',
     iconColor: '#6B7280'
   },
   { 
     value: 'Other', 
     label: 'تر', 
     icon: Globe,
-    iconClassName: 'w-7 h-7',
+    iconClassName: 'w-8 h-8',
     iconColor: '#6B7280'
   },
 ]
@@ -220,7 +220,7 @@ export default function CartSidebar({
           <select
             value={selectedCustomer}
             onChange={(e) => onCustomerChange(e.target.value)}
-            className="w-full px-2 py-1 rounded border shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-300 text-xs"
+            className="w-full px-2 py-2 rounded border shadow-sm focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all duration-300 text-xs h-10"
             style={{ 
               backgroundColor: 'var(--theme-card-bg)',
               borderColor: 'var(--theme-border)',
@@ -237,7 +237,7 @@ export default function CartSidebar({
           </select>
         </motion.div>
 
-        {/* Order Source Selection - Touch-friendly button */}
+        {/* Order Source Selection - Touch-friendly button with ChevronDown - consistent height */}
         <motion.div
           className="space-y-1"
           initial={{ opacity: 0, y: 10 }}
@@ -246,7 +246,7 @@ export default function CartSidebar({
         >
           <motion.button
             onClick={() => setShowOrderSourceModal(true)}
-            className="w-full px-3 py-3 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between"
+            className="w-full px-3 py-2 rounded-xl border shadow-sm transition-all duration-300 flex items-center justify-between h-10"
             style={{ 
               backgroundColor: 'var(--theme-card-bg)',
               borderColor: 'var(--theme-border)',
@@ -260,7 +260,7 @@ export default function CartSidebar({
               <CurrentIcon className={`${currentSource?.iconClassName || 'w-5 h-5'}`} style={{ color: currentSource?.iconColor }} />
               <span className="text-sm">{currentSourceLabel}</span>
             </span>
-            <span className="text-lg">▼</span>
+            <ChevronDown className="w-4 h-4 opacity-60" />
           </motion.button>
         </motion.div>
 
@@ -273,13 +273,12 @@ export default function CartSidebar({
               exit={{ opacity: 0 }}
               className="fixed inset-0 flex items-center justify-center p-4 z-[99999]"
             >
-              {/* Backdrop */}
+              {/* Backdrop - Darker with blur */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={() => setShowOrderSourceModal(false)}
               />
               
@@ -295,13 +294,13 @@ export default function CartSidebar({
                   border: '1px solid var(--theme-card-border)'
                 }}
               >
-                {/* Header */}
+                {/* Header with top margin */}
                 <div 
-                  className="p-4 border-b text-center"
+                  className="p-4 pb-2 border-b text-center"
                   style={{ borderColor: 'var(--theme-card-border)' }}
                 >
                   <h3 
-                    className="text-lg font-bold"
+                    className="text-lg font-bold mt-2"
                     style={{ 
                       color: 'var(--theme-foreground)',
                       fontFamily: 'var(--font-uni-salar)' 
@@ -311,7 +310,7 @@ export default function CartSidebar({
                   </h3>
                 </div>
 
-                {/* Options Grid */}
+                {/* Options Grid with improved button layout */}
                 <div className="p-4">
                   <div className="grid grid-cols-2 gap-3">
                     {ORDER_SOURCE_OPTIONS.map((option) => {

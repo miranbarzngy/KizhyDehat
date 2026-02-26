@@ -21,9 +21,11 @@ interface CartSidebarProps {
   selectedCustomer: string
   discount: number
   customerRequired: boolean
+  orderSource: string
   onPaymentMethodChange: (method: 'cash' | 'fib' | 'debt') => void
   onDiscountChange: (discount: number) => void
   onCustomerChange: (customerId: string) => void
+  onOrderSourceChange: (source: string) => void
   onUpdateQuantity: (id: string, quantity: number) => void
   onRemove: (id: string) => void
   onCompleteSale: () => void
@@ -31,15 +33,28 @@ interface CartSidebarProps {
   onCreateCustomer: () => void
 }
 
+// Order source options with Kurdish labels
+const ORDER_SOURCE_OPTIONS = [
+  { value: '', label: 'سەرچاوەی داواکاری' },
+  { value: 'Instagram', label: 'ئینستاگرام' },
+  { value: 'Facebook', label: 'فەیسبووک' },
+  { value: 'TikTok', label: 'تیکتۆک' },
+  { value: 'WhatsApp', label: 'وەتسئەپ' },
+  { value: 'In-Store', label: 'فرۆشگا' },
+  { value: 'Other', label: 'تر...' },
+]
+
 export default function CartSidebar({
   cart,
   paymentMethod,
   selectedCustomer,
   discount,
   customerRequired,
+  orderSource,
   onPaymentMethodChange,
   onDiscountChange,
   onCustomerChange,
+  onOrderSourceChange,
   onUpdateQuantity,
   onRemove,
   onCompleteSale,
@@ -146,6 +161,32 @@ export default function CartSidebar({
             {customers.map((customer) => (
               <option key={customer.id} value={customer.id}>
                 {customer.name}
+              </option>
+            ))}
+          </select>
+        </motion.div>
+
+        {/* Order Source Selection */}
+        <motion.div
+          className="space-y-1"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <select
+            value={orderSource}
+            onChange={(e) => onOrderSourceChange(e.target.value)}
+            className="w-full px-2 py-1 rounded border shadow-sm focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all duration-300 text-xs"
+            style={{ 
+              backgroundColor: 'var(--theme-card-bg)',
+              borderColor: 'var(--theme-border)',
+              color: 'var(--theme-foreground)',
+              fontFamily: 'var(--font-uni-salar)'
+            }}
+          >
+            {ORDER_SOURCE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

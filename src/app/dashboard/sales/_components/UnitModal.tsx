@@ -1,7 +1,7 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
 import { calculateUnitPrice, formatCurrency, safeStringToNumber } from '@/lib/numberUtils'
+import { AnimatePresence, motion } from 'framer-motion'
 
 interface UnitModalProps {
   isOpen: boolean
@@ -82,12 +82,14 @@ export default function UnitModal({
                   بڕ
                 </label>
                 <motion.input
-                  type="text"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
                   value={quantity}
                   onChange={(e) => onQuantityChange(safeStringToNumber(e.target.value).toString())}
                   className="w-full px-4 py-3 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-center text-xl font-bold text-gray-100"
                   style={{ fontFamily: 'Inter, sans-serif' }}
-                  placeholder="0.00"
+                  placeholder="0.0"
                   autoFocus
                   whileFocus={{ scale: 1.02 }}
                 />
@@ -106,7 +108,7 @@ export default function UnitModal({
                       نرخ: {formatCurrency(unitPrice)} IQD
                     </p>
                     <p className="text-sm text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      نرخ بەپێی یەکەی {item.unit}
+                      نرخ بەپێی  {item.unit}
                     </p>
                   </motion.div>
                 )}

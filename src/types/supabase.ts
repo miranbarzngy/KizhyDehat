@@ -546,6 +546,7 @@ export type Database = {
           invoice_number: number | null
           items_count: number | null
           notes: string | null
+          order_source: string | null
           payment_method: string | null
           sold_by: string | null
           status: string | null
@@ -563,6 +564,7 @@ export type Database = {
           invoice_number?: number | null
           items_count?: number | null
           notes?: string | null
+          order_source?: string | null
           payment_method?: string | null
           sold_by?: string | null
           status?: string | null
@@ -580,6 +582,7 @@ export type Database = {
           invoice_number?: number | null
           items_count?: number | null
           notes?: string | null
+          order_source?: string | null
           payment_method?: string | null
           sold_by?: string | null
           status?: string | null

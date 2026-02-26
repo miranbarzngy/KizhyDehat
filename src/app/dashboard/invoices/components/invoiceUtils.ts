@@ -10,6 +10,7 @@ export interface Invoice {
   payment_method: string
   date: string
   items_count: number
+  order_source?: string
 }
 
 export interface InvoiceSettings {

@@ -240,6 +240,16 @@ export function InvoiceTemplate({ data }: { data: any }) {
               <div style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", fontWeight: 'bold', color: '#111827', fontSize: '18px', direction: 'ltr' }}>
                 {data?.invoiceNumber && data.invoiceNumber > 0 ? `#${toKurdishDigits(data.invoiceNumber)}` : <span style={{ fontFamily: "'Uni Salar', var(--font-uni-salar), sans-serif", fontSize: '12px' }}>پسوڵەی کاتی</span>}
               </div>
+              {data?.orderSource && (
+                <div style={{ marginTop: '4px', padding: '4px 8px', borderRadius: '12px', backgroundColor: '#8b5cf6', color: 'white', fontSize: '11px', fontWeight: '600', display: 'inline-block' }}>
+                {data.orderSource === 'Instagram' ? 'ئینستاگرام' :
+                 data.orderSource === 'Facebook' ? 'فەیسبووک' :
+                 data.orderSource === 'TikTok' ? 'تیکتۆک' :
+                 data.orderSource === 'WhatsApp' ? 'وەتسئەپ' :
+                 data.orderSource === 'In-Store' ? 'فرۆشگا' :
+                 data.orderSource}
+              </div>
+              )}
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px', ...kurdishStyle }}>کڕیار</div>
@@ -694,6 +704,7 @@ export function buildInvoiceData(saleData: any, invoice: { id: string; invoice_n
     date: new Date(invoice.date).toLocaleDateString('en-US'),
     time: formattedTime,
     paymentMethod: invoice.payment_method || saleData?.payment_method || 'cash',
+    orderSource: saleData?.order_source || '',
     items,
     subtotal,
     discount: discountAmount,

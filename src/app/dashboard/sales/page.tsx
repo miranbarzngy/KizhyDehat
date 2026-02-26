@@ -58,6 +58,7 @@ export default function SalesPage() {
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [discount, setDiscount] = useState(0)
   const [customerRequired, setCustomerRequired] = useState(false)
+  const [orderSource, setOrderSource] = useState('')
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
@@ -186,7 +187,7 @@ export default function SalesPage() {
       const { data: saleData, error: saleError } = await supabase.from('sales').insert({
         customer_id: selectedCustomer, total, payment_method: paymentMethod, user_id: user?.id,
         sold_by: userName, discount_amount: discount, subtotal: total + discount, items_count: cart.length,
-        status: 'pending', created_at: new Date().toISOString()
+        status: 'pending', created_at: new Date().toISOString(), order_source: orderSource || null
       }).select('id, total, payment_method, date, invoice_number').single()
       if (saleError) throw saleError
 
@@ -203,7 +204,7 @@ export default function SalesPage() {
 
       const saleItems = cart.map(item => ({
         sale_id: saleData.id, item_id: item.item.id, item_name: item.item.name, category: item.item.category,
-        quantity: item.baseQuantity, unit: item.item.unit, price: item.price, cost_price: item.item.cost_per_unit || 0,
+        quantity: item.quantity, unit: item.item.unit, price: item.price, cost_price: item.item.cost_per_unit || 0,
         total: item.total, date: new Date().toISOString().split('T')[0]
       }))
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems)
@@ -257,7 +258,7 @@ export default function SalesPage() {
       // Open global modal instead of local state
       openModal(invoiceData, saleData.id, 'پسوڵەی فرۆشتن')
 
-      setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false)
+      setCart([]); setPaymentMethod('cash'); setSelectedCustomer(''); setDiscount(0); setCustomerRequired(false); setOrderSource('')
       
       // Refresh inventory to show updated stock amounts
       const invResult = await fetchWithRetry(async () => {
@@ -455,10 +456,12 @@ export default function SalesPage() {
         paymentMethod={paymentMethod} 
         selectedCustomer={selectedCustomer} 
         discount={discount} 
-        customerRequired={customerRequired} 
+        customerRequired={customerRequired}
+        orderSource={orderSource}
         onPaymentMethodChange={setPaymentMethod} 
         onDiscountChange={setDiscount} 
-        onCustomerChange={setSelectedCustomer} 
+        onCustomerChange={setSelectedCustomer}
+        onOrderSourceChange={setOrderSource}
         onUpdateQuantity={updateQuantity} 
         onRemove={removeFromCart} 
         onCompleteSale={completeSale} 

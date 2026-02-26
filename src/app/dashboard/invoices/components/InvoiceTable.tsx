@@ -40,6 +40,9 @@ export default function InvoiceTable({
                 شێوازی پارەدان
               </th>
               <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                سەرچاوە
+              </th>
+              <th className="px-2 md:px-6 py-3 md:py-4 text-center font-semibold text-gray-900 dark:text-gray-200 text-xs md:text-sm" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                 کردار
               </th>
             </tr>
@@ -91,6 +94,27 @@ export default function InvoiceTable({
                       'قەرز'}
                   </span>
                 </td>
+                <td className="px-2 md:px-6 py-3 md:py-4 text-center">
+                  {(invoice as any).order_source ? (
+                    <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium ${
+                      (invoice as any).order_source === 'Instagram' ? 'bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-300' :
+                      (invoice as any).order_source === 'Facebook' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' :
+                      (invoice as any).order_source === 'TikTok' ? 'bg-black dark:bg-gray-700 text-white dark:text-gray-200' :
+                      (invoice as any).order_source === 'WhatsApp' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300' :
+                      (invoice as any).order_source === 'In-Store' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300' :
+                      'bg-gray-100 dark:bg-gray-500/20 text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {(invoice as any).order_source === 'Instagram' ? 'ئینستاگرام' :
+                       (invoice as any).order_source === 'Facebook' ? 'فەیسبووک' :
+                       (invoice as any).order_source === 'TikTok' ? 'تیکتۆک' :
+                       (invoice as any).order_source === 'WhatsApp' ? 'وەتسئەپ' :
+                       (invoice as any).order_source === 'In-Store' ? 'فرۆشگا' :
+                       (invoice as any).order_source}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
                 <td className="px-2 md:px-6 py-4">
                   <div className="flex flex-row-reverse gap-2 items-start justify-center">
                     {/* بینین - Blue */}
@@ -115,7 +139,7 @@ export default function InvoiceTable({
             ))}
             {filteredInvoices.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={8} className="px-6 py-12 text-center">
                   <div className="text-gray-500">
                     <svg className="text-4xl mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     </svg>

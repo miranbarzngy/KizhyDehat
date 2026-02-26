@@ -170,6 +170,7 @@ export function useInventoryData(): UseInventoryDataReturn {
         .from('products')
         .select('id, name, total_amount_bought, unit, cost_per_unit, selling_price_per_unit, category, image, barcode1, barcode2, barcode3, barcode4, added_date, expire_date, note, supplier_id, is_archived, reference_id')
         .or('is_archived.is.null,is_archived.eq.false')
+        .order('name', { ascending: true })
         .limit(100)
       if (error) { console.error('Error:', error); return }
       const validProducts = (data || []).filter((item: any) => (item.total_amount_bought || 0) > 0).map((item: any) => ({ ...item, is_archived: item.is_archived || false }))
@@ -259,17 +260,17 @@ export function useInventoryData(): UseInventoryDataReturn {
 
   const fetchCategories = useCallback(async () => {
     if (!supabase) return
-    try { const { data } = await supabase.from('categories').select('*'); setCategories(data || []) } catch {}
+    try { const { data } = await supabase.from('categories').select('*').order('name', { ascending: true }); setCategories(data || []) } catch {}
   }, [])
 
   const fetchUnits = useCallback(async () => {
     if (!supabase) return
-    try { const { data } = await supabase.from('units').select('*'); setUnits(data || []) } catch {}
+    try { const { data } = await supabase.from('units').select('*').order('name', { ascending: true }); setUnits(data || []) } catch {}
   }, [])
 
   const fetchSuppliers = useCallback(async () => {
     if (!supabase) { setSuppliers([{ id: '1', name: 'کۆمپانیا', balance: 0 }]); return }
-    try { const { data } = await supabase.from('suppliers').select('*'); setSuppliers(data || []) } catch {}
+    try { const { data } = await supabase.from('suppliers').select('*').order('name', { ascending: true }); setSuppliers(data || []) } catch {}
   }, [])
 
   const fetchSoldProductIds = useCallback(async () => {

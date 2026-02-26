@@ -58,47 +58,47 @@ const TikTokIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-// Order source options with Kurdish labels and larger brand icons (32px+)
+// Order source options with Kurdish labels and brand icons
 const ORDER_SOURCE_OPTIONS = [
   { 
     value: 'Instagram', 
     label: 'ئینستاگرام', 
     icon: InstagramIcon,
-    iconClassName: 'w-8 h-8'
+    iconClassName: 'w-7 h-7'
   },
   { 
     value: 'Facebook', 
     label: 'فەیسبووک', 
     icon: FaFacebook,
-    iconClassName: 'w-8 h-8',
+    iconClassName: 'w-7 h-7',
     iconColor: '#1877F2'
   },
   { 
     value: 'TikTok', 
     label: 'تیکتۆک', 
     icon: TikTokIcon,
-    iconClassName: 'w-8 h-8',
+    iconClassName: 'w-7 h-7',
     iconColor: '#000000'
   },
   { 
     value: 'WhatsApp', 
     label: 'وەتسئەپ', 
     icon: FaWhatsapp,
-    iconClassName: 'w-8 h-8',
+    iconClassName: 'w-7 h-7',
     iconColor: '#25D366'
   },
   { 
     value: 'In-Store', 
     label: 'فرۆشگا', 
     icon: Store,
-    iconClassName: 'w-8 h-8',
+    iconClassName: 'w-7 h-7',
     iconColor: '#6B7280'
   },
   { 
     value: 'Other', 
     label: 'تر', 
     icon: Globe,
-    iconClassName: 'w-8 h-8',
+    iconClassName: 'w-7 h-7',
     iconColor: '#6B7280'
   },
 ]
@@ -288,19 +288,19 @@ export default function CartSidebar({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 transition={{ type: 'spring', duration: 0.5 }}
-                className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+                className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto"
                 style={{
                   background: 'var(--theme-card-bg)',
                   border: '1px solid var(--theme-card-border)'
                 }}
               >
-                {/* Header with top margin */}
+                {/* Header */}
                 <div 
-                  className="p-4 pb-2 border-b text-center"
+                  className="p-3 pb-2 border-b text-center"
                   style={{ borderColor: 'var(--theme-card-border)' }}
                 >
                   <h3 
-                    className="text-lg font-bold mt-2"
+                    className="text-base font-bold"
                     style={{ 
                       color: 'var(--theme-foreground)',
                       fontFamily: 'var(--font-uni-salar)' 
@@ -310,9 +310,9 @@ export default function CartSidebar({
                   </h3>
                 </div>
 
-                {/* Options Grid with improved button layout */}
-                <div className="p-4">
-                  <div className="grid grid-cols-2 gap-3">
+                {/* Options Grid with compact layout */}
+                <div className="p-3">
+                  <div className="grid grid-cols-2 gap-2">
                     {ORDER_SOURCE_OPTIONS.map((option) => {
                       const isSelected = orderSource === option.value
                       const IconComponent = option.icon
@@ -320,7 +320,7 @@ export default function CartSidebar({
                         <motion.button
                           key={option.value}
                           onClick={() => handleOrderSourceSelect(option.value)}
-                          className={`p-4 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-2 relative ${
+                          className={`p-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-1 relative ${
                             isSelected 
                               ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30' 
                               : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
@@ -342,7 +342,7 @@ export default function CartSidebar({
                             {option.label}
                           </span>
                           {isSelected && (
-                            <span className="absolute top-2 right-2 text-purple-500">✓</span>
+                            <span className="absolute top-1 right-1 text-purple-500 text-xs">✓</span>
                           )}
                         </motion.button>
                       )
@@ -350,8 +350,8 @@ export default function CartSidebar({
                   </div>
                 </div>
 
-                {/* Close Button */}
-                <div className="p-4 pt-0">
+                {/* Close Button with bottom margin */}
+                <div className="p-3 pt-0 mb-2">
                   <motion.button
                     onClick={() => setShowOrderSourceModal(false)}
                     whileHover={{ scale: 1.02 }}

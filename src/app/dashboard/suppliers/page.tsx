@@ -96,10 +96,46 @@ export default function SuppliersPage() {
 
   useEffect(() => { fetchSuppliers() }, [])
 
+  // Real-time subscription for suppliers
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel('suppliers-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'suppliers' },
+        (payload) => {
+          const eventType = payload.eventType
+          const newRecord = payload.new
+          const oldRecord = payload.old
+
+          if (eventType === 'INSERT') {
+            setSuppliers(prev => {
+              if (prev.some(s => s.id === newRecord.id)) return prev
+              const updated = [...prev, newRecord]
+              return updated.sort((a, b) => a.name.localeCompare(b.name, 'ku'))
+            })
+          } else if (eventType === 'UPDATE') {
+            setSuppliers(prev => prev.map(item => 
+              item.id === newRecord.id ? { ...item, ...newRecord } : item
+            ).sort((a, b) => a.name.localeCompare(b.name, 'ku')))
+          } else if (eventType === 'DELETE') {
+            setSuppliers(prev => prev.filter(item => item.id !== oldRecord.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const fetchSuppliers = async () => {
     if (!supabase) { setSuppliers([]); setLoading(false); return }
     
-    const { data: suppliersData } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
+    const { data: suppliersData } = await supabase.from('suppliers').select('*').order('name', { ascending: true })
     
     if (!suppliersData || suppliersData.length === 0) {
       setSuppliers([])

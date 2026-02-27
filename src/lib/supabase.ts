@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '../types/supabase'
 
 // Singleton pattern for Supabase client - initialized at module load time
-let supabaseInstance: ReturnType<typeof createClient<Database>>
+let supabaseInstance: SupabaseClient<Database> | null = null
 
-export function getSupabase() {
+export function getSupabase(): SupabaseClient<Database> {
   if (supabaseInstance) return supabaseInstance
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -19,13 +19,49 @@ export function getSupabase() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      // Use a more reliable storage mechanism
+      storage: {
+        getItem: (key: string): string | null => {
+          if (typeof window === 'undefined') return null
+          try {
+            return window.localStorage.getItem(key)
+          } catch (e) {
+            console.error('Error reading from localStorage:', e)
+            return null
+          }
+        },
+        setItem: (key: string, value: string): void => {
+          if (typeof window === 'undefined') return
+          try {
+            window.localStorage.setItem(key, value)
+          } catch (e) {
+            console.error('Error writing to localStorage:', e)
+          }
+        },
+        removeItem: (key: string): void => {
+          if (typeof window === 'undefined') return
+          try {
+            window.localStorage.removeItem(key)
+          } catch (e) {
+            console.error('Error removing from localStorage:', e)
+          }
+        }
+      },
       onRefreshToken: (token) => {
         console.log('🔄 Supabase: Token refreshed', token?.access_token?.slice(0, 10) + '...')
+      },
+      onAccessTokenExpired: () => {
+        console.log('⚠️ Supabase: Access token expired, attempting refresh...')
       }
     },
     global: {
       headers: { 'x-application-name': 'posup' }
+    },
+    // Add retry configuration for network issues
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
     }
   })
 

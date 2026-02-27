@@ -23,6 +23,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   profile: ProfileData | null
+  profileLoading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
   // Function to fetch profile with role and permissions
   const fetchProfile = useCallback(async (userId: string, userEmail?: string) => {
@@ -73,14 +75,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Fetch profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      // Use API to fetch profile data (bypasses RLS)
+      let profileData: any = null
+      
+      try {
+        const profileResponse = await fetch('/api/profiles')
+        if (profileResponse.ok) {
+          const { profiles } = await profileResponse.json()
+          profileData = profiles?.find((p: any) => p.id === userId)
+        }
+      } catch (apiError) {
+        console.warn('Failed to fetch profile via API, trying direct query:', apiError)
+        // Fallback to direct query
+        const { data, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+        profileData = data
+      }
 
-      if (profileError || !profileData) {
+      if (!profileData) {
         console.log('No profile found for user:', userId)
         return null
       }
@@ -104,18 +119,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let roleData: RoleData | null = null
       
       if (profileData.role_id) {
-        // Normal role fetching
-        const { data: role, error: roleError } = await supabase
-          .from('roles')
-          .select('name, permissions')
-          .eq('id', profileData.role_id)
-          .single()
-
-        if (!roleError && role) {
-          roleData = {
-            name: role.name,
-            permissions: role.permissions || {}
+        // ALWAYS use the API route to bypass RLS issues
+        // This ensures the client can always read roles
+        try {
+          const response = await fetch('/api/roles')
+          if (response.ok) {
+            const { roles } = await response.json()
+            const role = roles?.find((r: any) => r.id === profileData.role_id)
+            if (role) {
+              console.log('✅ Role fetched via API:', role.name)
+              roleData = {
+                name: role.name,
+                permissions: role.permissions || {}
+              }
+            } else {
+              console.warn('⚠️ Role not found in API response, role_id:', profileData.role_id)
+            }
+          } else {
+            console.error('❌ API /roles returned error:', response.status)
           }
+        } catch (apiError) {
+          console.error('❌ Failed to fetch roles via API:', apiError)
         }
       }
 
@@ -153,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setLoading(false)
+      setProfileLoading(false)
     })
 
     // Listen for auth state changes - this is our single source of truth
@@ -182,21 +207,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               setProfile(null)
             }
+            setProfileLoading(false)
             break
         }
         setLoading(false)
       }
     )
 
-    // Window focus listener - wake up session
+    // Window focus listener - wake up session and refresh data
     const handleFocus = async () => {
       if (document.visibilityState === 'visible') {
         console.log('👁️ Window focused, waking up session...')
         try {
-          const { data: { user: freshUser } } = await supabase.auth.getUser()
-          if (freshUser) {
-            setUser(freshUser)
-            setSession(await supabase.auth.getSession())
+          // First try to get the current session from storage
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          
+          if (currentSession) {
+            // Session exists, try to refresh it
+            const { data: { user: freshUser }, error: refreshError } = await supabase.auth.getUser()
+            
+            if (refreshError) {
+              console.warn('⚠️ Session refresh error:', refreshError.message)
+              // Try to recover by getting a new session
+              const { data: { session: newSession }, error: sessionError } = await supabase.auth.refreshSession()
+              if (sessionError || !newSession) {
+                console.error('❌ Session recovery failed:', sessionError)
+                // Session is invalid, sign out
+                await supabase.auth.signOut()
+                window.location.href = '/login?reason=session_expired'
+                return
+              }
+              setSession(newSession)
+              setUser(newSession.user)
+            } else if (freshUser) {
+              setUser(freshUser)
+              setSession(currentSession)
+            }
+            
             // Also refresh profile data and check if user is still active
             const profileData = await fetchProfile(freshUser.id, freshUser.email || undefined)
             setProfile(profileData)
@@ -207,11 +254,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await supabase.auth.signOut()
               window.location.href = '/login?reason=inactive'
             }
+          } else {
+            // No session found - might be logged out, redirect to login
+            console.log('⚠️ No session found on focus')
+            setUser(null)
+            setSession(null)
+            setProfile(null)
+            // Only redirect if we're not already on login page
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login?reason=session_expired'
+            }
           }
         } catch (error: any) {
           console.warn('⚠️ Wake up failed:', error?.message)
           // Only redirect on actual auth errors
-          if (error?.message?.includes('401') || error?.message?.includes('403')) {
+          if (error?.message?.includes('401') || error?.message?.includes('403') || error?.message?.includes('session')) {
             await supabase.auth.signOut()
             window.location.href = '/login'
           }
@@ -237,19 +294,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error, data } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     
-    // Check if user's profile has is_active = false
+    // Check if user's profile has is_active = false (using API to bypass RLS)
     if (data.user) {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_active')
-          .eq('id', data.user.id)
-          .single()
-        
-        if (profile?.is_active === false) {
-          // Sign out the user and throw error
-          await supabase.auth.signOut()
-          throw new Error('ئەم هەژمارە ڕاگیراوە، تکایە پەیوەندی بە بەڕێوەبەرەوە بکە.')
+        const response = await fetch('/api/profiles')
+        if (response.ok) {
+          const { profiles } = await response.json()
+          const userProfile = profiles?.find((p: any) => p.id === data.user?.id)
+          
+          if (userProfile?.is_active === false) {
+            // Sign out the user and throw error
+            await supabase.auth.signOut()
+            throw new Error('ئەم هەژمارە ڕاگیراوە، تکایە پەیوەندی بە بەڕێوەبەرەوە بکە.')
+          }
         }
       } catch (profileError: any) {
         // If profile fetch fails, allow login (profile might not exist yet)
@@ -278,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profile, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profile, profileLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )

@@ -33,7 +33,7 @@ const menuItems = [
 ]
 
 export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
-  const { user, profile } = useAuth()
+  const { user, profile, profileLoading } = useAuth()
   const pathname = usePathname()
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(true)
 
@@ -65,40 +65,30 @@ export default function Header({ shopSettings, onProfileClick }: HeaderProps) {
     }
   }, [])
 
+  // Debug logging
+  console.log('Header - profileLoading:', profileLoading)
+  console.log('Header - profile:', profile)
+  console.log('Header - profile?.role:', profile?.role)
+  
   // Get permissions from profile role
-  // If no role/permissions, deny access to everything except dashboard
-  const permissions = profile?.role?.permissions || {
-    dashboard: true,
-    sales: false,
-    inventory: false,
-    customers: false,
-    suppliers: false,
-    invoices: false,
-    expenses: false,
-    profits: false,
-    help: false,
-    admin: false
-  }
-
-  // Ensure all permissions are defined (for roles that might not have all keys)
-  const safePermissions = {
-    dashboard: true,
-    sales: false,
-    inventory: false,
-    customers: false,
-    suppliers: false,
-    invoices: false,
-    expenses: false,
-    profits: false,
-    help: false,
-    admin: false,
-    ...permissions
-  }
-
-  const filteredMenuItems = menuItems.filter(item => {
-    if (item.permission) return safePermissions[item.permission as keyof typeof safePermissions]
-    return true
-  })
+  // Only filter menu items when profile is fully loaded
+  const userPermissions = profile?.role?.permissions || {}
+  
+  // Check if profile is loaded and has permissions
+  const hasPermissions = !profileLoading && profile && profile.role && Object.keys(userPermissions).length > 0
+  
+  console.log('Header - hasPermissions:', hasPermissions)
+  console.log('Header - userPermissions:', userPermissions)
+  
+  // Filter menu items based on permissions
+  const filteredMenuItems = hasPermissions 
+    ? menuItems.filter(item => {
+        // Always show dashboard
+        if (item.permission === 'dashboard') return true;
+        // Check other permissions
+        return userPermissions[item.permission] === true;
+      })
+    : menuItems // Show all while loading, PermissionGuard will handle page access
 
   return (
     <div 

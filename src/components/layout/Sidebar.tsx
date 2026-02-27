@@ -41,7 +41,7 @@ interface ProfileData {
 }
 
 export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps) {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, profileLoading, signOut } = useAuth()
   const router = useRouter()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
@@ -49,21 +49,25 @@ export default function Sidebar({ shopSettings, isOpen, onClose }: SidebarProps)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Use profile from AuthContext directly
+  // Use profile from AuthContext directly - wait for profile to load
   useEffect(() => {
-    if (isOpen) {
-      // Small delay to allow profile to load from auth context
-      const timer = setTimeout(() => {
-        setLoading(false)
-      }, 100)
-      return () => clearTimeout(timer)
+    if (isOpen && !profileLoading) {
+      // Profile has loaded, show the sidebar content
+      setLoading(false)
+    } else if (isOpen && profileLoading) {
+      // Still loading, show loading state
+      setLoading(true)
     }
-  }, [isOpen, profile])
+  }, [isOpen, profile, profileLoading])
 
-  // Use profile from auth context
+  // Use profile from auth context - properly handle role
   const displayName = profile?.name || user?.email?.split('@')[0] || 'بەکارهێنەر'
   const displayImage = profile?.image || null
-  const displayRole = profile?.role?.name || 'ڕۆڵی نەناسراو'
+  
+  // Check for super admin first
+  const SUPER_ADMIN_EMAIL = 'superadmin@clickgroup.com'
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()
+  const displayRole = isSuperAdmin ? 'سوپەر ئادمین' : (profile?.role?.name || 'ڕۆڵی نەناسراو')
 
   const handleSignOut = async () => {
     await signOut()

@@ -66,11 +66,24 @@ export default function PermissionGuard({ permission, children }: PermissionGuar
         // Default to ALLOW if permissions not loaded yet
         const hasPermission = safePermissions[permission as keyof typeof safePermissions]
         
-        // Only redirect if user explicitly has false for permission
-        if (hasPermission === false && Object.keys(userPermissions).length > 0) {
-          // User explicitly does not have permission, redirect to dashboard
-          router.push('/dashboard')
-          return
+        // Check if user has a role with permissions defined
+        const roleHasPermissions = profile?.role?.permissions && Object.keys(profile.role.permissions).length > 0
+        
+        // If role has explicit permissions, check them
+        // If role doesn't have permissions defined, deny by default (safer)
+        if (roleHasPermissions) {
+          // Role has permissions - check if user explicitly has this permission
+          if (hasPermission === false) {
+            router.push('/dashboard')
+            return
+          }
+        } else {
+          // Role doesn't have explicit permissions - check if this is not the default admin/superadmin
+          // For non-admin users with no explicit permissions, deny by default
+          if (!isAdmin && permission !== 'dashboard') {
+            router.push('/dashboard')
+            return
+          }
         }
       }
     }

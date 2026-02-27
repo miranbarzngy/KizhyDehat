@@ -9,6 +9,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { FaBox, FaEdit, FaList, FaPlus, FaSearch, FaTh, FaTimes, FaTrash } from 'react-icons/fa'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
+import PermissionGuard from '@/components/PermissionGuard'
 
 const SupplierCard = dynamic(() => import('@/components/suppliers/SupplierCard').then(mod => mod.default), { ssr: false })
 const SupplierTable = dynamic(() => import('@/components/suppliers/SupplierTable').then(mod => mod.default), { ssr: false })
@@ -674,6 +675,7 @@ export default function SuppliersPage() {
   }
 
   return (
+    <PermissionGuard permission="suppliers">
     <div className="p-6 pl-0 md:pl-6">
       <h1 className="text-3xl font-bold mb-8" style={{ color: 'var(--theme-foreground)', fontFamily: 'var(--font-uni-salar)' }}>
         بەڕێوەبردنی دابینکاران
@@ -1027,5 +1029,6 @@ export default function SuppliersPage() {
         type="danger"
       />
     </div>
+    </PermissionGuard>
   )
 }

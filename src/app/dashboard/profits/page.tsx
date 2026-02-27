@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import PermissionGuard from '@/components/PermissionGuard'
 import SalesTab from './components/SalesTab'
 import ProfitStats, { SalesTypeCards } from './components/ProfitStats'
 import ProfitsTab from './components/ProfitsTab'
@@ -468,6 +469,7 @@ export default function ProfitsPage() {
   }
 
   return (
+    <PermissionGuard permission="profits">
     <div className="w-full pl-0 ml-0 max-w-[2800px] mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-uni-salar)' }}>ڕاپۆرتی دارایی</h1>
@@ -541,5 +543,6 @@ export default function ProfitsPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   )
 }

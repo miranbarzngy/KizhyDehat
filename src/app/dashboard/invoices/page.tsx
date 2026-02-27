@@ -10,6 +10,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { FaCog, FaEye, FaFileInvoice, FaFilter, FaQrcode, FaSave, FaSearch, FaTimes, FaUpload } from 'react-icons/fa'
 import InvoiceTable from './components/InvoiceTable'
+import PermissionGuard from '@/components/PermissionGuard'
 
 interface InvoiceSettings {
   id?: number
@@ -458,6 +459,7 @@ export default function InvoicesPage() {
   const hasActiveFilters = startDate || endDate || searchQuery || orderSourceFilter
 
   return (
+    <PermissionGuard permission="invoices">
     <div className="p-4 md:p-6 w-full">
       <div className="w-full max-w-[2800px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -971,5 +973,6 @@ export default function InvoicesPage() {
         type="success"
       />
     </div>
+    </PermissionGuard>
   )
 }

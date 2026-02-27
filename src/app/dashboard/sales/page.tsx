@@ -14,6 +14,7 @@ import { useGlobalInvoiceModal } from '@/hooks/useGlobalInvoiceModal'
 import { useToast } from '@/components/Toast'
 import { logActivity, ActivityActions, EntityTypes } from '@/lib/activityLogger'
 import LoadingTimeout from '@/components/common/LoadingTimeout'
+import PermissionGuard from '@/components/PermissionGuard'
 
 interface InventoryItem {
   id: string
@@ -362,6 +363,7 @@ export default function SalesPage() {
   }
 
   return (
+    <PermissionGuard permission="sales">
     <div className="h-full flex flex-col lg:flex-row gap-1 lg:gap-6">
       <div className="h-[35vh] lg:h-full lg:flex-1 lg:w-2/3 overflow-hidden">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="h-full flex flex-col">
@@ -560,5 +562,6 @@ export default function SalesPage() {
       />
       <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
     </div>
+    </PermissionGuard>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useTheme } from '@/contexts/ThemeContext'
 import { motion } from 'framer-motion'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // Animation variants for staggered entrance
 const containerVariants = {
@@ -45,6 +46,7 @@ export default function HelpPage() {
   const { themeConfig } = useTheme()
 
   return (
+    <PermissionGuard permission="help">
     <div className="min-h-screen w-full max-w-[2800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Section */}
       <motion.header 
@@ -370,5 +372,6 @@ export default function HelpPage() {
 
       </motion.div>
     </div>
+    </PermissionGuard>
   )
 }

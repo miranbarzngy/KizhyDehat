@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect } from 'react'
 import { FaCalculator, FaEdit, FaImage, FaMoneyBillWave, FaPlus, FaTrash, FaUpload } from 'react-icons/fa'
 import { useExpensesData } from '@/components/expenses/useExpensesData'
+import PermissionGuard from '@/components/PermissionGuard'
 
 export default function ExpensesPage() {
   const {
@@ -30,6 +31,7 @@ export default function ExpensesPage() {
   }
 
   return (
+    <PermissionGuard permission="expenses">
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -441,5 +443,6 @@ export default function ExpensesPage() {
         )}
       </AnimatePresence>
     </motion.div>
+    </PermissionGuard>
   )
 }

@@ -192,73 +192,89 @@ export default function DashboardPage() {
     }
 
     try {
-      // Get current month's date range
+      // Get current month as YYYY-MM strings
       const now = new Date()
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      const currentYear = now.getFullYear()
+      const currentMonth = String(now.getMonth() + 1).padStart(2, '0')
+      const currentMonthStr = `${currentYear}-${currentMonth}`
       
-      const startDate = firstDayOfMonth.toISOString().split('T')[0]
-      const endDate = lastDayOfMonth.toISOString().split('T')[0]
+      console.log('Looking for current month:', currentMonthStr)
+
+      // Fetch ALL sales
+      const { data: allSalesData, error: salesError } = await supabase.from('sales')
+        .select('total, subtotal, discount_amount, date, status')
       
-      console.log('Monthly stats range:', startDate, 'to', endDate)
-
-      // Only fetch completed sales for this month
-      const { data: salesData } = await supabase.from('sales')
-        .select('total, subtotal, discount_amount, date')
-        .eq('status', 'completed')
-        .gte('date', startDate)
-        .lte('date', endDate)
+      if (salesError) {
+        console.error('Error fetching sales:', salesError)
+      }
+      console.log('Total sales fetched:', allSalesData?.length || 0)
+      console.log('Sample sales:', allSalesData?.slice(0, 3))
       
-      const totalSales = salesData?.reduce((sum, sale) => sum + sale.total, 0) || 0
+      // Filter by comparing YYYY-MM strings (avoid timezone issues)
+      const completedStatuses = ['completed', 'delivered', 'sold', null, undefined, '']
+      
+      const monthlySales = allSalesData?.filter((sale: any) => {
+        if (!sale.date) return false
+        // Extract YYYY-MM from the date
+        const saleMonth = sale.date.substring(0, 7)
+        const isInMonth = saleMonth === currentMonthStr
+        // Include sales with any status that's considered "completed" OR no status at all (legacy data)
+        const isCompleted = !sale?.status || completedStatuses.includes(sale?.status)
+        return isInMonth && isCompleted
+      }) || []
+      
+      console.log('Monthly sales found:', monthlySales.length, 'month:', currentMonthStr)
+      const totalSales = monthlySales.reduce((sum, sale) => sum + (sale.total || 0), 0)
+      console.log('Total sales value:', totalSales)
 
-      // Count pending orders waiting for approval
-      const { count: pendingOrders } = await supabase.from('sales').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+      // Count pending orders
+      const pendingOrders = allSalesData?.filter((sale: any) => sale.status === 'pending').length || 0
 
-      // Calculate inventory expenses from completed sales only for this month
-      const { data: saleItemsData } = await supabase.from('sale_items')
+      // Get all sale_items
+      const { data: allSaleItems } = await supabase.from('sale_items')
         .select('quantity, cost_price, sales!inner(status, date)')
-        .eq('sales.status', 'completed')
-        .gte('sales.date', startDate)
-        .lte('sales.date', endDate)
       
-      const inventoryExpenses = saleItemsData?.reduce((sum, item) => 
-        sum + (item.cost_price || 0) * (item.quantity || 0), 0) || 0
+      // Filter for completed sales in this month
+      const monthlySaleItems = allSaleItems?.filter((item: any) => {
+        if (!item.sales?.date) return false
+        const saleMonth = item.sales.date.substring(0, 7)
+        const isInMonth = saleMonth === currentMonthStr
+        const isCompleted = !item.sales?.status || completedStatuses.includes(item.sales.status)
+        return isInMonth && isCompleted
+      }) || []
+      
+      const inventoryExpenses = monthlySaleItems.reduce((sum, item) => 
+        sum + ((item.cost_price || 0) * (item.quantity || 0)), 0)
 
-      // Get expenses for this month only
-      const { data: expensesData } = await supabase.from('expenses')
-        .select('amount')
-        .gte('date', startDate)
-        .lte('date', endDate)
+      // Get all expenses
+      const { data: allExpenses } = await supabase.from('expenses')
+        .select('amount, date')
       
-      const generalExpenses = expensesData?.reduce((sum, expense) => sum + expense.amount, 0) || 0
+      const monthlyExpenses = allExpenses?.filter((expense: any) => {
+        if (!expense.date) return false
+        const expenseMonth = expense.date.substring(0, 10) // YYYY-MM-DD
+        return expenseMonth.startsWith(currentMonthStr)
+      }) || []
+      
+      const generalExpenses = monthlyExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0)
       const totalExpenses = inventoryExpenses + generalExpenses
       const netProfit = totalSales - totalExpenses
+      console.log('Total expenses:', totalExpenses, 'Net profit:', netProfit)
 
-      // Get today's date in local timezone (matching what's stored in the database)
-      const today = new Date()
-      const todayYear = today.getFullYear()
-      const todayMonth = String(today.getMonth() + 1).padStart(2, '0')
-      const todayDay = String(today.getDate()).padStart(2, '0')
-      const todayStr = `${todayYear}-${todayMonth}-${todayDay}`
-      
-      // Debug: log the date we're searching for
-      console.log('Looking for today sales with date:', todayStr)
-      
-      // Fetch all completed sales and filter client-side for today (most reliable method)
-      const { data: allCompletedSales } = await supabase.from('sales')
-        .select('total, date')
-        .eq('status', 'completed')
+      // Get today's date as YYYY-MM-DD
+      const todayStr = `${currentYear}-${currentMonth}-${String(now.getDate()).padStart(2, '0')}`
       
       // Filter client-side for today's date
-      let todaySales = 0
-      if (allCompletedSales && allCompletedSales.length > 0) {
-        const todaySalesList = allCompletedSales.filter((sale: any) => {
-          const saleDate = sale.date ? sale.date.split('T')[0] : null
-          return saleDate === todayStr
-        })
-        todaySales = todaySalesList.reduce((sum, sale) => sum + (sale.total || 0), 0)
-        console.log('Today sales found:', todaySalesList.length, 'Total:', todaySales)
-      }
+      const todaySalesList = allSalesData?.filter((sale: any) => {
+        if (!sale.date) return false
+        // Extract YYYY-MM-DD from the date
+        const saleDate = sale.date.substring(0, 10)
+        const isCompleted = !sale?.status || completedStatuses.includes(sale?.status)
+        return saleDate === todayStr && isCompleted
+      }) || []
+      
+      const todaySales = todaySalesList.reduce((sum, sale) => sum + (sale.total || 0), 0)
+      console.log('Today sales found:', todaySalesList.length, 'Date:', todayStr, 'Total:', todaySales)
 
       const { count: totalCustomers } = await supabase.from('customers').select('*', { count: 'exact', head: true })
 
@@ -304,14 +320,14 @@ export default function DashboardPage() {
         lowStockCount
       })
 
-      // Get all completed sales for chart data (filter client-side for reliability)
-      const { data: allChartSales } = await supabase.from('sales')
-        .select('total, date')
-        .eq('status', 'completed')
+      // Prepare chart data - filter for completed sales (including legacy records with no status)
+      const chartSales = allSalesData?.filter((sale: any) => 
+        !sale?.status || completedStatuses.includes(sale?.status)
+      ) || []
+      const chartExpenses = allExpenses || []
+      console.log('Chart sales (all time):', chartSales.length)
       
-      const { data: allExpenses } = await supabase.from('expenses')
-        .select('amount, date')
-      
+      // Build chart data for last 7 days using string comparison
       const chartDataPoints: ChartData[] = []
       for (let i = 6; i >= 0; i--) {
         const date = new Date()
@@ -323,25 +339,19 @@ export default function DashboardPage() {
         const dateDay = String(date.getDate()).padStart(2, '0')
         const dateStr = `${dateYear}-${dateMonth}-${dateDay}`
         
-        // Filter sales client-side for this date
-        let daySalesTotal = 0
-        if (allChartSales && allChartSales.length > 0) {
-          const daySalesList = allChartSales.filter((sale: any) => {
-            const saleDate = sale.date ? sale.date.split('T')[0] : null
-            return saleDate === dateStr
-          })
-          daySalesTotal = daySalesList.reduce((sum, sale) => sum + (sale.total || 0), 0)
-        }
+        // Filter sales using string comparison
+        const daySales = chartSales.filter((sale: any) => {
+          if (!sale.date) return false
+          return sale.date.substring(0, 10) === dateStr
+        })
+        const daySalesTotal = daySales.reduce((sum, sale) => sum + (sale.total || 0), 0)
         
-        // Filter expenses client-side for this date
-        let dayExpensesTotal = 0
-        if (allExpenses && allExpenses.length > 0) {
-          const dayExpensesList = allExpenses.filter((expense: any) => {
-            const expenseDate = expense.date ? expense.date.split('T')[0] : null
-            return expenseDate === dateStr
-          })
-          dayExpensesTotal = dayExpensesList.reduce((sum, expense) => sum + (expense.amount || 0), 0)
-        }
+        // Filter expenses using string comparison
+        const dayExpensesList = chartExpenses.filter((expense: any) => {
+          if (!expense.date) return false
+          return expense.date.substring(0, 10) === dateStr
+        })
+        const dayExpensesTotal = dayExpensesList.reduce((sum, expense) => sum + (expense.amount || 0), 0)
         
         const dayProfit = daySalesTotal - dayExpensesTotal
 
@@ -352,6 +362,7 @@ export default function DashboardPage() {
           profit: Math.round(dayProfit)
         })
       }
+      console.log('Chart data:', chartDataPoints)
 
       const { data: recentSalesData } = await supabase
         .from('sales')

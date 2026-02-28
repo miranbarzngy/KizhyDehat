@@ -127,16 +127,16 @@ export function useAdminData(): UseAdminDataReturn {
   const fetchShopSettings = useCallback(async () => {
     if (!supabase) { setShopSettings(DEMO_SETTINGS); setShopSettingsForm(DEMO_SETTINGS); return; }
     try {
-      // Fetch from shop_settings table
-      const { data, error } = await supabase.from("shop_settings").select("*").single();
+      // Fetch from invoice_settings table (shop_settings was deleted)
+      const { data, error } = await supabase.from("invoice_settings").select("*").single();
       if (error && error.code !== "PGRST116") throw error;
       setShopSettings(data || null);
       if (data) setShopSettingsForm({ 
-        shop_name: data.shopname || '', 
-        shop_logo: data.icon || '', 
-        shop_phone: data.phone || '', 
-        shop_address: data.location || '', 
-        qr_code_url: data.qrcodeimage || ''
+        shop_name: data.shop_name || '', 
+        shop_logo: data.shop_logo || '', 
+        shop_phone: data.shop_phone || '', 
+        shop_address: data.shop_address || '', 
+        qr_code_url: data.qr_code_url || ''
       });
     } catch { }
   }, []);
@@ -437,8 +437,8 @@ export function useAdminData(): UseAdminDataReturn {
     try {
       console.log("Saving shop settings...", { shopSettings, shopSettingsForm });
       
-      // Get the raw data to see what columns exist
-      const { data: currentData } = await supabase.from("shop_settings").select("*").single();
+      // Get the raw data from invoice_settings (shop_settings was deleted)
+      const { data: currentData } = await supabase.from("invoice_settings").select("*").single();
       
       console.log("Current DB data:", currentData);
       
@@ -447,14 +447,23 @@ export function useAdminData(): UseAdminDataReturn {
         return;
       }
       
-      // Build update data from only the columns that exist in the database
+      // Build update data from invoice_settings
       const updateData: Record<string, string> = {};
       
-      if ('shopname' in currentData) {
-        updateData.shopname = shopSettingsForm.shop_name || '';
+      if (currentData && 'shop_name' in currentData) {
+        updateData.shop_name = shopSettingsForm.shop_name || '';
       }
-      if ('icon' in currentData) {
-        updateData.icon = shopSettingsForm.shop_logo || '';
+      if (currentData && 'shop_logo' in currentData) {
+        updateData.shop_logo = shopSettingsForm.shop_logo || '';
+      }
+      if (currentData && 'shop_phone' in currentData) {
+        updateData.shop_phone = shopSettingsForm.shop_phone || '';
+      }
+      if (currentData && 'shop_address' in currentData) {
+        updateData.shop_address = shopSettingsForm.shop_address || '';
+      }
+      if (currentData && 'qr_code_url' in currentData) {
+        updateData.qr_code_url = shopSettingsForm.qr_code_url || '';
       }
       
       console.log("Update data:", updateData);
@@ -464,7 +473,7 @@ export function useAdminData(): UseAdminDataReturn {
         return;
       }
       
-      const result = await supabase.from("shop_settings").update(updateData).eq("id", currentData.id);
+      const result = await supabase.from("invoice_settings").update(updateData).eq("id", currentData.id);
       
       if (result.error) {
         console.error("Save error:", result.error);

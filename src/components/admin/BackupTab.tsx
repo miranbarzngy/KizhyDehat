@@ -19,14 +19,13 @@ import { FaCheck, FaClock, FaDownload, FaExclamationTriangle, FaGoogleDrive, FaL
 
 // Tables ordered by dependencies (child tables first to avoid FK errors)
 // Delete order: child tables -> parent tables
+// Note: supplier_debts, supplier_purchases, and shop_settings have been deleted
 const TABLES_DELETE_ORDER = [
   'sale_items',        // depends on sales
   'customer_payments', // depends on customers
   'supplier_payments', // depends on suppliers
   'supplier_transactions', // depends on suppliers
-  'supplier_debts',    // depends on suppliers
-  'purchase_expenses', // depends on supplier_purchases
-  'supplier_purchases',// depends on suppliers
+  'purchase_expenses', // independent
   'sales',             // depends on customers, products
   'products',          // independent
   'customers',         // independent
@@ -37,11 +36,11 @@ const TABLES_DELETE_ORDER = [
   'roles',             // independent
   'expenses',          // independent
   'activity_logs',     // independent
-  'shop_settings',     // independent
   'invoice_settings'   // independent
 ];
 
 // List of all tables to backup (same order as delete for consistency)
+// Note: supplier_debts, supplier_purchases, and shop_settings have been deleted
 const TABLES = [
   'products',
   'sales',
@@ -50,10 +49,7 @@ const TABLES = [
   'customer_payments',
   'suppliers',
   'supplier_payments',
-  'supplier_purchases',
   'supplier_transactions',
-  'supplier_debts',
-  'shop_settings',
   'invoice_settings',
   'categories',
   'units',

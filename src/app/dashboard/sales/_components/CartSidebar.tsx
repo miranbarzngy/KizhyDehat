@@ -34,6 +34,7 @@ interface CartSidebarProps {
   onCompleteSale: () => void
   customers: { id: string; name: string }[]
   onCreateCustomer: () => void
+  isProcessing?: boolean
 }
 
 // Brand icon components with proper colors and larger sizes (32px+)
@@ -118,7 +119,8 @@ export default function CartSidebar({
   onRemove,
   onCompleteSale,
   customers,
-  onCreateCustomer
+  onCreateCustomer,
+  isProcessing = false
 }: CartSidebarProps) {
   const total = cart.reduce((sum, item) => sum + item.total, 0) - discount
   const [showOrderSourceModal, setShowOrderSourceModal] = useState(false)
@@ -445,20 +447,34 @@ export default function CartSidebar({
         {/* Complete Sale Button */}
         <motion.button
           onClick={onCompleteSale}
-          disabled={cart.length === 0 || !selectedCustomer}
+          disabled={cart.length === 0 || !selectedCustomer || isProcessing}
           className="w-full py-5 px-3 bg-blue-600 hover:bg-blue-700 dark:bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           style={{ fontFamily: 'var(--font-uni-salar)' }}
-          whileHover={{ scale: cart.length > 0 && selectedCustomer ? 1.01 : 1, y: cart.length > 0 && selectedCustomer ? -0.5 : 0 }}
-          whileTap={{ scale: cart.length > 0 && selectedCustomer ? 0.99 : 1 }}
+          whileHover={{ scale: (cart.length > 0 && selectedCustomer && !isProcessing) ? 1.01 : 1, y: (cart.length > 0 && selectedCustomer && !isProcessing) ? -0.5 : 0 }}
+          whileTap={{ scale: (cart.length > 0 && selectedCustomer && !isProcessing) ? 0.99 : 1 }}
         >
           <span className="flex items-center justify-center space-x-1">
-            <span>{!selectedCustomer ? 'کڕیار' : 'فرۆشتن'}</span>
-            <motion.span
-              animate={{ x: (cart.length > 0 && selectedCustomer) ? [0, 3, 0] : 0 }}
-              transition={{ duration: 1.5, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0 }}
-            >
-              💰
-            </motion.span>
+            {isProcessing ? (
+              <>
+                <span>چاوەڕوانبە...</span>
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  ⏳
+                </motion.span>
+              </>
+            ) : (
+              <>
+                <span>{!selectedCustomer ? 'کڕیار' : 'فرۆشتن'}</span>
+                <motion.span
+                  animate={{ x: (cart.length > 0 && selectedCustomer) ? [0, 3, 0] : 0 }}
+                  transition={{ duration: 1.5, repeat: (cart.length > 0 && selectedCustomer) ? Infinity : 0 }}
+                >
+                  💰
+                </motion.span>
+              </>
+            )}
           </span>
         </motion.button>
       </div>

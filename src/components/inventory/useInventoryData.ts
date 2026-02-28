@@ -353,11 +353,12 @@ export function useInventoryData(): UseInventoryDataReturn {
       const { data: productData } = await supabase.from('products').select('reference_id').eq('id', itemId).single()
       const referenceId = productData?.reference_id
 
-      if (referenceId) {
-        await supabase.from('supplier_debts').delete().eq('reference_id', referenceId)
-      } else {
-        await supabase.from('supplier_debts').delete().eq('note', itemName.trim())
-      }
+      // Note: supplier_debts table has been deleted, skip this cleanup
+      // if (referenceId) {
+      //   await supabase.from('supplier_debts').delete().eq('reference_id', referenceId)
+      // } else {
+      //   await supabase.from('supplier_debts').delete().eq('note', itemName.trim())
+      // }
 
       if (referenceId) {
         await supabase.from('supplier_transactions').delete().eq('reference_id', referenceId)

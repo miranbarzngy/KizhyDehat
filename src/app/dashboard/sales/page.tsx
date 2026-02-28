@@ -75,6 +75,7 @@ export default function SalesPage() {
   const [inventoryError, setInventoryError] = useState<string | null>(null)
   const [customersError, setCustomersError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const mountedRef = useRef(true)
 
   const getFilteredInventory = (): InventoryItem[] => selectedCategory === 'all' ? inventory : inventory.filter(i => i.category === selectedCategory)
@@ -248,8 +249,12 @@ export default function SalesPage() {
   const getTotal = () => cart.reduce((sum, item) => sum + item.total, 0) - discount
 
   const completeSale = async () => {
+    // Prevent double processing
+    if (isProcessing) return
     if (cart.length === 0 || !selectedCustomer) { if (!selectedCustomer) setCustomerRequired(true); return }
     if (!supabase) { alert('Supabase not configured'); return }
+
+    setIsProcessing(true)
 
     try {
       const total = getTotal()
@@ -337,7 +342,13 @@ export default function SalesPage() {
           cost_per_unit: item.cost_per_unit
         })))
       }
-    } catch (error) { console.error('Error:', error); alert('هەڵە لە تۆمارکردن') }
+    } catch (error) { 
+      console.error('Error:', error); 
+      alert('هەڵە لە تۆمارکردن') 
+    } finally {
+      // Always reset processing state when done
+      setIsProcessing(false)
+    }
   }
 
   const handleCustomerSelect = (customer: Customer) => { setSelectedCustomer(customer.id); setSelectedCustomerData(customer); setCustomerSearchTerm(''); setShowCustomerDropdown(false); setCustomerRequired(false) }
@@ -558,7 +569,8 @@ export default function SalesPage() {
         onRemove={removeFromCart} 
         onCompleteSale={completeSale} 
         customers={customers.map(c => ({ id: c.id, name: c.name }))} 
-        onCreateCustomer={handleCreateCustomer} 
+        onCreateCustomer={handleCreateCustomer}
+        isProcessing={isProcessing}
       />
       <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
     </div>

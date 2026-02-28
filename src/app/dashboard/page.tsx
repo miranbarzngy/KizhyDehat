@@ -397,9 +397,22 @@ export default function DashboardPage() {
     }
 
     try {
-      const { data, error } = await supabase.from('shop_settings').select('*').single()
+      // Use invoice_settings table (shop_settings was deleted)
+      const { data, error } = await supabase.from('invoice_settings').select('*').single()
       if (error && error.code !== 'PGRST116') throw error
-      setShopSettings(data || null)
+      if (data) {
+        // Map invoice_settings to shopSettings format
+        setShopSettings({
+          id: data.id,
+          shopname: data.shop_name || '',
+          icon: data.shop_logo || '',
+          phone: data.shop_phone || '',
+          location: data.shop_address || '',
+          qrcodeimage: data.qr_code_url || ''
+        })
+      } else {
+        setShopSettings(null)
+      }
     } catch (error) {
       console.error('Error fetching shop settings:', error)
     }

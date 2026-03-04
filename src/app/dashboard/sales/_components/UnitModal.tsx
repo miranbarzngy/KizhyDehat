@@ -1,7 +1,8 @@
 'use client'
 
-import { calculateUnitPrice, formatCurrency, safeStringToNumber } from '@/lib/numberUtils'
+import { formatCurrency, safeStringToNumber } from '@/lib/numberUtils'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useRef, useEffect } from 'react'
 
 interface UnitModalProps {
   isOpen: boolean
@@ -11,7 +12,9 @@ interface UnitModalProps {
     selling_price_per_unit: number
   } | null
   quantity: string
+  priceInput: string
   onQuantityChange: (value: string) => void
+  onPriceChange: (value: string) => void
   onConfirm: () => void
   onClose: () => void
 }
@@ -20,13 +23,32 @@ export default function UnitModal({
   isOpen,
   item,
   quantity,
+  priceInput,
   onQuantityChange,
+  onPriceChange,
   onConfirm,
   onClose
 }: UnitModalProps) {
+  const priceInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus and select price input when modal opens
+  useEffect(() => {
+    if (isOpen && priceInputRef.current) {
+      setTimeout(() => {
+        priceInputRef.current?.focus()
+        priceInputRef.current?.select()
+      }, 100)
+    }
+  }, [isOpen])
+
   if (!isOpen || !item) return null
 
-  const unitPrice = calculateUnitPrice(item.selling_price_per_unit, item.unit, item.unit, safeStringToNumber(quantity))
+  // The manual price IS the total (final price for the selected quantity)
+  const qty = safeStringToNumber(quantity)
+  const price = safeStringToNumber(priceInput)
+  // Price input is now the TOTAL, not price per unit
+  const total = price // Use manual price directly as total
+  const isValid = qty > 0 && price > 0
 
   return (
     <AnimatePresence>
@@ -76,7 +98,7 @@ export default function UnitModal({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.25 }}
               >
                 <label className="block text-sm font-semibold mb-3 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                   بڕ
@@ -87,7 +109,7 @@ export default function UnitModal({
                   min="0.1"
                   value={quantity}
                   onChange={(e) => onQuantityChange(safeStringToNumber(e.target.value).toString())}
-                  className="w-full px-4 py-3 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-center text-xl font-bold text-gray-100"
+                  className="w-full px-4 py-4 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-center text-xl font-bold text-gray-100"
                   style={{ fontFamily: 'Inter, sans-serif' }}
                   placeholder="0.0"
                   autoFocus
@@ -95,20 +117,48 @@ export default function UnitModal({
                 />
               </motion.div>
 
+              {/* Price Input Field - Selling Price - Large and Easy to Tap */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <label className="block text-sm font-semibold mb-3 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  نرخی فرۆشتن
+                </label>
+                <motion.input
+                  ref={priceInputRef}
+                  type="number"
+                  step="100"
+                  min="0"
+                  value={priceInput}
+                  onChange={(e) => onPriceChange(safeStringToNumber(e.target.value).toString())}
+                  className="w-full px-4 py-5 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-purple-500/50 focus:outline-none text-center text-2xl font-bold text-gray-100"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                  placeholder="0"
+                  whileFocus={{ scale: 1.02 }}
+                />
+                {/* Helper text in Kurdish */}
+                <p className="text-xs text-gray-400 mt-2 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                  تکایە نرخەکە لێرە دیاری بکە
+                </p>
+              </motion.div>
+
+              {/* Real-time Total Display */}
               <AnimatePresence>
                 {quantity && safeStringToNumber(quantity) > 0 && (
                   <motion.div
-                    className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md rounded-xl border border-white/10"
+                    className="p-5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md rounded-xl border-2 border-purple-500/30"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: 0.4 }}
+                    transition={{ delay: 0.15 }}
                   >
-                    <p className="text-lg font-bold text-gray-100 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      نرخ: {formatCurrency(unitPrice)} IQD
+                    <p className="text-2xl font-bold text-white mb-1 text-center" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      کۆی گشتی: {formatCurrency(total)} IQD
                     </p>
-                    <p className="text-sm text-gray-400" style={{ fontFamily: 'var(--font-uni-salar)' }}>
-                      نرخ بەپێی  {item.unit}
+                    <p className="text-sm text-gray-300 text-center" style={{ fontFamily: 'var(--font-uni-salar)' }}>
+                      {price.toLocaleString()} × {qty} {item.unit}
                     </p>
                   </motion.div>
                 )}
@@ -120,11 +170,11 @@ export default function UnitModal({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
               >
-                {[0.25, 0.5, 1, 2].map((qty, index) => (
+                {[0.25, 0.5, 1, 2].map((qtyValue, index) => (
                   <motion.button
-                    key={qty}
-                    onClick={() => onQuantityChange(qty.toString())}
-                    className="py-3 bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 text-gray-200 font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                    key={qtyValue}
+                    onClick={() => onQuantityChange(qtyValue.toString())}
+                    className="py-4 bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 text-gray-200 font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 text-lg"
                     style={{ fontFamily: 'Inter, sans-serif' }}
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
@@ -132,7 +182,7 @@ export default function UnitModal({
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.6 + index * 0.1 }}
                   >
-                    {qty}
+                    {qtyValue}
                   </motion.button>
                 ))}
               </motion.div>
@@ -155,11 +205,11 @@ export default function UnitModal({
               </motion.button>
               <motion.button
                 onClick={onConfirm}
-                disabled={!quantity || safeStringToNumber(quantity) <= 0}
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!isValid}
+                className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 style={{ fontFamily: 'var(--font-uni-salar)' }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={isValid ? { scale: 1.05, y: -2 } : {}}
+                whileTap={isValid ? { scale: 0.95 } : {}}
               >
                 زیادکردن
               </motion.button>

@@ -57,6 +57,7 @@ export default function SalesPage() {
   const [showUnitModal, setShowUnitModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [quantityInput, setQuantityInput] = useState('')
+  const [priceInput, setPriceInput] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib' | 'debt'>('cash')
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [discount, setDiscount] = useState(0)
@@ -217,7 +218,10 @@ export default function SalesPage() {
       showError('بڕی پێویست لە کۆگا نەماوە!')
       return
     }
-    setSelectedItem(item); setQuantityInput(''); setShowUnitModal(true) 
+    setSelectedItem(item)
+    setQuantityInput('')
+    setPriceInput(item.selling_price_per_unit.toString())
+    setShowUnitModal(true) 
   }
 
   const addUnitItem = () => {
@@ -230,14 +234,29 @@ export default function SalesPage() {
       return
     }
     
-    const unitPrice = calculateUnitPrice(selectedItem.selling_price_per_unit, selectedItem.unit, selectedItem.unit, quantity)
+    // Use the manually entered price as the TOTAL (not price per unit)
+    const manualPrice = safeStringToNumber(priceInput)
+    if (manualPrice <= 0) {
+      showError('تکایە نرخێکی دروست بنووسە!')
+      return
+    }
+    
+    // The manual price IS the total - use it directly
+    const total = manualPrice
+    // Calculate unit price for display purposes only: total / quantity
+    const unitPrice = quantity > 0 ? total / quantity : total
+    
     const cartItem: CartItem = {
-      id: Date.now().toString(), item: selectedItem, quantity,
-      unit: selectedItem.unit, price: unitPrice / quantity, total: unitPrice,
+      id: Date.now().toString(), 
+      item: selectedItem, 
+      quantity,
+      unit: selectedItem.unit, 
+      price: unitPrice, // Store unit price for display (total/quantity)
+      total: total, // Total is exactly what user entered
       baseQuantity: convertUnits(quantity, selectedItem.unit, selectedItem.unit)
     }
     setCart(prev => [...prev, cartItem])
-    setShowUnitModal(false); setSelectedItem(null); setQuantityInput('')
+    setShowUnitModal(false); setSelectedItem(null); setQuantityInput(''); setPriceInput('')
   }
 
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id))
@@ -572,7 +591,16 @@ export default function SalesPage() {
         onCreateCustomer={handleCreateCustomer}
         isProcessing={isProcessing}
       />
-      <UnitModal isOpen={showUnitModal} item={selectedItem} quantity={quantityInput} onQuantityChange={setQuantityInput} onConfirm={addUnitItem} onClose={() => setShowUnitModal(false)} />
+      <UnitModal 
+        isOpen={showUnitModal} 
+        item={selectedItem} 
+        quantity={quantityInput} 
+        priceInput={priceInput}
+        onQuantityChange={setQuantityInput} 
+        onPriceChange={setPriceInput}
+        onConfirm={addUnitItem} 
+        onClose={() => setShowUnitModal(false)} 
+      />
     </div>
     </PermissionGuard>
   )

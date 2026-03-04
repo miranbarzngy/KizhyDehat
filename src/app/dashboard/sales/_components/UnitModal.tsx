@@ -103,18 +103,54 @@ export default function UnitModal({
                 <label className="block text-sm font-semibold mb-3 text-gray-300" style={{ fontFamily: 'var(--font-uni-salar)' }}>
                   بڕ
                 </label>
-                <motion.input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={quantity}
-                  onChange={(e) => onQuantityChange(safeStringToNumber(e.target.value).toString())}
-                  className="w-full px-4 py-4 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-center text-xl font-bold text-gray-100"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                  placeholder="0.0"
-                  autoFocus
-                  whileFocus={{ scale: 1.02 }}
-                />
+                {/* Touch-friendly quantity controls: [Large -] [Wide Input] [Large +] */}
+                <div className="flex items-center gap-3">
+                  {/* Minus Button - Large and Easy to Tap */}
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      const currentQty = safeStringToNumber(quantity)
+                      if (currentQty > 0.25) {
+                        onQuantityChange((currentQty - 0.25).toString())
+                      } else if (currentQty > 0.1) {
+                        onQuantityChange('0.1')
+                      }
+                    }}
+                    className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-500/20 border-2 border-red-200 dark:border-red-500/30 flex items-center justify-center text-red-600 dark:text-red-400 font-bold shadow-lg active:scale-95 transition-transform"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="text-3xl">−</span>
+                  </motion.button>
+                  
+                  {/* Quantity Input - Wide and Centered */}
+                  <motion.input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={quantity}
+                    onChange={(e) => onQuantityChange(safeStringToNumber(e.target.value).toString())}
+                    className="flex-1 px-4 py-4 rounded-xl border-0 bg-white/5 backdrop-blur-sm shadow-lg focus:ring-2 focus:ring-blue-500/50 focus:outline-none text-center text-2xl font-bold text-gray-100"
+                    style={{ fontFamily: 'Inter, sans-serif' }}
+                    placeholder="0.0"
+                    autoFocus
+                    whileFocus={{ scale: 1.02 }}
+                  />
+                  
+                  {/* Plus Button - Large and Easy to Tap */}
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      const currentQty = safeStringToNumber(quantity)
+                      onQuantityChange((currentQty + 0.25).toString())
+                    }}
+                    className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-500/20 border-2 border-green-200 dark:border-green-500/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold shadow-lg active:scale-95 transition-transform"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="text-3xl">+</span>
+                  </motion.button>
+                </div>
               </motion.div>
 
               {/* Price Input Field - Selling Price - Large and Easy to Tap */}
